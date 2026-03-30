@@ -1,8 +1,4 @@
 export default function LoginPage() {
-  const handleGoogle = () => {
-    window.location.href = '/api/auth/google';
-  };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <div className="text-center mb-10">
@@ -12,7 +8,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm space-y-3">
         <button
-          onClick={handleGoogle}
+          onClick={() => (window.location.href = '/api/auth/google')}
           className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 transition"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -25,17 +21,17 @@ export default function LoginPage() {
         </button>
 
         <button
-          disabled
-          className="w-full flex items-center justify-center gap-3 bg-yellow-300 rounded-lg px-4 py-3 text-gray-900 font-medium opacity-50 cursor-not-allowed"
+          onClick={() => (window.location.href = '/api/auth/kakao')}
+          className="w-full flex items-center justify-center gap-3 bg-yellow-300 rounded-lg px-4 py-3 text-gray-900 font-medium hover:bg-yellow-400 transition"
         >
-          카카오로 로그인 (준비 중)
+          카카오로 로그인
         </button>
 
         <button
-          disabled
-          className="w-full flex items-center justify-center gap-3 bg-green-500 rounded-lg px-4 py-3 text-white font-medium opacity-50 cursor-not-allowed"
+          onClick={() => (window.location.href = '/api/auth/naver')}
+          className="w-full flex items-center justify-center gap-3 bg-green-500 rounded-lg px-4 py-3 text-white font-medium hover:bg-green-600 transition"
         >
-          네이버로 로그인 (준비 중)
+          네이버로 로그인
         </button>
       </div>
     </div>
