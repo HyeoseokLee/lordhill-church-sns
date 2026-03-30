@@ -2,6 +2,7 @@ const express = require('express');
 const { z } = require('zod');
 const { authenticate, requireApproved } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { profileImageUpload, resizeAndUpload, generateKey } = require('../middleware/upload');
 const prisma = require('../config/db');
 
 const router = express.Router();
@@ -21,7 +22,7 @@ router.get('/me', authenticate, (req, res) => {
   res.json({ id, email, nickname, profileImageUrl, role, status, createdAt });
 });
 
-// 프로필 수정
+// 프로필 수정 (닉네임)
 router.patch('/me', authenticate, requireApproved, validate(updateProfileSchema), async (req, res) => {
   try {
     const data = {};
@@ -42,6 +43,22 @@ router.patch('/me', authenticate, requireApproved, validate(updateProfileSchema)
     }
     throw err;
   }
+});
+
+// 프로필 사진 업로드
+router.patch('/me/photo', authenticate, requireApproved, profileImageUpload.single('photo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '이미지 파일을 첨부해주세요.' });
+
+  const key = generateKey('profiles', req.file.originalname);
+  const url = await resizeAndUpload(req.file.buffer, key);
+
+  const user = await prisma.user.update({
+    where: { id: req.user.id },
+    data: { profileImageUrl: url },
+  });
+
+  const { id, email, nickname, profileImageUrl, role, status, createdAt } = user;
+  res.json({ id, email, nickname, profileImageUrl, role, status, createdAt });
 });
 
 // 다른 유저 프로필
