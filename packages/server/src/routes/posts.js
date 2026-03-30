@@ -1,7 +1,11 @@
 const express = require('express');
 const { z } = require('zod');
+const { GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { authenticate, requireApproved } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
+const { imageUpload, resizeAndUpload, generateKey, BUCKET } = require('../middleware/upload');
+const s3 = require('../config/s3');
 const prisma = require('../config/db');
 
 const router = express.Router();
@@ -59,21 +63,117 @@ router.get('/', authenticate, requireApproved, async (req, res) => {
   res.json({ posts: result, nextCursor });
 });
 
-// 포스트 작성
-router.post('/', authenticate, requireApproved, validate(createPostSchema), async (req, res) => {
+// 포스트 작성 (이미지 포함)
+router.post('/', authenticate, requireApproved, imageUpload.array('images', 10), async (req, res) => {
+  const content = req.body.content || '';
+  if (content.length > 2000) {
+    return res.status(400).json({ error: '최대 2000자까지 입력 가능합니다.' });
+  }
+
   const post = await prisma.post.create({
     data: {
       authorId: req.user.id,
-      content: req.validated.content,
+      content,
     },
+  });
+
+  // 이미지 리사이즈 + S3 업로드
+  if (req.files?.length > 0) {
+    const mediaPromises = req.files.map(async (file, index) => {
+      const key = generateKey('posts', file.originalname);
+      const url = await resizeAndUpload(file.buffer, key);
+      return prisma.postMedia.create({
+        data: {
+          postId: post.id,
+          mediaType: 'IMAGE',
+          url,
+          order: index,
+          confirmed: true,
+        },
+      });
+    });
+    await Promise.all(mediaPromises);
+  }
+
+  const result = await prisma.post.findFirst({
+    where: { id: post.id },
     include: {
       author: { select: { id: true, nickname: true, profileImageUrl: true } },
-      media: true,
+      media: { orderBy: { order: 'asc' } },
       _count: { select: { likes: true, comments: true } },
     },
   });
 
-  res.status(201).json(post);
+  res.status(201).json(result);
+});
+
+// 동영상 Presigned URL 발급
+router.post('/:id/upload-url', authenticate, requireApproved, async (req, res) => {
+  const postId = parseInt(req.params.id, 10);
+  const post = await prisma.post.findFirst({ where: { id: postId, deletedAt: null } });
+
+  if (!post) return res.status(404).json({ error: '포스트를 찾을 수 없습니다.' });
+  if (post.authorId !== req.user.id) return res.status(403).json({ error: '본인의 포스트에만 업로드할 수 있습니다.' });
+
+  const { contentType, fileName } = req.body;
+  const allowedTypes = ['video/mp4', 'video/quicktime'];
+  if (!allowedTypes.includes(contentType)) {
+    return res.status(400).json({ error: 'mp4, mov 형식만 허용됩니다.' });
+  }
+
+  const key = generateKey('videos', fileName || 'video.mp4');
+  const { PutObjectCommand } = require('@aws-sdk/client-s3');
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const signedUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+
+  // post_media 레코드 생성 (미확인 상태)
+  const media = await prisma.postMedia.create({
+    data: {
+      postId,
+      mediaType: 'VIDEO',
+      url: key, // 확인 후 전체 URL로 업데이트
+      order: 0,
+      confirmed: false,
+    },
+  });
+
+  res.json({ uploadUrl: signedUrl, mediaId: media.id, key });
+});
+
+// 동영상 업로드 확인
+router.post('/:id/media/confirm', authenticate, requireApproved, async (req, res) => {
+  const postId = parseInt(req.params.id, 10);
+  const { mediaId } = req.body;
+
+  const media = await prisma.postMedia.findFirst({
+    where: { id: mediaId, postId, confirmed: false },
+  });
+
+  if (!media) return res.status(404).json({ error: '미디어를 찾을 수 없습니다.' });
+
+  // S3에서 객체 존재 확인
+  try {
+    await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: media.url }));
+  } catch {
+    return res.status(400).json({ error: '파일이 아직 업로드되지 않았습니다.' });
+  }
+
+  const endpoint = process.env.AWS_S3_ENDPOINT;
+  const fullUrl = endpoint
+    ? `${endpoint}/${BUCKET}/${media.url}`
+    : `https://${BUCKET}.s3.${process.env.AWS_REGION}.amazonaws.com/${media.url}`;
+
+  await prisma.postMedia.update({
+    where: { id: mediaId },
+    data: { url: fullUrl, confirmed: true },
+  });
+
+  res.json({ message: '업로드 확인 완료', url: fullUrl });
 });
 
 // 포스트 상세
