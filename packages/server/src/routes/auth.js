@@ -64,6 +64,48 @@ router.get(
   oauthCallbackHandler
 );
 
+// ─── 개발용 로그인 (프로덕션에서 제거할 것) ───
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/dev-login', async (req, res) => {
+    // 개발용 테스트 계정 자동 생성/조회
+    let user = await prisma.user.findUnique({
+      where: { email: 'dev@lordhill.test' },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email: 'dev@lordhill.test',
+          nickname: '테스트유저',
+          provider: 'dev',
+          providerId: 'dev-001',
+          status: 'APPROVED',
+          role: 'ADMIN',
+        },
+      });
+    }
+
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      maxAge: 60 * 60 * 1000,
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/auth/refresh',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, nickname: user.nickname, role: user.role, status: user.status } });
+  });
+}
+
 // Auth code → 토큰 교환 (Capacitor 앱용)
 router.post('/exchange', async (req, res) => {
   const { code } = req.body;

@@ -1,4 +1,23 @@
+import { useNavigate } from 'react-router-dom';
+import api from '../lib/api';
+import useAuthStore from '../stores/authStore';
+
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const { fetchUser } = useAuthStore();
+
+  const handleDevLogin = async () => {
+    try {
+      const { data } = await api.post('/auth/dev-login');
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      await fetchUser();
+      navigate('/');
+    } catch (err) {
+      alert('로그인 실패: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
       <div className="text-center mb-10">
@@ -7,6 +26,23 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm space-y-3">
+        {/* 개발용 로그인 */}
+        <button
+          onClick={handleDevLogin}
+          className="w-full flex items-center justify-center gap-3 bg-blue-600 rounded-lg px-4 py-3 text-white font-medium hover:bg-blue-700 transition"
+        >
+          🔧 개발용 로그인 (테스트유저/관리자)
+        </button>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-gray-50 px-2 text-gray-400">소셜 로그인 (API 키 필요)</span>
+          </div>
+        </div>
+
         <button
           onClick={() => (window.location.href = '/api/auth/google')}
           className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 transition"
