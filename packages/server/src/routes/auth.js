@@ -6,47 +6,62 @@ const prisma = require('../config/db');
 
 const router = express.Router();
 
-// Google OAuth 시작
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
+// 공통 OAuth 콜백 핸들러
+function oauthCallbackHandler(req, res) {
+  const { accessToken, refreshToken } = generateTokens(req.user);
 
-// Google OAuth 콜백
+  // 웹 브라우저: 쿠키 설정
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 1000,
+  });
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/auth/refresh',
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  });
+
+  // Capacitor 앱: auth code 방식
+  const redirectUrl = req.query.redirect || req.query.state;
+  if (redirectUrl?.startsWith('lordhill://')) {
+    const authCode = jwt.sign(
+      { userId: req.user.id, type: 'auth_code' },
+      process.env.JWT_SECRET,
+      { expiresIn: '5m' }
+    );
+    return res.redirect(`${redirectUrl}?code=${authCode}`);
+  }
+
+  res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
+}
+
+// ─── Google ───
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
 router.get(
   '/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/auth/failure' }),
-  (req, res) => {
-    const { accessToken, refreshToken } = generateTokens(req.user);
+  oauthCallbackHandler
+);
 
-    // 웹 브라우저: 쿠키 설정 후 클라이언트로 리다이렉트
-    res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 1000, // 1시간
-    });
+// ─── Kakao ───
+router.get('/kakao', passport.authenticate('kakao', { session: false }));
+router.get(
+  '/kakao/callback',
+  passport.authenticate('kakao', { session: false, failureRedirect: '/auth/failure' }),
+  oauthCallbackHandler
+);
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/auth/refresh',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30일
-    });
-
-    // Capacitor 앱: auth code 방식으로 리다이렉트
-    const redirectUrl = req.query.redirect;
-    if (redirectUrl?.startsWith('lordhill://')) {
-      // 단기 auth code 발급 (JWT, 5분 만료)
-      const authCode = jwt.sign(
-        { userId: req.user.id, type: 'auth_code' },
-        process.env.JWT_SECRET,
-        { expiresIn: '5m' }
-      );
-      return res.redirect(`${redirectUrl}?code=${authCode}`);
-    }
-
-    // 웹 클라이언트로 리다이렉트
-    res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
-  }
+// ─── Naver ───
+router.get('/naver', passport.authenticate('naver', { session: false }));
+router.get(
+  '/naver/callback',
+  passport.authenticate('naver', { session: false, failureRedirect: '/auth/failure' }),
+  oauthCallbackHandler
 );
 
 // Auth code → 토큰 교환 (Capacitor 앱용)
@@ -91,7 +106,6 @@ router.post('/refresh', async (req, res) => {
 
     const tokens = generateTokens(user);
 
-    // 쿠키 갱신 (웹)
     res.cookie('accessToken', tokens.accessToken, {
       httpOnly: true,
       sameSite: 'lax',
@@ -112,7 +126,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: '로그아웃 되었습니다.' });
 });
 
-// 내 상태 확인 (토큰 유효성 + 승인 상태)
+// 내 상태 확인
 router.get('/me', authenticate, (req, res) => {
   const { id, email, nickname, profileImageUrl, role, status } = req.user;
   res.json({ id, email, nickname, profileImageUrl, role, status });
