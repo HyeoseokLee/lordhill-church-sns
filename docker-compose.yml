@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: lordhill-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: lordhill_sns
+      MYSQL_USER: lordhill
+      MYSQL_PASSWORD: lordhill123
+    ports:
+      - '3307:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: lordhill-localstack
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=ap-northeast-2
+    ports:
+      - '4566:4566'
+    volumes:
+      - localstack_data:/var/lib/localstack
+
+volumes:
+  mysql_data:
+  localstack_data:
