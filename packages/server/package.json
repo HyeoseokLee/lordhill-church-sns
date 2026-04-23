@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "NODE_CONFIG_DIR=./config nodemon src/index.js",
     "start": "NODE_CONFIG_DIR=./config node src/index.js",
-    "lint": "prettier --check 'src/**/*.js'",
+    "lint": "eslint 'src/**/*.js' --report-unused-disable-directives --max-warnings 0",
+    "prettier": "prettier --check 'src/**/*.js'",
     "format": "prettier --write 'src/**/*.js'",
     "migration": "npx sequelize-cli migration:generate --name",
     "mig-all": "npx sequelize-cli db:migrate",
@@ -41,6 +42,10 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.5.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.4.2",
     "sequelize-cli": "^6.6.2"

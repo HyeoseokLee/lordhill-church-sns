@@ -64,8 +64,12 @@ export const getFeed = async (req, res) => {
     }),
   ]);
 
-  const likeMap = Object.fromEntries(likeCounts.map((l) => [l.postId, parseInt(l.count, 10)]));
-  const commentMap = Object.fromEntries(commentCounts.map((c) => [c.postId, parseInt(c.count, 10)]));
+  const likeMap = Object.fromEntries(
+    likeCounts.map((l) => [l.postId, parseInt(l.count, 10)]),
+  );
+  const commentMap = Object.fromEntries(
+    commentCounts.map((c) => [c.postId, parseInt(c.count, 10)]),
+  );
   const userLikeSet = new Set(userLikes.map((l) => l.postId));
 
   const result = items.map((post) => ({
@@ -137,7 +141,11 @@ export const createPost = async (req, res) => {
 
   const result = await models.Post.findByPk(post.id, {
     include: [
-      { model: models.User, as: 'author', attributes: ['id', 'nickname', 'profileImageUrl'] },
+      {
+        model: models.User,
+        as: 'author',
+        attributes: ['id', 'nickname', 'profileImageUrl'],
+      },
       { model: models.PostMedia, as: 'media' },
     ],
   });

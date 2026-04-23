@@ -72,18 +72,54 @@ const theme = createTheme({
         },
       },
       variants: [
-        { props: { variant: 'bold24' }, style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 24, lineHeight: 'normal' } },
-        { props: { variant: 'bold20' }, style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 20, lineHeight: 'normal' } },
-        { props: { variant: 'bold18' }, style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 18, lineHeight: 'normal' } },
-        { props: { variant: 'bold16' }, style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 16, lineHeight: 1.5 } },
-        { props: { variant: 'bold14' }, style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 14, lineHeight: 'normal' } },
-        { props: { variant: 'bold12' }, style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 12, lineHeight: 'normal' } },
-        { props: { variant: 'regular16' }, style: { fontFamily: FONT_FAMILY, fontWeight: 400, fontSize: 16, lineHeight: 'normal' } },
-        { props: { variant: 'regular14' }, style: { fontFamily: FONT_FAMILY, fontWeight: 400, fontSize: 14, lineHeight: 'normal' } },
-        { props: { variant: 'regular12' }, style: { fontFamily: FONT_FAMILY, fontWeight: 400, fontSize: 12, lineHeight: 'normal' } },
-        { props: { variant: 'semibold16' }, style: { fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 16, lineHeight: 'normal' } },
-        { props: { variant: 'semibold14' }, style: { fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 14, lineHeight: 'normal' } },
-        { props: { variant: 'medium14' }, style: { fontFamily: FONT_FAMILY, fontWeight: 500, fontSize: 14, lineHeight: 'normal' } },
+        {
+          props: { variant: 'bold24' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 24, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'bold20' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 20, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'bold18' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 18, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'bold16' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 16, lineHeight: 1.5 },
+        },
+        {
+          props: { variant: 'bold14' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 14, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'bold12' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 700, fontSize: 12, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'regular16' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 400, fontSize: 16, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'regular14' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 400, fontSize: 14, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'regular12' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 400, fontSize: 12, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'semibold16' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 16, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'semibold14' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 600, fontSize: 14, lineHeight: 'normal' },
+        },
+        {
+          props: { variant: 'medium14' },
+          style: { fontFamily: FONT_FAMILY, fontWeight: 500, fontSize: 14, lineHeight: 'normal' },
+        },
       ],
     },
     MuiButtonBase: {

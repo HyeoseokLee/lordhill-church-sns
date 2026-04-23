@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import { errHandler } from './err.js';
-import logger, { middleware as loggerMiddleware } from './logger.js';
+import { middleware as loggerMiddleware } from './logger.js';
 import { onlyLoginUser, onlyApprovedUser, onlyAdmin } from './middlewares.js';
 import passportConfig from './passport/index.js';
 import { checkUserToken } from './passport/jwtStrategy.js';

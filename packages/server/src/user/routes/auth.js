@@ -1,6 +1,6 @@
 import express from 'express';
 import asyncHandler from 'express-async-handler';
-import { oauthCallback, refreshToken, logout, getMe, devLogin } from '../controllers/auth.js';
+import { refreshToken, logout, getMe, devLogin } from '../controllers/auth.js';
 import { onlyLoginUser } from '../../middlewares.js';
 
 const router = express.Router();

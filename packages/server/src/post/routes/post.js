@@ -1,6 +1,13 @@
 import express from 'express';
 import asyncHandler from 'express-async-handler';
-import { getFeed, getPost, createPost, updatePost, deletePost, toggleLike } from '../controllers/post.js';
+import {
+  getFeed,
+  getPost,
+  createPost,
+  updatePost,
+  deletePost,
+  toggleLike,
+} from '../controllers/post.js';
 import { uploadImage } from '../../uploader/index.js';
 
 const router = express.Router();

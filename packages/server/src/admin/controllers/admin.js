@@ -15,7 +15,16 @@ export const getUsers = async (req, res) => {
 
   const users = await models.User.findAll({
     where,
-    attributes: ['id', 'email', 'nickname', 'profileImageUrl', 'provider', 'role', 'status', 'createdAt'],
+    attributes: [
+      'id',
+      'email',
+      'nickname',
+      'profileImageUrl',
+      'provider',
+      'role',
+      'status',
+      'createdAt',
+    ],
     order: [['createdAt', 'DESC']],
   });
 
@@ -71,10 +80,15 @@ export const deleteCommentByAdmin = async (req, res) => {
   }
 
   await comment.destroy(); // soft delete
-  await logAudit(req.user.id, auditAction.deleteComment, `comment:${comment.id}`, {
-    authorId: comment.authorId,
-    postId: comment.postId,
-  });
+  await logAudit(
+    req.user.id,
+    auditAction.deleteComment,
+    `comment:${comment.id}`,
+    {
+      authorId: comment.authorId,
+      postId: comment.postId,
+    },
+  );
 
   res.json({ message: 'ok' });
 };
@@ -86,7 +100,9 @@ export const getDashboard = async (_req, res) => {
   const [totalUsers, pendingUsers, todayPosts] = await Promise.all([
     models.User.count(),
     models.User.count({ where: { status: userStatus.pending } }),
-    models.Post.count({ where: { createdAt: { [models.Sequelize.Op.gte]: today } } }),
+    models.Post.count({
+      where: { createdAt: { [models.Sequelize.Op.gte]: today } },
+    }),
   ]);
 
   res.json({ totalUsers, pendingUsers, todayPosts });

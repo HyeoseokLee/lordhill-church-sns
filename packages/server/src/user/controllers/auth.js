@@ -35,7 +35,8 @@ const setCookies = (res, { accessToken, refreshToken }) => {
 };
 
 export const oauthCallback = async (req, res) => {
-  const { provider, providerId, email, profileImageUrl, nickname } = req.oauthProfile;
+  const { provider, providerId, email, profileImageUrl, nickname } =
+    req.oauthProfile;
 
   let user = await models.User.findOne({
     where: { provider, providerId },

@@ -24,3 +24,13 @@
     display: none;
   }
 }
+
+/* FullHeightBox 내부 스크롤 영역 (healthcare-front scrollInner 패턴) */
+@utility scrollInner {
+  position: relative;
+  width: 100%;
+  flex-grow: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 20px 40px;
+}

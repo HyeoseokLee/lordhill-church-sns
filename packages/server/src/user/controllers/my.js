@@ -4,7 +4,16 @@ import { contentLimit } from '../../define.js';
 
 export const getProfile = async (req, res) => {
   const user = await models.User.findByPk(req.user.id, {
-    attributes: ['id', 'email', 'nickname', 'profileImageUrl', 'provider', 'role', 'status', 'createdAt'],
+    attributes: [
+      'id',
+      'email',
+      'nickname',
+      'profileImageUrl',
+      'provider',
+      'role',
+      'status',
+      'createdAt',
+    ],
   });
   if (!user) {
     throw new ErrClass(ErrInfo.NotFoundUser);
@@ -39,7 +48,16 @@ export const updateProfile = async (req, res) => {
   await models.User.update(updateData, { where: { id: userId } });
 
   const user = await models.User.findByPk(userId, {
-    attributes: ['id', 'email', 'nickname', 'profileImageUrl', 'provider', 'role', 'status', 'createdAt'],
+    attributes: [
+      'id',
+      'email',
+      'nickname',
+      'profileImageUrl',
+      'provider',
+      'role',
+      'status',
+      'createdAt',
+    ],
   });
   res.json(user);
 };
