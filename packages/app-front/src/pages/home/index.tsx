@@ -1,5 +1,5 @@
+import { Bell, MessageCircle } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
-import WriteDrawer from './WriteDrawer';
 
 // 홈 피드 페이지
 export default function HomePage() {
@@ -8,24 +8,24 @@ export default function HomePage() {
   return (
     <>
       {/* 상단 헤더 */}
-      <header className="w-full flex items-center justify-between px-5 py-4">
+      <header className="w-full flex items-center justify-between py-4">
         <h1 className="text-[22px] font-extrabold tracking-tight text-text">
           손안의 교회
         </h1>
         <button className="w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150">
-          <span className="material-symbols-outlined text-[24px]">
-            notifications
-          </span>
+          <Bell size={22} strokeWidth={1.5} />
         </button>
       </header>
 
       {/* 피드 영역 */}
-      <div className="flex flex-col gap-4 px-5 pb-10">
+      <div className="flex flex-col gap-4">
         {/* 피드 비어있을 때 */}
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <span className="material-symbols-outlined text-[48px] text-surface-strong mb-4">
-            forum
-          </span>
+          <MessageCircle
+            size={48}
+            strokeWidth={1}
+            className="text-surface-strong mb-4"
+          />
           <p className="text-[15px] font-semibold text-text-muted mb-1">
             아직 게시글이 없습니다
           </p>
@@ -40,8 +40,6 @@ export default function HomePage() {
           </button>
         </div>
       </div>
-
-      <WriteDrawer />
     </>
   );
 }

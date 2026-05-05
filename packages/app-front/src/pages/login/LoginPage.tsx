@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import axiosInstance from '@/api/axiosInstance';
 import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/stores/authStore';
+import { MessageCircle } from 'lucide-react';
 import logoImg from '@/assets/images/img_logo3.png';
 
 // OAuth 프로바이더 정의
@@ -41,12 +42,7 @@ const OAUTH_PROVIDERS = [
     className: 'bg-[#FEE500] hover:brightness-95',
     textClassName: 'text-[#3C1E1E]',
     icon: (
-      <span
-        className="material-symbols-outlined text-[#3C1E1E]"
-        style={{ fontVariationSettings: "'FILL' 1" }}
-      >
-        chat_bubble
-      </span>
+      <MessageCircle size={20} strokeWidth={2} className="text-[#3C1E1E]" />
     ),
   },
   {
@@ -105,7 +101,7 @@ export default function LoginPage() {
             손안의 교회
           </h1>
           <p className="mt-2 text-[15px] font-medium text-text-muted">
-            교회 가족 소통 공간
+            Lordhill Church SNS
           </p>
         </div>
 
