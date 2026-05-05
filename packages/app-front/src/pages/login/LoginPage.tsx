@@ -93,29 +93,27 @@ export default function LoginPage() {
           </Button>
         ))}
 
-        {import.meta.env.DEV && (
-          <Button
-            variant="outlined"
-            fullWidth
-            size="large"
-            disabled={devLoading}
-            onClick={handleDevLogin}
-            sx={{
-              mt: 2,
-              borderColor: '#787878',
-              color: '#464646',
-              '&:hover': {
-                borderColor: '#464646',
-                backgroundColor: '#F5F5F5',
-              },
-              py: 1.5,
-              fontSize: '16px',
-              fontWeight: 600,
-            }}
-          >
-            {devLoading ? '로그인 중...' : '\uD83D\uDD27 Dev Login'}
-          </Button>
-        )}
+        <Button
+          variant="outlined"
+          fullWidth
+          size="large"
+          disabled={devLoading}
+          onClick={handleDevLogin}
+          sx={{
+            mt: 2,
+            borderColor: '#787878',
+            color: '#464646',
+            '&:hover': {
+              borderColor: '#464646',
+              backgroundColor: '#F5F5F5',
+            },
+            py: 1.5,
+            fontSize: '16px',
+            fontWeight: 600,
+          }}
+        >
+          {devLoading ? '로그인 중...' : '\uD83D\uDD27 Dev Login'}
+        </Button>
       </div>
     </div>
   );
