@@ -41,6 +41,7 @@ Schema: `packages/server/prisma/schema.prisma`
 ## Environment
 
 서버 환경변수: `packages/server/.env` (`.env.example` 참고)
+
 - DB: `mysql://root:rootpassword@localhost:3307/lordhill_sns`
 - S3: LocalStack `http://localhost:4566`
 - Server port: 3001
@@ -54,6 +55,13 @@ Schema: `packages/server/prisma/schema.prisma`
 - S3 프론트: `lordhill-sns-front-905418091773-ap-northeast-2-an`
 - CI/CD: GitHub Actions (`.github/workflows/`)
 - 배포 가이드: `.claude/docs/aws-cicd-guide.md`
+- RDS Adminer 접속: `http://localhost:8081/?server=lordhill-sns-db.c1qaum2qg2re.ap-northeast-2.rds.amazonaws.com&username=admin&db=lordhill_sns` (Docker 실행 필요)
+- Adminer 비밀번호: `` (RDS 마스터 암호 - 최대치 암호)
+
+## Design System
+Always read DESIGN.md before making any visual or UI decisions.
+All font choices, colors, spacing, and aesthetic direction are defined there.
+Do not deviate without explicit user approval.
 
 ## Plan & Design Docs
 
@@ -83,6 +91,7 @@ When the user's request matches an available skill, ALWAYS invoke it using the S
 tool as your FIRST action. Do NOT answer directly, do NOT use other tools first.
 
 Key routing rules:
+
 - Product ideas, "is this worth building", brainstorming → invoke office-hours
 - Bugs, errors, "why is this broken", 500 errors → invoke investigate
 - Ship, deploy, push, create PR → invoke ship

@@ -1,30 +1,61 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Button, Typography } from '@mui/material';
-import GoogleIcon from '@mui/icons-material/Google';
 import axiosInstance from '@/api/axiosInstance';
 import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/stores/authStore';
+import logoImg from '@/assets/images/img_logo3.png';
 
+// OAuth 프로바이더 정의
 const OAUTH_PROVIDERS = [
   {
     name: 'Google',
-    icon: <GoogleIcon />,
     url: '/api/auth/google',
-    color: '#4285F4',
+    label: 'Google로 계속하기',
+    className: 'bg-surface hover:bg-surface-strong',
+    textClassName: 'text-text-muted group-hover:text-text',
+    icon: (
+      <svg className="w-5 h-5" viewBox="0 0 24 24">
+        <path
+          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+          fill="#4285F4"
+        />
+        <path
+          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+          fill="#34A853"
+        />
+        <path
+          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+          fill="#FBBC05"
+        />
+        <path
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+          fill="#EA4335"
+        />
+      </svg>
+    ),
   },
   {
     name: 'Kakao',
-    icon: null,
     url: '/api/auth/kakao',
-    color: '#FEE500',
-    textColor: '#000000',
+    label: 'Kakao로 계속하기',
+    className: 'bg-[#FEE500] hover:brightness-95',
+    textClassName: 'text-[#3C1E1E]',
+    icon: (
+      <span
+        className="material-symbols-outlined text-[#3C1E1E]"
+        style={{ fontVariationSettings: "'FILL' 1" }}
+      >
+        chat_bubble
+      </span>
+    ),
   },
   {
     name: 'Naver',
-    icon: null,
     url: '/api/auth/naver',
-    color: '#03C75A',
+    label: 'Naver로 계속하기',
+    className: 'bg-[#03C75A] hover:brightness-95',
+    textClassName: 'text-white',
+    icon: <span className="font-black text-white text-xl">N</span>,
   },
 ];
 
@@ -42,6 +73,7 @@ export default function LoginPage() {
     window.location.href = url;
   };
 
+  // 개발 환경 전용 로그인
   const handleDevLogin = async () => {
     setDevLoading(true);
     try {
@@ -58,63 +90,62 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
-      <div className="mb-12 text-center">
-        <Typography variant="h4" className="!font-bold text-green-800">
-          주안의 교회
-        </Typography>
-        <Typography variant="body2" className="mt-2 text-gray-500">
-          교회 가족 소통 공간
-        </Typography>
-      </div>
+    <div className="bg-bg min-h-screen flex items-center justify-center overflow-x-hidden">
+      <main className="w-full max-w-[480px] px-6 py-12 flex flex-col items-center">
+        {/* 앱 아이덴티티 */}
+        <div className="mb-16 text-center flex flex-col items-center">
+          <div className="w-20 h-20 mb-6 rounded-[12px] overflow-hidden">
+            <img src={logoImg} alt="손안의 교회" className="w-full h-full object-cover" />
+          </div>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-text">손안의 교회</h1>
+          <p className="mt-2 text-[15px] font-medium text-text-muted">교회 가족 소통 공간</p>
+        </div>
 
-      <div className="flex w-full max-w-sm flex-col gap-3">
-        {OAUTH_PROVIDERS.map((provider) => (
-          <Button
-            key={provider.name}
-            variant="contained"
-            fullWidth
-            size="large"
-            startIcon={provider.icon}
-            onClick={() => handleLogin(provider.url)}
-            sx={{
-              backgroundColor: provider.color,
-              color: provider.textColor || '#FFFFFF',
-              '&:hover': {
-                backgroundColor: provider.color,
-                opacity: 0.9,
-              },
-              py: 1.5,
-              fontSize: '16px',
-              fontWeight: 600,
-            }}
+        {/* 소셜 로그인 버튼 */}
+        <div className="w-full space-y-3">
+          {OAUTH_PROVIDERS.map((provider) => (
+            <button
+              key={provider.name}
+              onClick={() => handleLogin(provider.url)}
+              className={`w-full flex items-center justify-center gap-3 py-[14px] px-6 rounded-[12px] transition-all duration-150 ease-out active:scale-[0.98] group ${provider.className}`}
+            >
+              <div className="w-5 h-5 flex items-center justify-center">{provider.icon}</div>
+              <span className={`font-semibold text-[15px] ${provider.textClassName}`}>
+                {provider.label}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* 구분선 */}
+        <div className="w-full flex items-center gap-4 my-10">
+          <div className="h-[1px] flex-1 bg-surface-strong" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
+            or
+          </span>
+          <div className="h-[1px] flex-1 bg-surface-strong" />
+        </div>
+
+        {/* Dev Login (개발 환경 전용) */}
+        <div className="w-full">
+          <button
+            onClick={handleDevLogin}
+            disabled={devLoading}
+            className="w-full py-[14px] px-6 bg-surface text-accent font-bold text-[15px] rounded-[12px] hover:bg-surface-strong transition-colors duration-150 active:scale-[0.98] disabled:opacity-50"
           >
-            {provider.name}로 로그인
-          </Button>
-        ))}
+            {devLoading ? '로그인 중...' : '🔧 Dev Login'}
+          </button>
+        </div>
 
-        <Button
-          variant="outlined"
-          fullWidth
-          size="large"
-          disabled={devLoading}
-          onClick={handleDevLogin}
-          sx={{
-            mt: 2,
-            borderColor: '#787878',
-            color: '#464646',
-            '&:hover': {
-              borderColor: '#464646',
-              backgroundColor: '#F5F5F5',
-            },
-            py: 1.5,
-            fontSize: '16px',
-            fontWeight: 600,
-          }}
-        >
-          {devLoading ? '로그인 중...' : '\uD83D\uDD27 Dev Login'}
-        </Button>
-      </div>
+        {/* 하단 푸터 */}
+        <footer className="mt-12 text-center">
+          <p className="text-[10px] text-text-muted leading-relaxed px-8 opacity-60">
+            계속 진행하면 손안의 교회 SNS의
+            <br />
+            이용약관 및 개인정보처리방침에 동의하게 됩니다.
+          </p>
+        </footer>
+      </main>
     </div>
   );
 }

@@ -230,6 +230,48 @@ pm2 stop all      # 전체 중지
 ### 프리 티어
 - 매월 1TB 전송 + 1,000만 요청 무료 (12개월)
 
+### 생성 후 필수 추가 설정
+
+#### 1) S3 버킷 정책 추가 (CloudFront → S3 접근 허용)
+OAC를 사용하면 S3 버킷 정책을 직접 추가해야 CloudFront가 파일을 읽을 수 있음. 안 하면 **AccessDenied** 에러 발생.
+
+```bash
+aws s3api put-bucket-policy --bucket <버킷이름> --policy '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowCloudFrontServicePrincipal",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudfront.amazonaws.com"
+      },
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::<버킷이름>/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::<계정ID>:distribution/<배포ID>"
+        }
+      }
+    }
+  ]
+}'
+```
+
+#### 2) SPA(React) 에러 페이지 설정
+React Router가 `/login` 같은 경로를 처리하려면, S3에 해당 파일이 없을 때(403) `index.html`을 반환하도록 설정해야 함. 안 하면 새로고침 시 **AccessDenied** 에러.
+
+- CloudFront 배포 → **Error pages** 탭
+- 403 에러 → Response page: `/index.html`, Response code: `200`
+- Default root object: `index.html`
+
+```bash
+# CLI로 설정하는 경우
+aws cloudfront get-distribution-config --id <배포ID> > cf-config.json
+# CustomErrorResponses에 403 → /index.html (200) 추가
+# DefaultRootObject를 "index.html"로 설정
+aws cloudfront update-distribution --id <배포ID> --if-match <ETag> --distribution-config file://updated.json
+```
+
 ---
 
 ## 6. GitHub Actions CI/CD
@@ -341,3 +383,9 @@ gh secret set EC2_SSH_KEY < lordhill-key.pem
 
 ### CloudFront에서 이전 버전이 보일 때
 → 캐시 무효화가 필요. `aws cloudfront create-invalidation --distribution-id <ID> --paths "/*"`
+
+### CloudFront에서 AccessDenied 에러
+→ S3 버킷 정책에 CloudFront 서비스 프린시펄이 허용되어 있는지 확인 (5. CloudFront 생성 후 필수 추가 설정 참고)
+
+### React SPA에서 새로고침 시 AccessDenied
+→ CloudFront Error pages에서 403 → `/index.html` (200) 설정이 되어 있는지 확인

@@ -1,5 +1,21 @@
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @import "tailwindcss";
+
+/* 손안의 교회 디자인 시스템 (DESIGN.md 참조) */
+@theme {
+  --color-accent: #40C057;
+  --color-accent-light: #EBFBEE;
+  --color-accent-dark: #2F9E44;
+  --color-bg: #FFFFFF;
+  --color-bg-alt: #F8F9FA;
+  --color-surface: #F1F3F5;
+  --color-surface-strong: #E9ECEF;
+  --color-text: #212529;
+  --color-text-muted: #868E96;
+  --color-error: #E03131;
+  --color-success: #2F9E44;
+}
 
 /* Base styles for mobile-first webview */
 @layer base {

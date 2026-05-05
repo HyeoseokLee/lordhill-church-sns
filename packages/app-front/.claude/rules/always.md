@@ -131,6 +131,20 @@ const context = useOutletContext();
 )}
 ```
 
+## 스타일링 (Tailwind 기본 + MUI 보조)
+
+- **기본은 Tailwind CSS** — 레이아웃, 색상, 타이포그래피, 간격, 반응형 등 모든 스타일링
+- **MUI는 복잡한 UI 컴포넌트에만 사용** — DatePicker, Dialog, Autocomplete 등 직접 구현이 비효율적인 경우
+- **MUI의 단순 컴포넌트(Button, Typography, Box 등)는 사용하지 않음** — Tailwind로 대체
+- **디자인 시스템**: `DESIGN.md` (프로젝트 루트) 기반, 컬러 토큰은 `index.css`의 `@theme`에 정의
+- **폰트**: Pretendard 단일 폰트 (웨이트 차이로 구분)
+- **포인트 컬러**: `--color-accent` (#40C057)
+
+## 우선순위 (DESIGN.md vs always.md)
+
+- **비주얼 (색상, 폰트, 간격, 보더, radius 등)** → `DESIGN.md` 우선
+- **코드 구조 (레이아웃 패턴, 라우팅, 컴포넌트 구조, WithOutlet 등)** → `always.md` 우선
+
 ## TypeScript
 
 - API 응답 타입은 각 API 모듈 파일 내에 정의하거나 `src/types/`에 추가
