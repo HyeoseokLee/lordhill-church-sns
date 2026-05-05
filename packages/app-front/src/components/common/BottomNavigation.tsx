@@ -11,8 +11,8 @@ const navItems = [
 export default function BottomNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isVisible = useUIStore((s) => s.isBottomNavVisible);
-  const setWriteDrawerOpen = useUIStore((s) => s.setWriteDrawerOpen);
+  const isVisible = useUIStore(s => s.isBottomNavVisible);
+  const setWriteDrawerOpen = useUIStore(s => s.setWriteDrawerOpen);
 
   if (!isVisible) return null;
 
@@ -39,7 +39,9 @@ export default function BottomNavigation() {
             >
               <span
                 className="material-symbols-outlined text-[26px]"
-                style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                style={
+                  isActive ? { fontVariationSettings: "'FILL' 1" } : undefined
+                }
               >
                 {isActive ? activeIcon : icon}
               </span>

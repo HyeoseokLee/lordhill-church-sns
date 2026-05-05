@@ -95,22 +95,34 @@ export default function LoginPage() {
         {/* 앱 아이덴티티 */}
         <div className="mb-16 text-center flex flex-col items-center">
           <div className="w-20 h-20 mb-6 rounded-[12px] overflow-hidden">
-            <img src={logoImg} alt="손안의 교회" className="w-full h-full object-cover" />
+            <img
+              src={logoImg}
+              alt="손안의 교회"
+              className="w-full h-full object-cover"
+            />
           </div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-text">손안의 교회</h1>
-          <p className="mt-2 text-[15px] font-medium text-text-muted">교회 가족 소통 공간</p>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-text">
+            손안의 교회
+          </h1>
+          <p className="mt-2 text-[15px] font-medium text-text-muted">
+            교회 가족 소통 공간
+          </p>
         </div>
 
         {/* 소셜 로그인 버튼 */}
         <div className="w-full space-y-3">
-          {OAUTH_PROVIDERS.map((provider) => (
+          {OAUTH_PROVIDERS.map(provider => (
             <button
               key={provider.name}
               onClick={() => handleLogin(provider.url)}
               className={`w-full flex items-center justify-center gap-3 py-[14px] px-6 rounded-[12px] transition-all duration-150 ease-out active:scale-[0.98] group ${provider.className}`}
             >
-              <div className="w-5 h-5 flex items-center justify-center">{provider.icon}</div>
-              <span className={`font-semibold text-[15px] ${provider.textClassName}`}>
+              <div className="w-5 h-5 flex items-center justify-center">
+                {provider.icon}
+              </div>
+              <span
+                className={`font-semibold text-[15px] ${provider.textClassName}`}
+              >
                 {provider.label}
               </span>
             </button>

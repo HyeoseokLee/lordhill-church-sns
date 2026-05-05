@@ -2,7 +2,7 @@ import { Typography, Button } from '@mui/material';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function PendingPage() {
-  const logout = useAuthStore((s) => s.logout);
+  const logout = useAuthStore(s => s.logout);
 
   const handleLogout = () => {
     logout();
@@ -19,7 +19,12 @@ export default function PendingPage() {
         <br />
         승인이 완료되면 서비스를 이용하실 수 있습니다.
       </Typography>
-      <Button variant="outlined" onClick={handleLogout} className="!mt-8" color="inherit">
+      <Button
+        variant="outlined"
+        onClick={handleLogout}
+        className="!mt-8"
+        color="inherit"
+      >
         로그아웃
       </Button>
     </div>

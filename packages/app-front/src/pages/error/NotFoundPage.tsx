@@ -12,7 +12,11 @@ export default function NotFoundPage() {
       <Typography variant="body1" className="mt-2 text-gray-500">
         페이지를 찾을 수 없습니다
       </Typography>
-      <Button variant="outlined" onClick={() => navigate('/')} className="!mt-6">
+      <Button
+        variant="outlined"
+        onClick={() => navigate('/')}
+        className="!mt-6"
+      >
         홈으로
       </Button>
     </div>

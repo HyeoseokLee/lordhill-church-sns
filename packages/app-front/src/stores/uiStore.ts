@@ -8,9 +8,9 @@ interface UIState {
   setWriteDrawerOpen: (open: boolean) => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
+export const useUIStore = create<UIState>(set => ({
   isBottomNavVisible: true,
-  setBottomNavVisible: (isBottomNavVisible) => set({ isBottomNavVisible }),
+  setBottomNavVisible: isBottomNavVisible => set({ isBottomNavVisible }),
   isWriteDrawerOpen: false,
-  setWriteDrawerOpen: (isWriteDrawerOpen) => set({ isWriteDrawerOpen }),
+  setWriteDrawerOpen: isWriteDrawerOpen => set({ isWriteDrawerOpen }),
 }));

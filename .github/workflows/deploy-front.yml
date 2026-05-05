@@ -27,13 +27,23 @@ jobs:
       - name: Install dependencies
         run: npm install --workspace=packages/app-front
 
-      # 4. React 빌드 (HTML, JS, CSS 파일 생성)
+      # 4. 코드 품질 검사 (실패 시 배포 중단)
+      - name: Lint
+        run: cd packages/app-front && npm run lint
+
+      - name: Prettier check
+        run: cd packages/app-front && npm run prettier
+
+      - name: Type check
+        run: cd packages/app-front && npm run type-check
+
+      # 5. React 빌드 (HTML, JS, CSS 파일 생성)
       - name: Build
         run: npm run build:app
         env:
           VITE_API_URL: http://${{ secrets.EC2_HOST }}:3001
 
-      # 5. AWS 인증
+      # 6. AWS 인증
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -41,10 +51,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
 
-      # 6. 빌드 결과물을 S3에 업로드
+      # 7. 빌드 결과물을 S3에 업로드
       - name: Upload to S3
         run: aws s3 sync packages/app-front/dist s3://lordhill-sns-front-905418091773-ap-northeast-2-an --delete
 
-      # 7. CloudFront 캐시 무효화 (이전 캐시 삭제, 새 파일 반영)
+      # 8. CloudFront 캐시 무효화 (이전 캐시 삭제, 새 파일 반영)
       - name: Invalidate CloudFront cache
         run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"

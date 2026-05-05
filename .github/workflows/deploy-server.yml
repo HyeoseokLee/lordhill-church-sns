@@ -13,14 +13,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. SSH 키 파일 준비
+      # 1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Node.js 설치
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 3. 의존성 설치
+      - name: Install dependencies
+        run: npm install --workspace=packages/server
+
+      # 4. 코드 품질 검사 (실패 시 배포 중단)
+      - name: Lint
+        run: cd packages/server && npm run lint
+
+      - name: Prettier check
+        run: cd packages/server && npm run prettier
+
+      # 5. SSH 키 파일 준비
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/key.pem
           chmod 400 ~/.ssh/key.pem
 
-      # 2. EC2에 접속해서 코드 배포 + 서버 재시작
+      # 6. EC2에 접속해서 코드 배포 + 서버 재시작
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/key.pem ec2-user@${{ secrets.EC2_HOST }} << 'EOF'

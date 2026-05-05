@@ -6,7 +6,7 @@ import { authApi } from '@/api/authApi';
 export default function OAuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const setUser = useAuthStore((s) => s.setUser);
+  const setUser = useAuthStore(s => s.setUser);
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -14,7 +14,7 @@ export default function OAuthCallbackPage() {
       localStorage.setItem('accessToken', token);
       authApi
         .getMe()
-        .then((res) => {
+        .then(res => {
           setUser(res.data.user);
           if (res.data.user.role === 'PENDING') {
             navigate('/login/pending', { replace: true });

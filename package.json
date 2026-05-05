@@ -11,7 +11,11 @@
     "dev:admin": "npm run dev --workspace=packages/admin-front",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:app\"",
     "build:app": "npm run build --workspace=packages/app-front",
-    "build:admin": "npm run build --workspace=packages/admin-front"
+    "build:admin": "npm run build --workspace=packages/admin-front",
+    "lint": "npm run lint --workspace=packages/app-front && npm run lint --workspace=packages/server",
+    "prettier": "npm run prettier --workspace=packages/app-front && npm run prettier --workspace=packages/server",
+    "format": "npm run format --workspace=packages/app-front && npm run format --workspace=packages/server",
+    "check": "npm run lint && npm run prettier && npm run type-check --workspace=packages/app-front && npm run build:app"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

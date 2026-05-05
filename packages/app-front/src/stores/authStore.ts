@@ -18,12 +18,12 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>(set => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
-  setUser: (user) => set({ user, isAuthenticated: !!user, isLoading: false }),
-  setLoading: (isLoading) => set({ isLoading }),
+  setUser: user => set({ user, isAuthenticated: !!user, isLoading: false }),
+  setLoading: isLoading => set({ isLoading }),
   logout: () => {
     localStorage.removeItem('accessToken');
     set({ user: null, isAuthenticated: false });

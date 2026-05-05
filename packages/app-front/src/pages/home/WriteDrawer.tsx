@@ -4,9 +4,9 @@ import { useUIStore } from '@/stores/uiStore';
 
 // 글쓰기 드로어 (우측 슬라이드)
 export default function WriteDrawer() {
-  const user = useAuthStore((s) => s.user);
-  const isOpen = useUIStore((s) => s.isWriteDrawerOpen);
-  const setOpen = useUIStore((s) => s.setWriteDrawerOpen);
+  const user = useAuthStore(s => s.user);
+  const isOpen = useUIStore(s => s.isWriteDrawerOpen);
+  const setOpen = useUIStore(s => s.setWriteDrawerOpen);
 
   return (
     <Drawer
@@ -36,9 +36,13 @@ export default function WriteDrawer() {
         <div className="flex-1 px-5 pt-2">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-surface-strong flex items-center justify-center">
-              <span className="material-symbols-outlined text-text-muted text-[20px]">person</span>
+              <span className="material-symbols-outlined text-text-muted text-[20px]">
+                person
+              </span>
             </div>
-            <span className="text-[14px] font-bold text-text">{user?.name || '사용자'}</span>
+            <span className="text-[14px] font-bold text-text">
+              {user?.name || '사용자'}
+            </span>
           </div>
           <textarea
             className="w-full h-48 bg-transparent text-[15px] text-text placeholder-text-muted resize-none outline-none"
@@ -47,7 +51,9 @@ export default function WriteDrawer() {
           {/* 이미지 첨부 버튼 */}
           <div className="flex gap-2 mt-4">
             <button className="flex items-center gap-2 px-4 py-2 bg-surface rounded-[12px] text-text-muted text-[13px] font-semibold hover:bg-surface-strong transition-colors duration-150">
-              <span className="material-symbols-outlined text-[20px]">image</span>
+              <span className="material-symbols-outlined text-[20px]">
+                image
+              </span>
               사진
             </button>
           </div>

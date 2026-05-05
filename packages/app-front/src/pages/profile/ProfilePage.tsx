@@ -6,8 +6,8 @@ import { authApi } from '@/api/authApi';
 export default function ProfilePage() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const currentUser = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
+  const currentUser = useAuthStore(s => s.user);
+  const logout = useAuthStore(s => s.logout);
   const targetUserId = userId || currentUser?.id;
   const isMyProfile = !userId || userId === currentUser?.id;
 

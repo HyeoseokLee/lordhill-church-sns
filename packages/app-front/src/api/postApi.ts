@@ -6,11 +6,13 @@ export interface CreatePostPayload {
 }
 
 export const postApi = {
-  getFeed: (cursor?: string) => axiosInstance.get('/posts', { params: { cursor } }),
+  getFeed: (cursor?: string) =>
+    axiosInstance.get('/posts', { params: { cursor } }),
 
   getPost: (id: string) => axiosInstance.get(`/posts/${id}`),
 
-  createPost: (payload: CreatePostPayload) => axiosInstance.post('/posts', payload),
+  createPost: (payload: CreatePostPayload) =>
+    axiosInstance.post('/posts', payload),
 
   deletePost: (id: string) => axiosInstance.delete(`/posts/${id}`),
 

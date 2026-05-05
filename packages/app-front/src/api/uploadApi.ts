@@ -12,5 +12,6 @@ export const uploadApi = {
   getVideoPresignedUrl: (filename: string, contentType: string) =>
     axiosInstance.post('/upload/video/presign', { filename, contentType }),
 
-  confirmVideoUpload: (key: string) => axiosInstance.post('/upload/video/confirm', { key }),
+  confirmVideoUpload: (key: string) =>
+    axiosInstance.post('/upload/video/confirm', { key }),
 };
