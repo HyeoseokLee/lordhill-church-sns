@@ -1,5 +1,6 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import FullHeightBox from '@/components/common/FullHeightBox';
 import BottomNavigation from '@/components/common/BottomNavigation';
 
 // 인증된 페이지의 공통 레이아웃
@@ -23,11 +24,11 @@ export default function MainLayout() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[480px] flex-col bg-bg">
-      <main className="flex-1 overflow-hidden" style={{ height: 'calc(100dvh - 72px)' }}>
+    <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
+      <main className="scrollInner">
         <Outlet />
       </main>
       <BottomNavigation />
-    </div>
+    </FullHeightBox>
   );
 }
