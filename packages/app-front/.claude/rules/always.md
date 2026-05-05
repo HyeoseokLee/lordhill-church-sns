@@ -45,6 +45,92 @@
 </FullHeightBox>
 ```
 
+## 페이지 중첩 라우트 (WithOutlet 오버레이 패턴)
+
+리스트 → 상세 같은 계층 구조 페이지는 **WithOutlet 오버레이 패턴**을 사용한다. 부모 페이지가 항상 마운트된 상태에서 자식 페이지가 `position: fixed` 오버레이로 위에 덮이는 구조.
+
+**장점**:
+- 뒤로가기 시 부모 페이지가 리마운트되지 않아 스크롤 위치와 상태가 유지됨
+- 자식 페이지가 닫힐 때(outlet이 null) 부모에서 refetch 등 후처리 가능
+
+**파일 네이밍**: `{PageName}WithOutlet.tsx` — 같은 디렉토리에 `index.tsx`(실제 페이지)와 함께 배치
+
+**기본 구조**:
+
+```tsx
+// src/pages/feed/FeedWithOutlet.tsx
+import { useOutlet } from 'react-router-dom';
+import FeedPage from './FeedPage';
+
+export default function FeedWithOutlet() {
+  const outlet = useOutlet();
+
+  return (
+    <>
+      <FeedPage />
+      {outlet && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1200,
+            backgroundColor: '#FFFFFF',
+          }}
+        >
+          {outlet}
+        </div>
+      )}
+    </>
+  );
+}
+```
+
+**라우터 등록**:
+
+```tsx
+// router/Router.tsx
+{
+  path: '/feed',
+  element: <FeedWithOutlet />,
+  children: [
+    { path: ':postId', element: <PostDetailPage /> },
+  ],
+}
+```
+
+**응용 — outlet 닫힐 때 refetch**:
+
+```tsx
+const outlet = useOutlet();
+const prevOutletRef = useRef(outlet);
+
+useEffect(() => {
+  if (prevOutletRef.current && !outlet) {
+    // 자식 페이지가 닫힘 → 리스트 refetch
+    mutate();
+  }
+  prevOutletRef.current = outlet;
+}, [outlet]);
+```
+
+**응용 — context 전달이 필요한 경우**:
+
+```tsx
+import { Outlet, useOutlet, useOutletContext } from 'react-router-dom';
+
+const outlet = useOutlet();
+const context = useOutletContext();
+
+{outlet && (
+  <div style={{ /* 오버레이 스타일 */ }}>
+    <Outlet context={context} />
+  </div>
+)}
+```
+
 ## TypeScript
 
 - API 응답 타입은 각 API 모듈 파일 내에 정의하거나 `src/types/`에 추가

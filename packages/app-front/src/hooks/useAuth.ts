@@ -15,7 +15,7 @@ export function useAuth() {
     setLoading(true);
     authApi
       .getMe()
-      .then((res) => setUser(res.data.user))
+      .then((res) => setUser(res.data))
       .catch(() => setUser(null));
   }, [setUser, setLoading]);
 }

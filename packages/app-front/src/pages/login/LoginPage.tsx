@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Button, Typography } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 import axiosInstance from '@/api/axiosInstance';
@@ -30,8 +30,13 @@ const OAUTH_PROVIDERS = [
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const setUser = useAuthStore((s) => s.setUser);
+  const { isAuthenticated, setUser } = useAuthStore();
   const [devLoading, setDevLoading] = useState(false);
+
+  // 이미 로그인된 상태면 홈으로 리다이렉트
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLogin = (url: string) => {
     window.location.href = url;
@@ -43,7 +48,7 @@ export default function LoginPage() {
       const { data } = await axiosInstance.post('/auth/dev-login');
       localStorage.setItem('accessToken', data.accessToken);
       const meRes = await authApi.getMe();
-      setUser(meRes.data.user);
+      setUser(meRes.data);
       navigate('/', { replace: true });
     } catch (err) {
       console.error('Dev login failed:', err);
@@ -56,7 +61,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
       <div className="mb-12 text-center">
         <Typography variant="h4" className="!font-bold text-green-800">
-          주님의 언덕 교회
+          주안의 교회
         </Typography>
         <Typography variant="body2" className="mt-2 text-gray-500">
           교회 가족 소통 공간

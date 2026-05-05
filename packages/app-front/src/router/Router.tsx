@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import MainLayout from '@/components/frame/MainLayout';
 import LoginPage from '@/pages/login/LoginPage';
 import FeedPage from '@/pages/feed/FeedPage';
+import HomePage from '@/pages/home/index';
 import PostDetailPage from '@/pages/post/PostDetailPage';
 import CreatePostPage from '@/pages/post/CreatePostPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <HomePage />,
+      },
+      {
+        path: 'feed',
         element: <FeedPage />,
       },
       {

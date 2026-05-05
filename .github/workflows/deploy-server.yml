@@ -1,0 +1,41 @@
+# EC2에 Express 서버를 배포하는 워크플로우
+name: Deploy Server
+
+# main 브랜치에 서버 코드가 푸시되면 실행
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/server/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. SSH 키 파일 준비
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/key.pem
+          chmod 400 ~/.ssh/key.pem
+
+      # 2. EC2에 접속해서 코드 배포 + 서버 재시작
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/key.pem ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            # 처음이면 git clone, 이후에는 git pull
+            if [ ! -d ~/app ]; then
+              git clone https://github.com/${{ github.repository }}.git ~/app
+            else
+              cd ~/app && git pull origin main
+            fi
+
+            # 서버 의존성 설치
+            cd ~/app
+            npm install --workspace=packages/server --production
+
+            # PM2로 서버 실행 (이미 실행 중이면 재시작)
+            cd ~/app/packages/server
+            pm2 startOrRestart ecosystem.config.cjs --env production || pm2 start npm --name "lordhill-server" -- run start
+          EOF

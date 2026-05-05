@@ -1,0 +1,50 @@
+# S3 + CloudFront에 프론트엔드를 배포하는 워크플로우
+name: Deploy Frontend
+
+# main 브랜치에 프론트 코드가 푸시되면 실행
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/app-front/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 코드 체크아웃 (GitHub에서 코드 가져오기)
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Node.js 설치
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 3. 의존성 설치
+      - name: Install dependencies
+        run: npm install --workspace=packages/app-front
+
+      # 4. React 빌드 (HTML, JS, CSS 파일 생성)
+      - name: Build
+        run: npm run build:app
+        env:
+          VITE_API_URL: http://${{ secrets.EC2_HOST }}:3001
+
+      # 5. AWS 인증
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      # 6. 빌드 결과물을 S3에 업로드
+      - name: Upload to S3
+        run: aws s3 sync packages/app-front/dist s3://lordhill-sns-front --delete
+
+      # 7. CloudFront 캐시 무효화 (이전 캐시 삭제, 새 파일 반영)
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
