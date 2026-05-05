@@ -22,7 +22,7 @@ export default function HomePage() {
     <div className="flex min-h-screen flex-col items-center justify-center gap-4">
       <Typography variant="h4">Hello World</Typography>
       <Button variant="outlined" color="error" onClick={handleLogout}>
-        Logout
+        Logout!
       </Button>
     </div>
   );
