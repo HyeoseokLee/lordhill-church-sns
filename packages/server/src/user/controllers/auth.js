@@ -56,14 +56,9 @@ export const oauthCallback = async (req, res) => {
   const tokens = generateTokens(user);
   setCookies(res, tokens);
 
+  // 프론트 OAuthCallbackPage에서 토큰으로 유저 정보 조회 후 분기 처리
   const clientUrl = config.cors.origins[0];
-  if (user.status === userStatus.pending) {
-    return res.redirect(`${clientUrl}/login/pending`);
-  }
-  if (user.status === userStatus.rejected) {
-    return res.redirect(`${clientUrl}/login/pending`);
-  }
-  return res.redirect(`${clientUrl}/`);
+  return res.redirect(`${clientUrl}/auth/callback?token=${tokens.accessToken}`);
 };
 
 export const refreshToken = async (req, res) => {
