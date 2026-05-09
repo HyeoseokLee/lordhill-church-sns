@@ -56,7 +56,10 @@ jobs:
             cd ~/app
             npm install --workspace=packages/server --production
 
-            # PM2로 서버 실행 (이미 실행 중이면 재시작)
+            # DB 마이그레이션 (새 테이블/컬럼 변경 자동 반영)
             cd ~/app/packages/server
+            npx sequelize-cli db:migrate
+
+            # PM2로 서버 실행 (이미 실행 중이면 재시작)
             pm2 startOrRestart ecosystem.config.cjs --env production || pm2 start npm --name "lordhill-server" -- run start
           EOF
