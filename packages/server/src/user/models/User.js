@@ -34,7 +34,6 @@ export default (sequelize) => {
       nickname: {
         type: DataTypes.STRING(50),
         allowNull: true,
-        unique: true,
       },
       profileImageUrl: {
         type: DataTypes.STRING(500),
