@@ -1,7 +1,4 @@
-import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
-import axiosInstance from '@/api/axiosInstance';
-import { authApi } from '@/api/authApi';
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { API_BASE_URL } from '@/config/define';
 import { MessageCircle } from 'lucide-react';
@@ -57,9 +54,7 @@ const OAUTH_PROVIDERS = [
 ];
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const { isAuthenticated, setUser } = useAuthStore();
-  const [devLoading, setDevLoading] = useState(false);
+  const { isAuthenticated } = useAuthStore();
 
   // 이미 로그인된 상태면 홈으로 리다이렉트
   if (isAuthenticated) {
@@ -68,23 +63,7 @@ export default function LoginPage() {
 
   // OAuth 로그인은 서버로 직접 리다이렉트
   const handleLogin = (url: string) => {
-    window.location.href = `${API_BASE_URL}${url}`;
-  };
-
-  // 개발 환경 전용 로그인
-  const handleDevLogin = async () => {
-    setDevLoading(true);
-    try {
-      const { data } = await axiosInstance.post('/auth/dev-login');
-      localStorage.setItem('accessToken', data.accessToken);
-      const meRes = await authApi.getMe();
-      setUser(meRes.data);
-      navigate('/', { replace: true });
-    } catch (err) {
-      console.error('Dev login failed:', err);
-    } finally {
-      setDevLoading(false);
-    }
+    window.location.assign(`${API_BASE_URL}${url}`);
   };
 
   return (
@@ -125,26 +104,6 @@ export default function LoginPage() {
               </span>
             </button>
           ))}
-        </div>
-
-        {/* 구분선 */}
-        <div className="w-full flex items-center gap-4 my-10">
-          <div className="h-[1px] flex-1 bg-surface-strong" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
-            or
-          </span>
-          <div className="h-[1px] flex-1 bg-surface-strong" />
-        </div>
-
-        {/* Dev Login (개발 환경 전용) */}
-        <div className="w-full">
-          <button
-            onClick={handleDevLogin}
-            disabled={devLoading}
-            className="w-full py-[14px] px-6 bg-surface text-accent font-bold text-[15px] rounded-[12px] hover:bg-surface-strong transition-colors duration-150 active:scale-[0.98] disabled:opacity-50"
-          >
-            {devLoading ? '로그인 중...' : '🔧 Dev Login'}
-          </button>
         </div>
 
         {/* 하단 푸터 */}

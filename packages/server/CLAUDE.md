@@ -83,6 +83,28 @@ Dev 로그인 (`POST /api/auth/dev-login`)은 `NODE_ENV !== 'production'`일 때
 
 모든 async 핸들러는 `express-async-handler`로 래핑하여 에러를 `errHandler`로 자동 전파.
 
+## OAuth 인증
+
+Google OAuth (Passport.js) 구현 완료. Kakao/Naver는 동일 패턴으로 추가 가능.
+
+### 흐름
+1. `GET /api/auth/google` → Passport가 Google로 리다이렉트
+2. Google 인증 후 `GET /api/auth/google/callback` 콜백
+3. `googleStrategy.js`에서 프로필을 `oauthProfile` 형태로 변환
+4. `oauthCallback` 컨트롤러: 유저 생성/조회 → JWT 발급 → 쿠키 설정 → `/auth/callback?token=xxx` 리다이렉트
+
+### 파일
+- `src/passport/googleStrategy.js` — Google OAuth 전략
+- `src/passport/index.js` — 전략 등록
+- `src/user/routes/auth.js` — OAuth 라우트
+- `src/user/controllers/auth.js` — oauthCallback, generateTokens, setCookies
+
+### 주의사항
+- 새 유저 생성 시 status는 `approved` (가입 즉시 사용 가능)
+- `config.cors.origins[0]`이 프론트 URL로 사용됨 (CLIENT_URL 환경변수)
+- Google Cloud Console 리디렉션 URI와 서버 GOOGLE_CALLBACK_URL이 정확히 일치해야 함 (HTTP/HTTPS, 포트 주의)
+- 참고 프로젝트: `~/Documents/cheeze/healthcare/healthcare-api-server`
+
 ## 에러 패턴
 
 컨트롤러에서 `new ErrClass(ErrInfo.<에러명>)`을 throw. `src/err.js`의 글로벌 `errHandler`가 응답을 포맷. 원시 에러를 직접 보내지 말고 반드시 사전 정의된 `ErrInfo` 항목을 사용할 것.
