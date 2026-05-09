@@ -1,4 +1,4 @@
-// API 서버 베이스 URL (로컬: 빈 문자열 → Vite 프록시, 라이브: VITE_API_URL)
+// API 서버 베이스 URL (로컬: Vite 프록시, 라이브: VITE_API_URL → HTTPS)
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // User roles
