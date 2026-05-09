@@ -41,7 +41,7 @@ jobs:
       - name: Build
         run: npm run build:app
         env:
-          VITE_API_URL: http://api.lordhill-sns.kr:3001
+          VITE_API_URL: https://api.lordhill-sns.kr
 
       # 6. AWS 인증
       - name: Configure AWS credentials
