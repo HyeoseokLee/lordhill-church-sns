@@ -49,7 +49,7 @@ export const oauthCallback = async (req, res) => {
       profileImageUrl,
       provider,
       providerId,
-      status: userStatus.pending,
+      status: userStatus.approved,
     });
   }
 
@@ -58,12 +58,12 @@ export const oauthCallback = async (req, res) => {
 
   const clientUrl = config.cors.origins[0];
   if (user.status === userStatus.pending) {
-    return res.redirect(`${clientUrl}/pending`);
+    return res.redirect(`${clientUrl}/login/pending`);
   }
   if (user.status === userStatus.rejected) {
-    return res.redirect(`${clientUrl}/rejected`);
+    return res.redirect(`${clientUrl}/login/pending`);
   }
-  return res.redirect(`${clientUrl}/feed`);
+  return res.redirect(`${clientUrl}/`);
 };
 
 export const refreshToken = async (req, res) => {
