@@ -48,8 +48,9 @@ Schema: `packages/server/prisma/schema.prisma`
 
 ## Live (Production)
 
-- 프론트: `https://d3r7fh2kgsbnqt.cloudfront.net`
-- API 서버: `http://15.164.129.119:3001`
+- 도메인: `lordhill-sns.kr` (가비아, 루트→www 포워딩)
+- 프론트: `https://www.lordhill-sns.kr` (CloudFront: `d3r7fh2kgsbnqt.cloudfront.net`)
+- API 서버: `http://api.lordhill-sns.kr:3001` (EC2: `15.164.129.119`)
 - RDS: `lordhill-sns-db.c1qaum2qg2re.ap-northeast-2.rds.amazonaws.com`
 - S3 이미지: `lordhill-sns-media`
 - S3 프론트: `lordhill-sns-front-905418091773-ap-northeast-2-an`

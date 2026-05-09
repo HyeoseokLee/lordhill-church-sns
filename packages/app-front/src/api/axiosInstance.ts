@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// 로컬: Vite 프록시 /api, 라이브: VITE_API_URL 환경변수
 const axiosInstance = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

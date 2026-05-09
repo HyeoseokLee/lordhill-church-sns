@@ -3,6 +3,7 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import axiosInstance from '@/api/axiosInstance';
 import { authApi } from '@/api/authApi';
 import { useAuthStore } from '@/stores/authStore';
+import { API_BASE_URL } from '@/config/define';
 import { MessageCircle } from 'lucide-react';
 import logoImg from '@/assets/images/img_logo3.png';
 
@@ -65,8 +66,9 @@ export default function LoginPage() {
     return <Navigate to="/" replace />;
   }
 
+  // OAuth 로그인은 서버로 직접 리다이렉트
   const handleLogin = (url: string) => {
-    window.location.href = url;
+    window.location.href = `${API_BASE_URL}${url}`;
   };
 
   // 개발 환경 전용 로그인

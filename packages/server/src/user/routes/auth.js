@@ -1,14 +1,42 @@
 import express from 'express';
+import passport from 'passport';
+import config from 'config';
 import asyncHandler from 'express-async-handler';
-import { refreshToken, logout, getMe, devLogin } from '../controllers/auth.js';
+import {
+  oauthCallback,
+  refreshToken,
+  logout,
+  getMe,
+  devLogin,
+} from '../controllers/auth.js';
 import { onlyLoginUser } from '../../middlewares.js';
 
 const router = express.Router();
 
-// OAuth 콜백 (Google, Kakao, Naver)
-// TODO: passport.authenticate 연결
-// router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-// router.get('/google/callback', passport.authenticate('google', { session: false }), asyncHandler(oauthCallback));
+// Google OAuth 로그인 시작
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+  }),
+);
+
+// Google OAuth 콜백 처리
+router.get(
+  '/google/callback',
+  (req, res, next) => {
+    passport.authenticate('google', { session: false }, (err, oauthProfile) => {
+      if (err || !oauthProfile) {
+        const clientUrl = config.cors.origins[0] || 'http://localhost:5173';
+        return res.redirect(`${clientUrl}/login?error=oauth_failed`);
+      }
+      req.oauthProfile = oauthProfile;
+      next();
+    })(req, res, next);
+  },
+  asyncHandler(oauthCallback),
+);
 
 // Dev 로그인 (프로덕션 차단)
 if (process.env.NODE_ENV !== 'production') {
