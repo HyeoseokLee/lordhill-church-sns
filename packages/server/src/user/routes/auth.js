@@ -6,6 +6,7 @@ import {
   oauthCallback,
   googleNativeLogin,
   kakaoNativeLogin,
+  naverNativeLogin,
   refreshToken,
   logout,
   getMe,
@@ -69,6 +70,33 @@ router.get(
 
 // 네이티브 앱 Kakao 로그인 (accessToken으로 프로필 조회)
 router.post('/kakao/native', asyncHandler(kakaoNativeLogin));
+
+// Naver OAuth 로그인 시작
+router.get(
+  '/naver',
+  passport.authenticate('naver', {
+    session: false,
+  }),
+);
+
+// Naver OAuth 콜백 처리
+router.get(
+  '/naver/callback',
+  (req, res, next) => {
+    passport.authenticate('naver', { session: false }, (err, oauthProfile) => {
+      if (err || !oauthProfile) {
+        const clientUrl = config.cors.origins[0] || 'http://localhost:5173';
+        return res.redirect(`${clientUrl}/login?error=oauth_failed`);
+      }
+      req.oauthProfile = oauthProfile;
+      next();
+    })(req, res, next);
+  },
+  asyncHandler(oauthCallback),
+);
+
+// 네이티브 앱 Naver 로그인 (accessToken으로 프로필 조회)
+router.post('/naver/native', asyncHandler(naverNativeLogin));
 
 // Dev 로그인 (프로덕션 차단)
 if (process.env.NODE_ENV !== 'production') {

@@ -555,6 +555,84 @@ hooks/useAuth.ts     — localStorage 토큰 있을 때만 /auth/me 호출
 
 ---
 
+## 9-1. Kakao OAuth 세팅
+
+Google과 동일한 Passport 패턴. WebView에서도 차단 없이 동작하므로 **네이티브 SDK 불필요**.
+
+### 9-1-1. Kakao Developers 앱 등록
+
+1. https://developers.kakao.com → 로그인 → **내 애플리케이션** → **애플리케이션 추가하기**
+2. 앱 이름 입력 후 저장
+
+### 9-1-2. 카카오 로그인 활성화
+
+좌측 메뉴 → **카카오 로그인** → **일반** 탭 → **사용 설정** ON
+
+### 9-1-3. Redirect URI 등록
+
+⚠️ **주의: Redirect URI는 "카카오 로그인" 메뉴가 아니라 "플랫폼 키" 메뉴에 있음!**
+
+1. 좌측 메뉴 → **앱 설정** → **플랫폼 키**
+2. **REST API 키 추가** 클릭
+3. 설정:
+
+| 항목 | 값 |
+|-----|---|
+| **키 이름** | `<프로젝트>-server` |
+| **호출 허용 IP 주소** | 비워두기 (제한 없음) |
+| **카카오 로그인 리다이렉트 URI** | `https://api.<도메인>/api/auth/kakao/callback`, `http://localhost:3001/api/auth/kakao/callback` |
+| **비즈니스 인증 리다이렉트 URI** | 비워두기 |
+
+4. 저장 후 **REST API 키**와 **Client Secret (카카오 로그인 코드)** 복사
+
+### 9-1-4. 동의항목 설정
+
+좌측 메뉴 → **카카오 로그인** → **동의항목** 탭
+
+| 항목 | 설정 |
+|-----|------|
+| 닉네임 | 필수 동의 |
+| 프로필 사진 | 선택 동의 |
+| 카카오계정(이메일) | 비즈 앱 전환 후 가능 — 지금은 건너뛰기 |
+
+### 9-1-5. 플랫폼 등록
+
+좌측 메뉴 → **앱 설정** → **플랫폼** → **Web** 추가:
+- 사이트 도메인: `https://www.<도메인>`
+
+### 9-1-6. 서버 .env 설정
+
+```bash
+KAKAO_CLIENT_ID=<REST API 키>
+KAKAO_CLIENT_SECRET=<카카오 로그인 코드>
+KAKAO_CALLBACK_URL=https://api.<도메인>/api/auth/kakao/callback
+```
+
+### 9-1-7. 서버 구현 (Google과 동일 패턴)
+
+```
+src/passport/kakaoStrategy.js  — passport-kakao 전략 (oauthProfile 변환, email optional)
+src/passport/index.js           — kakaoStrategy 등록
+src/user/routes/auth.js         — GET /auth/kakao, GET /auth/kakao/callback, POST /auth/kakao/native
+src/user/controllers/auth.js    — kakaoNativeLogin (kapi.kakao.com/v2/user/me로 프로필 조회)
+```
+
+oauthCallback 컨트롤러는 Google과 재사용.
+
+### 9-1-8. iOS WebView 동작
+
+카카오는 Google과 달리 **WebView 내 OAuth를 차단하지 않음**. 네이티브 SDK 없이 웹 OAuth가 그대로 동작.
+
+### ⚠️ 시행착오
+
+1. **Redirect URI 위치를 찾기 어려움** — "카카오 로그인" 메뉴가 아니라 **"앱 설정 → 플랫폼 키 → REST API 키 추가"** 안에 있음. 카카오 로그인 → 일반 탭에는 없음
+2. **사용 설정을 먼저 켜야 함** — ON 안 하면 KOE004 에러
+3. **이메일 미제공** — 비즈 앱이 아니면 이메일을 못 가져옴. email은 optional로 처리 (빈 문자열 허용)
+4. **Client Secret ≠ REST API 키** — REST API 키가 Client ID, 카카오 로그인 코드가 Client Secret. 헷갈리지 말 것
+5. **WebView 차단 없음** — Google과 달리 카카오는 WebView에서 OAuth 허용. 네이티브 SDK 불필요 (하지만 native 엔드포인트는 만들어두면 좋음)
+
+---
+
 ## 10. EC2 서버 .env 세팅
 
 CI/CD로 관리하지 않음 (보안). SSH로 수동 설정.
@@ -574,6 +652,10 @@ JWT_REFRESH_SECRET=<랜덤문자열>
 GOOGLE_CLIENT_ID=<웹용 Google Client ID>
 GOOGLE_CLIENT_SECRET=<웹용 Google Client Secret>
 GOOGLE_CALLBACK_URL=https://api.<도메인>/api/auth/google/callback
+
+KAKAO_CLIENT_ID=<REST API 키>
+KAKAO_CLIENT_SECRET=<카카오 로그인 코드>
+KAKAO_CALLBACK_URL=https://api.<도메인>/api/auth/kakao/callback
 
 AWS_ACCESS_KEY_ID=<AWS키>
 AWS_SECRET_ACCESS_KEY=<AWS시크릿>

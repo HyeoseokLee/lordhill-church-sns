@@ -139,6 +139,46 @@ export const kakaoNativeLogin = async (req, res) => {
   res.json({ accessToken: tokens.accessToken });
 };
 
+// 네이티브 앱에서 Naver accessToken으로 로그인
+export const naverNativeLogin = async (req, res) => {
+  const { accessToken } = req.body;
+  if (!accessToken) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  // Naver 사용자 정보 조회
+  const response = await fetch('https://openapi.naver.com/v1/nid/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  const { response: profile } = await response.json();
+  const providerId = profile.id;
+  const email = profile.email || '';
+  const nickname = profile.nickname || profile.name || '';
+  const profileImageUrl = profile.profile_image || '';
+
+  let user = await models.User.findOne({
+    where: { provider: 'naver', providerId },
+  });
+
+  if (!user) {
+    user = await models.User.create({
+      email,
+      nickname,
+      profileImageUrl,
+      provider: 'naver',
+      providerId,
+      status: userStatus.approved,
+    });
+  }
+
+  const tokens = generateTokens(user);
+  res.json({ accessToken: tokens.accessToken });
+};
+
 export const refreshToken = async (req, res) => {
   const token = req.cookies?.refresh_token || req.body?.refreshToken;
 

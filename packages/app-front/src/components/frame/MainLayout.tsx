@@ -2,7 +2,6 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import BottomNavigation from '@/components/common/BottomNavigation';
-import WriteDrawer from '@/pages/home/WriteDrawer';
 
 // 인증된 페이지의 공통 레이아웃
 export default function MainLayout() {
@@ -30,7 +29,6 @@ export default function MainLayout() {
         <Outlet />
       </main>
       <BottomNavigation />
-      <WriteDrawer />
     </FullHeightBox>
   );
 }
