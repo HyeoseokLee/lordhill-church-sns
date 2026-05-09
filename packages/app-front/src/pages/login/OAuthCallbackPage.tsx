@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/authApi';
 
+// OAuth 콜백 처리 — 토큰 저장 후 유저 정보 조회 → 홈 이동
 export default function OAuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -15,12 +16,8 @@ export default function OAuthCallbackPage() {
       authApi
         .getMe()
         .then(res => {
-          setUser(res.data.user);
-          if (res.data.user.role === 'PENDING') {
-            navigate('/login/pending', { replace: true });
-          } else {
-            navigate('/', { replace: true });
-          }
+          setUser(res.data);
+          navigate('/', { replace: true });
         })
         .catch(() => {
           navigate('/login', { replace: true });
@@ -31,8 +28,8 @@ export default function OAuthCallbackPage() {
   }, [searchParams, navigate, setUser]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="text-gray-500">로그인 처리 중...</div>
+    <div className="flex min-h-screen items-center justify-center bg-bg">
+      <div className="text-text-muted text-[15px]">로그인 처리 중...</div>
     </div>
   );
 }
