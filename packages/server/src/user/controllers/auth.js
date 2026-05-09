@@ -98,6 +98,47 @@ export const googleNativeLogin = async (req, res) => {
   res.json({ accessToken: tokens.accessToken });
 };
 
+// 네이티브 앱에서 Kakao accessToken으로 로그인
+export const kakaoNativeLogin = async (req, res) => {
+  const { accessToken } = req.body;
+  if (!accessToken) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  // Kakao 사용자 정보 조회
+  const response = await fetch('https://kapi.kakao.com/v2/user/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  const payload = await response.json();
+  const providerId = String(payload.id);
+  const email = payload.kakao_account?.email || '';
+  const nickname = payload.kakao_account?.profile?.nickname || '';
+  const profileImageUrl =
+    payload.kakao_account?.profile?.profile_image_url || '';
+
+  let user = await models.User.findOne({
+    where: { provider: 'kakao', providerId },
+  });
+
+  if (!user) {
+    user = await models.User.create({
+      email,
+      nickname,
+      profileImageUrl,
+      provider: 'kakao',
+      providerId,
+      status: userStatus.approved,
+    });
+  }
+
+  const tokens = generateTokens(user);
+  res.json({ accessToken: tokens.accessToken });
+};
+
 export const refreshToken = async (req, res) => {
   const token = req.cookies?.refresh_token || req.body?.refreshToken;
 

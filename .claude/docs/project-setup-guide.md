@@ -8,16 +8,28 @@
 ## 전체 프로세스 요약
 
 ```
-1. GitHub 레포 생성 + 로컬 Git 연결
-2. 모노레포 구조 세팅 (npm workspaces)
-3. 서버 초기 세팅 (Express + Sequelize)
-4. 프론트 초기 세팅 (React + Vite + Tailwind)
-5. DB 세팅 (Docker + MySQL + Adminer)
-6. AWS 인프라 세팅 (EC2 + RDS + S3 + CloudFront)
-7. 도메인 + HTTPS 세팅
-8. CI/CD 세팅 (GitHub Actions)
-9. Google OAuth 세팅
+1.  GitHub 레포 생성 + 로컬 Git 연결
+2.  모노레포 구조 세팅 (npm workspaces)
+3.  서버 초기 세팅 (Express + Sequelize)
+4.  프론트 초기 세팅 (React + Vite + Tailwind)
+5.  DB 세팅 (Docker + MySQL + Adminer)
+6.  AWS 인프라 세팅 (EC2 + RDS + S3 + CloudFront)
+7.  도메인 + HTTPS 세팅
+8.  CI/CD 세팅 (GitHub Actions)
+9.  Google OAuth 세팅 (웹)
+10. EC2 서버 .env 세팅
+11. 디자인 시스템 세팅
+12. 프론트 레이아웃 패턴
+13. 네이티브 앱 (iOS/Android WebView)
+13-1. iOS 네이티브 Google 로그인
+14. 어드민 프론트 배포
 ```
+
+### ⚠️ 순서 중요!
+- 6~7번(AWS + 도메인)을 먼저 해야 9번(OAuth) 가능 — Google은 IP 주소를 리디렉션 URI로 허용 안 함
+- 7번(HTTPS)을 해야 라이브에서 OAuth 동작 — Mixed Content 차단
+- 8번(CI/CD)은 6번 이후에 설정
+- 13-1번(iOS 네이티브 Google)은 9번(웹 OAuth) + 13번(네이티브 앱) 이후에 진행
 
 ---
 
@@ -289,13 +301,17 @@ aws configure  # Access Key, Secret Key, ap-northeast-2, json
 
 생성 후:
 ```bash
-# 데이터베이스 생성 (EC2에서)
-mysql -h <RDS엔드포인트> -u admin -p
+# EC2에서 MySQL 클라이언트로 RDS 접속 후 데이터베이스 생성
+mysql -h <RDS엔드포인트> -u admin --password='<마스터암호>'
 CREATE DATABASE <db명> CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+# 마이그레이션 실행 (EC2에서)
+cd ~/app/packages/server && npx sequelize-cli db:migrate
 ```
 
 ### ⚠️ 시행착오
 - RDS 생성 시 초기 데이터베이스 이름을 안 넣으면 수동으로 CREATE DATABASE 필요
+- mysql 명령에서 비밀번호에 `!` 등 특수문자가 있으면 `--password='xxx'` 작은따옴표로 감싸기
 - EC2에서 RDS 접속하려면 RDS 보안 그룹에 EC2 보안 그룹 허용 필요:
   ```bash
   aws ec2 authorize-security-group-ingress --group-id <RDS-SG> --protocol tcp --port 3306 --source-group <EC2-SG>
@@ -494,13 +510,14 @@ sudo systemctl enable nginx
 ## 9. Google OAuth 세팅
 
 ### 9-1. Google Cloud Console
-1. https://console.cloud.google.com → 새 프로젝트
-2. OAuth 동의 화면 → 외부
-3. 사용자 인증 정보 → OAuth 클라이언트 ID (웹)
+1. https://console.cloud.google.com → 새 프로젝트 생성
+2. 좌측 메뉴 → **API 및 서비스** → **OAuth 동의 화면** → 외부 선택 → 앱 이름/이메일 입력
+3. **사용자 인증 정보** → **OAuth 클라이언트 ID 만들기** → 애플리케이션 유형: **웹 애플리케이션**
 4. 승인된 JavaScript 원본: `https://www.<도메인>`, `http://localhost:5173`
-5. 승인된 리디렉션 URI:
-   - `https://api.<도메인>/api/auth/google/callback`
-   - `http://localhost:3001/api/auth/google/callback`
+5. 승인된 리디렉션 URI (HTTP/HTTPS, 포트까지 정확히!):
+   - `https://api.<도메인>/api/auth/google/callback` (라이브)
+   - `http://localhost:3001/api/auth/google/callback` (로컬)
+6. **클라이언트 ID**와 **클라이언트 보안 비밀번호** 복사 → 서버 .env에 설정
 
 ### 9-2. 서버 구현 (Passport)
 ```
@@ -554,8 +571,8 @@ DB_DATABASE=<db명>
 JWT_SECRET=<랜덤문자열>
 JWT_REFRESH_SECRET=<랜덤문자열>
 
-GOOGLE_CLIENT_ID=<Google Client ID>
-GOOGLE_CLIENT_SECRET=<Google Client Secret>
+GOOGLE_CLIENT_ID=<웹용 Google Client ID>
+GOOGLE_CLIENT_SECRET=<웹용 Google Client Secret>
 GOOGLE_CALLBACK_URL=https://api.<도메인>/api/auth/google/callback
 
 AWS_ACCESS_KEY_ID=<AWS키>
@@ -564,8 +581,14 @@ AWS_REGION=ap-northeast-2
 AWS_S3_BUCKET=<이미지 버킷명>
 
 CLIENT_URL=https://www.<도메인>
+ADMIN_URL=https://admin.<도메인>
 PORT=3001
 EOF
+```
+
+설정 후 PM2 재시작:
+```bash
+pm2 restart lordhill-server
 ```
 
 ### ⚠️ 시행착오
@@ -679,6 +702,105 @@ gh repo create <유저명>/<앱명> --private --source <경로> --push
 - iOS 실기기: "신뢰하지 않는 개발자" → 설정에서 수동 신뢰 필요 (최초 1회)
 - Android: 에뮬레이터에서 로컬 서버 접속 시 `10.0.2.2`로 변경 필요할 수 있음
 - Android Studio Gradle Sync 후 AGP 자동 업그레이드 제안 → 수락해도 됨
+- iOS Constants.swift의 live URL은 `https://www.lordhill-sns.kr/` (www 포함 필수, 루트 도메인은 포워딩이라 웹뷰에서 안 될 수 있음)
+
+---
+
+## 13-1. iOS 네이티브 Google 로그인 (WebView 앱용)
+
+WebView 앱에서 Google OAuth는 특수한 처리가 필요하다.
+- Google은 임베디드 WebView 내 OAuth를 **정책적으로 차단** (403 에러)
+- Safari로 열면 로그인 후 앱으로 돌아오지 않음
+- → **네이티브 Google SDK**를 써야 함
+
+### 13-1-1. Google Cloud Console에서 iOS용 Client ID 발급
+
+웹용 Client ID와 **별도로** iOS용을 만들어야 함.
+
+| 항목 | 값 |
+|-----|---|
+| 애플리케이션 유형 | **iOS** (웹 아님!) |
+| 이름 | `<프로젝트>-ios` |
+| 번들 ID | `com.<프로젝트>.<앱>` (Xcode와 동일) |
+
+→ iOS용 Client ID가 발급됨. GoogleService-Info.plist 다운로드는 선택 (코드에서 직접 설정 가능).
+
+### 13-1-2. iOS 앱 설정
+
+**LordhillChurchApp.swift — 코드에서 직접 Client ID 설정 (plist 불필요)**
+```swift
+import GoogleSignIn
+
+init() {
+    let config = GIDConfiguration(clientID: "<iOS용 Client ID>")
+    GIDSignIn.sharedInstance.configuration = config
+}
+```
+
+**Info.plist — Reversed Client ID URL Scheme 등록**
+```xml
+<dict>
+    <key>CFBundleURLName</key>
+    <string>GoogleSignIn</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+        <string>com.googleusercontent.apps.<iOS Client ID 앞부분></string>
+    </array>
+</dict>
+```
+
+**LordhillWebView.swift — Google OAuth URL 인터셉트 → 네이티브 SDK**
+```swift
+// WebView에서 Google OAuth URL 감지 시
+if DeepLinkUtil.isGoogleOAuthURL(url) {
+    performNativeGoogleSignIn()  // 네이티브 SDK 팝업
+    decisionHandler(.cancel)     // WebView 네비게이션 차단
+    return
+}
+```
+
+**네이티브 로그인 성공 후 흐름:**
+```
+GIDSignIn 성공 → idToken 획득
+→ POST /api/auth/google/native (서버에 idToken 전송)
+→ 서버가 Google에 토큰 검증 → JWT 발급 → { accessToken } 응답
+→ 웹뷰에서 /auth/callback?token=xxx 로드
+→ OAuthCallbackPage → localStorage 저장 → 홈 이동
+```
+
+### 13-1-3. 서버 엔드포인트 추가
+
+`POST /api/auth/google/native` — 네이티브 앱에서 idToken으로 로그인
+
+```js
+// controllers/auth.js
+export const googleNativeLogin = async (req, res) => {
+  const { idToken } = req.body;
+  // Google tokeninfo API로 검증
+  const response = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`
+  );
+  const { sub: providerId, email, name, picture } = await response.json();
+  // 유저 생성/조회 → JWT 발급
+  const tokens = generateTokens(user);
+  res.json({ accessToken: tokens.accessToken });
+};
+```
+
+라우트 등록:
+```js
+router.post('/google/native', asyncHandler(googleNativeLogin));
+```
+
+### ⚠️ 시행착오 (많음!)
+
+1. **GoogleService-Info.plist 없이 실행 가능** — 코드에서 `GIDConfiguration(clientID:)`로 직접 설정하면 plist 불필요
+2. **웹용 Client ID ≠ iOS용 Client ID** — 웹용 Client ID를 iOS에서 쓰면 `Custom scheme URIs are not allowed for 'WEB' client type` 에러. 반드시 iOS 유형으로 별도 발급
+3. **Info.plist URL Scheme 필수** — `com.googleusercontent.apps.<Client ID>` 등록 안 하면 앱 크래시 (`NSInvalidArgumentException`)
+4. **WebView 내 Google OAuth 차단** — Google 정책상 임베디드 WebView에서 OAuth 금지. `access blocked` 403 에러 발생
+5. **Safari로 열면 앱으로 안 돌아옴** — Safari에서 로그인 완료 후 웹 페이지에서 머무름. 딥링크/Universal Link 추가 설정 없이는 앱으로 복귀 불가
+6. **서버 응답 파싱 실패** — 라이브 서버에 코드 배포 + PM2 재시작 잊지 말 것
+7. **PM2 프로세스 중복** — 배포 시 프로세스가 여러 개 생기면 포트 충돌. `pm2 delete all` 후 재시작
 
 ---
 

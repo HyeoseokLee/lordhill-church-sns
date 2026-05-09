@@ -5,6 +5,7 @@ import asyncHandler from 'express-async-handler';
 import {
   oauthCallback,
   googleNativeLogin,
+  kakaoNativeLogin,
   refreshToken,
   logout,
   getMe,
@@ -41,6 +42,33 @@ router.get(
 
 // 네이티브 앱 Google 로그인 (idToken 검증)
 router.post('/google/native', asyncHandler(googleNativeLogin));
+
+// Kakao OAuth 로그인 시작
+router.get(
+  '/kakao',
+  passport.authenticate('kakao', {
+    session: false,
+  }),
+);
+
+// Kakao OAuth 콜백 처리
+router.get(
+  '/kakao/callback',
+  (req, res, next) => {
+    passport.authenticate('kakao', { session: false }, (err, oauthProfile) => {
+      if (err || !oauthProfile) {
+        const clientUrl = config.cors.origins[0] || 'http://localhost:5173';
+        return res.redirect(`${clientUrl}/login?error=oauth_failed`);
+      }
+      req.oauthProfile = oauthProfile;
+      next();
+    })(req, res, next);
+  },
+  asyncHandler(oauthCallback),
+);
+
+// 네이티브 앱 Kakao 로그인 (accessToken으로 프로필 조회)
+router.post('/kakao/native', asyncHandler(kakaoNativeLogin));
 
 // Dev 로그인 (프로덕션 차단)
 if (process.env.NODE_ENV !== 'production') {
