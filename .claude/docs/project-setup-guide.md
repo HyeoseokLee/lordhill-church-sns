@@ -682,6 +682,79 @@ gh repo create <유저명>/<앱명> --private --source <경로> --push
 
 ---
 
+## 14. 어드민 프론트 배포
+
+어드민용 S3 + CloudFront + DNS를 별도로 세팅. 와일드카드 인증서(`*.<도메인>`)가 이미 있으므로 서브도메인 추가 비용 없음.
+
+### 14-1. S3 버킷 생성
+```bash
+aws s3 mb s3://<프로젝트>-admin --region ap-northeast-2
+```
+
+### 14-2. CloudFront 배포 생성
+콘솔 또는 CLI로 생성. 프론트용과 동일 패턴:
+- Origin: 어드민 S3 버킷
+- OAC 설정 → S3 버킷 정책 추가 (CloudFront 서비스 프린시펄 허용)
+- SPA 에러 페이지: 403 → /index.html (200)
+- 커스텀 도메인: `admin.<도메인>` + 기존 와일드카드 ACM 인증서 연결
+
+### 14-3. S3 버킷 정책
+```bash
+aws s3api put-bucket-policy --bucket <프로젝트>-admin --policy '{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {"Service": "cloudfront.amazonaws.com"},
+    "Action": "s3:GetObject",
+    "Resource": "arn:aws:s3:::<프로젝트>-admin/*",
+    "Condition": {"StringEquals": {"AWS:SourceArn": "arn:aws:cloudfront::<계정ID>:distribution/<배포ID>"}}
+  }]
+}'
+```
+
+### 14-4. 가비아 DNS 추가
+
+| 타입 | 호스트 | 값 |
+|-----|-------|---|
+| CNAME | `admin` | `<CloudFront도메인>.` |
+
+### 14-5. GitHub Secrets 추가
+```bash
+gh secret set ADMIN_CLOUDFRONT_DISTRIBUTION_ID --body "<배포ID>"
+```
+
+### 14-6. GitHub Actions 워크플로우
+`.github/workflows/deploy-admin.yml` — 프론트와 동일 패턴:
+```
+트리거: main 푸시 + packages/admin-front/** 변경
+빌드 (VITE_API_URL=https://api.<도메인>) → S3 업로드 → CloudFront 캐시 무효화
+```
+
+### 14-7. 어드민 API URL 설정
+```js
+// admin-front/src/lib/api.js
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : '/api',
+  withCredentials: true,
+});
+```
+
+### 14-8. 서버 CORS + ADMIN_URL
+```bash
+# EC2 .env에 추가
+ADMIN_URL=https://admin.<도메인>
+```
+서버 config의 `cors.origins`에 `ADMIN_URL` 포함 확인. PM2 재시작.
+
+### ⚠️ 시행착오
+- CLI로 CloudFront 생성 시 CustomOriginConfig로 만들어질 수 있음 → S3OriginConfig + OAC로 수정 필요
+- 프론트용 CloudFront와 별개 배포이므로 별도의 S3 버킷 정책, OAC, GitHub Secret 필요
+- admin-front의 vite 프록시에서 path rewrite 주의 — 서버가 `/api` prefix를 쓰면 rewrite 하면 안 됨
+
+---
+
 ## 부록: 프리 티어 요약
 
 | 서비스 | 무료 범위 | 기간 |

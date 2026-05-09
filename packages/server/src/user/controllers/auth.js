@@ -61,6 +61,43 @@ export const oauthCallback = async (req, res) => {
   return res.redirect(`${clientUrl}/auth/callback?token=${tokens.accessToken}`);
 };
 
+// 네이티브 앱에서 Google idToken으로 로그인
+export const googleNativeLogin = async (req, res) => {
+  const { idToken } = req.body;
+  if (!idToken) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  // Google idToken 검증
+  const response = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+  );
+  if (!response.ok) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  const payload = await response.json();
+  const { sub: providerId, email, name, picture } = payload;
+
+  let user = await models.User.findOne({
+    where: { provider: 'google', providerId },
+  });
+
+  if (!user) {
+    user = await models.User.create({
+      email,
+      nickname: name,
+      profileImageUrl: picture,
+      provider: 'google',
+      providerId,
+      status: userStatus.approved,
+    });
+  }
+
+  const tokens = generateTokens(user);
+  res.json({ accessToken: tokens.accessToken });
+};
+
 export const refreshToken = async (req, res) => {
   const token = req.cookies?.refresh_token || req.body?.refreshToken;
 

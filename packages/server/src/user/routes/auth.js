@@ -4,6 +4,7 @@ import config from 'config';
 import asyncHandler from 'express-async-handler';
 import {
   oauthCallback,
+  googleNativeLogin,
   refreshToken,
   logout,
   getMe,
@@ -37,6 +38,9 @@ router.get(
   },
   asyncHandler(oauthCallback),
 );
+
+// 네이티브 앱 Google 로그인 (idToken 검증)
+router.post('/google/native', asyncHandler(googleNativeLogin));
 
 // Dev 로그인 (프로덕션 차단)
 if (process.env.NODE_ENV !== 'production') {
