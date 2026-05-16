@@ -61,6 +61,8 @@ jobs:
             npx sequelize-cli db:migrate
             npx sequelize-cli db:seed:all
 
-            # PM2로 서버 실행 (이미 실행 중이면 재시작)
-            pm2 startOrRestart ecosystem.config.cjs --env production || pm2 start npm --name "lordhill-server" -- run start
+            # PM2로 서버 실행 (기존 프로세스 삭제 후 새로 시작 — 중복 방지)
+            pm2 delete lordhill-server 2>/dev/null || true
+            cd ~/app/packages/server && pm2 start npm --name lordhill-server -- run start
+            pm2 save
           EOF

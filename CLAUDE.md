@@ -121,6 +121,9 @@ nginx (HTTPS, certbot) → EC2:3001 (Express) → RDS MySQL
 9. **RDS 테이블 없음**: EC2에서 `npx sequelize-cli db:migrate` 실행 필요. CI/CD에 마이그레이션 단계 추가
 10. **EC2에서 RDS 접속 안 됨**: RDS 보안 그룹에 EC2 보안 그룹 허용 필요
 11. **IP 주소 OAuth 불가**: Google은 IP를 리디렉션 URI로 허용 안 함. 도메인 필수
+12. **Express `use('/')` 순서**: prefix `/`는 모든 경로에 매칭. 인증 미들웨어 붙은 `use('/')`는 반드시 다른 라우터보다 마지막에 배치
+13. **CI/CD 시더 누락**: `db:migrate`만 있고 `db:seed:all`이 없으면 라이브에 초기 데이터 없음. 시더는 중복 실행 방지 로직(SELECT 후 스킵) 필수
+14. **PM2 프로세스 중복**: `pm2 startOrRestart`가 구 프로세스를 교체 못하고 중복 생성 가능. 라이브 배포 후 문제 시 `pm2 list`로 프로세스 개수 확인, `pm2 delete all` 후 재시작
 
 ## 단위개발 완료 후 기록 규칙
 

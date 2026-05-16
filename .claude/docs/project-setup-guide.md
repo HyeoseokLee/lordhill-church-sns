@@ -1737,6 +1737,9 @@ api.get('/auth/me').then(({ data }) => {
 1. **`apiRouter.use('/')` 순서 문제** — comment 라우터를 `use('/')`로 마운트하면 prefix `/`가 **모든 경로에 매칭**됨. `POST /admin/login`도 `/`로 시작하므로 comment 라우터의 `onlyLoginUser` 미들웨어가 먼저 실행되어 401 에러 발생. **`use('/')` 라우터는 반드시 다른 모든 라우터보다 마지막에 배치해야 함**
 2. **role/status 대소문자 불일치** — DB enum은 소문자(`admin`, `approved`)인데 프론트에서 대문자(`ADMIN`, `APPROVED`)로 비교하면 항상 `false`. 서버가 내려주는 값과 정확히 일치시켜야 함
 3. **포트 충돌 (EADDRINUSE)** — nodemon 재시작 시 이전 프로세스가 남아 포트 충돌 발생. `kill $(lsof -t -i :3001)` 후 재시작. 여러 터미널에서 서버를 중복 실행하지 않도록 주의
+4. **CI/CD에 시더 실행 누락** — `db:migrate`만 있고 `db:seed:all`이 없으면 라이브 DB에 초기 데이터(admin 계정)가 없음. deploy-server.yml에 마이그레이션 다음 줄에 `npx sequelize-cli db:seed:all` 추가 필수
+5. **시더 중복 실행 방지** — `db:seed:all`은 매 배포마다 실행되므로 시더 내부에서 `SELECT`로 기존 데이터 존재 여부를 확인하고 있으면 스킵하는 로직 필요. 안 하면 배포할 때마다 중복 삽입 시도 → unique 제약 에러
+6. **PM2 프로세스 중복 (라이브 배포 후 로그인 실패 원인)** — `pm2 startOrRestart`가 기존 프로세스를 교체하지 못하고 새 프로세스를 추가 생성할 수 있음. 구 코드 프로세스(6일 전)가 요청을 처리하여 최신 코드가 반영 안 됨. `pm2 list`로 프로세스 개수를 확인하고, 여러 개면 `pm2 delete all` 후 단일 프로세스로 재시작. 배포 스크립트에서도 `pm2 delete lordhill-server` 후 `pm2 start`하는 것이 안전
 
 ---
 
