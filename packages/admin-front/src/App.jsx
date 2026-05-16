@@ -14,7 +14,7 @@ function AdminRoute({ children }) {
     api
       .get('/auth/me')
       .then(({ data }) => {
-        setState({ loading: false, isAdmin: data.role === 'ADMIN' && data.status === 'APPROVED' });
+        setState({ loading: false, isAdmin: data.role === 'admin' && data.status === 'approved' });
       })
       .catch(() => {
         setState({ loading: false, isAdmin: false });

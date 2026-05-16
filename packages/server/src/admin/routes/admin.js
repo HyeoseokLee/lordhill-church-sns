@@ -4,6 +4,9 @@ import {
   getUsers,
   approveUser,
   rejectUser,
+  deactivateUser,
+  deleteUser,
+  restoreUser,
   deletePostByAdmin,
   deleteCommentByAdmin,
   getDashboard,
@@ -22,6 +25,15 @@ router.patch('/users/:id/approve', asyncHandler(approveUser));
 
 // 회원 거절
 router.patch('/users/:id/reject', asyncHandler(rejectUser));
+
+// 회원 계정잠금/해제
+router.patch('/users/:id/deactivate', asyncHandler(deactivateUser));
+
+// 회원 삭제
+router.delete('/users/:id', asyncHandler(deleteUser));
+
+// 삭제된 회원 복구
+router.patch('/users/:id/restore', asyncHandler(restoreUser));
 
 // 포스트 강제 삭제
 router.delete('/posts/:id', asyncHandler(deletePostByAdmin));

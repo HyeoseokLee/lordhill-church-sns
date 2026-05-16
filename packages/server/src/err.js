@@ -46,6 +46,11 @@ export const ErrInfo = {
     code: 23,
     message: '비활성화된 계정입니다.',
   },
+  UserDeleted: {
+    statusCode: 403,
+    code: 26,
+    message: '삭제된 계정입니다. 관리자에게 문의하세요.',
+  },
   DuplicateNickname: {
     statusCode: 400,
     code: 24,
@@ -79,6 +84,14 @@ export const ErrInfo = {
     statusCode: 400,
     code: 41,
     message: '댓글은 최대 500자까지 가능합니다.',
+  },
+
+  // Admin Auth
+  InvalidCredentials: {
+    statusCode: 401,
+    code: 12,
+    message: '아이디 또는 비밀번호가 올바르지 않습니다.',
+    logLevel: 'warn',
   },
 
   // File

@@ -6,15 +6,19 @@ const logAudit = async (adminUserId, action, target, metadata) => {
   await models.AdminAuditLog.create({ adminUserId, action, target, metadata });
 };
 
+// 회원 목록 (삭제된 유저 포함)
 export const getUsers = async (req, res) => {
   const { status } = req.query;
   const where = {};
-  if (status) {
+  if (status === 'deleted') {
+    where.deletedAt = { [models.Sequelize.Op.ne]: null };
+  } else if (status) {
     where.status = status;
   }
 
   const users = await models.User.findAll({
     where,
+    paranoid: false,
     attributes: [
       'id',
       'email',
@@ -24,6 +28,7 @@ export const getUsers = async (req, res) => {
       'role',
       'status',
       'createdAt',
+      'deletedAt',
     ],
     order: [['createdAt', 'DESC']],
   });
@@ -53,6 +58,54 @@ export const rejectUser = async (req, res) => {
 
   await user.update({ status: userStatus.rejected });
   await logAudit(req.user.id, auditAction.rejectUser, `user:${user.id}`, {
+    nickname: user.nickname,
+  });
+
+  res.json(user);
+};
+
+// 회원 계정잠금 (deactivated ↔ approved 토글)
+export const deactivateUser = async (req, res) => {
+  const user = await models.User.findByPk(req.params.id);
+  if (!user) throw new ErrClass(ErrInfo.NotFoundUser);
+
+  const newStatus =
+    user.status === userStatus.deactivated
+      ? userStatus.approved
+      : userStatus.deactivated;
+
+  await user.update({ status: newStatus });
+  await logAudit(req.user.id, auditAction.deactivateUser, `user:${user.id}`, {
+    nickname: user.nickname,
+    newStatus,
+  });
+
+  res.json(user);
+};
+
+// 회원 삭제 (soft delete — paranoid 모델이 자동 처리)
+export const deleteUser = async (req, res) => {
+  const user = await models.User.findByPk(req.params.id);
+  if (!user) throw new ErrClass(ErrInfo.NotFoundUser);
+
+  const { id, nickname, email } = user;
+  await user.destroy();
+  await logAudit(req.user.id, auditAction.deleteUser, `user:${id}`, {
+    nickname,
+    email,
+  });
+
+  res.json({ message: 'ok' });
+};
+
+// 삭제된 회원 복구
+export const restoreUser = async (req, res) => {
+  const user = await models.User.findByPk(req.params.id, { paranoid: false });
+  if (!user || !user.deletedAt) throw new ErrClass(ErrInfo.NotFoundUser);
+
+  await user.restore();
+  await user.update({ status: userStatus.approved });
+  await logAudit(req.user.id, auditAction.restoreUser, `user:${user.id}`, {
     nickname: user.nickname,
   });
 

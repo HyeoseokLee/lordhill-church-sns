@@ -8,10 +8,19 @@ const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     if (error.response?.status === 401) {
+      localStorage.removeItem('accessToken');
       window.location.assign('/login');
     }
     return Promise.reject(error);

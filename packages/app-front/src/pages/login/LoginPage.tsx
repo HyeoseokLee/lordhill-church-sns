@@ -1,4 +1,10 @@
-import { Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Button from '@mui/material/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { API_BASE_URL } from '@/config/define';
 import { MessageCircle } from 'lucide-react';
@@ -53,8 +59,30 @@ const OAUTH_PROVIDERS = [
   },
 ];
 
+// 에러 코드별 메시지
+// 서버에서 리다이렉트된 에러 코드별 메시지
+const ERROR_MESSAGES: Record<string, string> = {
+  account_locked: '계정이 잠겨있습니다. 관리자에게 문의하세요.',
+  account_deleted: '삭제된 계정입니다. 관리자에게 문의하세요.',
+  oauth_failed: '소셜 로그인에 실패했습니다. 다시 시도해주세요.',
+};
+
 export default function LoginPage() {
   const { isAuthenticated } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL 쿼리에서 에러 메시지 감지 (초기값으로 처리)
+  const errorParam = searchParams.get('error');
+  const initialError = errorParam ? ERROR_MESSAGES[errorParam] || '' : '';
+  const [errorMessage, setErrorMessage] = useState(initialError);
+
+  // 모달 닫기 시 URL 쿼리도 정리
+  const handleCloseError = () => {
+    setErrorMessage('');
+    if (searchParams.has('error')) {
+      setSearchParams({}, { replace: true });
+    }
+  };
 
   // 이미 로그인된 상태면 홈으로 리다이렉트
   if (isAuthenticated) {
@@ -115,6 +143,19 @@ export default function LoginPage() {
           </p>
         </footer>
       </main>
+
+      {/* 계정 잠금 등 에러 모달 */}
+      <Dialog open={!!errorMessage} onClose={handleCloseError}>
+        <DialogTitle>로그인 불가</DialogTitle>
+        <DialogContent>
+          <p className="text-sm text-gray-700">{errorMessage}</p>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseError} color="inherit">
+            확인
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

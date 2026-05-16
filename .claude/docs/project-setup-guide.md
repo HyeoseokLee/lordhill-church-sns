@@ -17,12 +17,18 @@
 7.  도메인 + HTTPS 세팅
 8.  CI/CD 세팅 (GitHub Actions)
 9.  Google OAuth 세팅 (웹)
+9-1. Kakao OAuth 세팅
+9-2. Naver OAuth 세팅
 10. EC2 서버 .env 세팅
 11. 디자인 시스템 세팅
 12. 프론트 레이아웃 패턴
 13. 네이티브 앱 (iOS/Android WebView)
 13-1. iOS 네이티브 Google 로그인
+13-2. iOS 네이티브 Kakao/Naver 로그인
+13-3. Android 네이티브 Google/Kakao/Naver 로그인
 14. 어드민 프론트 배포
+15. 어드민 계정 생성 (아이디/비밀번호 로그인)
+16. 회원 상태 관리 (잠금/삭제/복구)
 ```
 
 ### ⚠️ 순서 중요!
@@ -633,6 +639,71 @@ oauthCallback 컨트롤러는 Google과 재사용.
 
 ---
 
+## 9-2. Naver OAuth 세팅
+
+Google/Kakao와 동일한 Passport 패턴. 카카오와 마찬가지로 WebView에서 차단 없음.
+
+### 9-2-1. Naver Developers 앱 등록
+
+1. https://developers.naver.com → 로그인 → **Application** → **애플리케이션 등록**
+2. 앱 이름 입력
+3. **사용 API**: `네이버 로그인` 선택
+4. 권한 설정:
+
+| 항목 | 설정 |
+|-----|------|
+| 이름 | 필수 |
+| 이메일 | 필수 |
+| 프로필 사진 | 추가 (선택) |
+| 나머지 | 체크 안 함 |
+
+5. **로그인 오픈 API 서비스 환경**: `PC 웹` 선택
+6. 설정:
+
+| 항목 | 값 |
+|-----|---|
+| **서비스 URL** | `https://www.<도메인>` |
+| **Callback URL** | `https://api.<도메인>/api/auth/naver/callback` (줄바꿈) `http://localhost:3001/api/auth/naver/callback` |
+
+7. 등록 후 **Client ID**와 **Client Secret** 복사
+
+### 9-2-2. 개발 상태 참고
+
+- 앱 상태가 **"개발중"**이어도 로그인 동작함 (본인 계정만 테스트 가능)
+- **"네이버 로그인 검수요청"**은 다른 사용자도 로그인하게 하려면 필요 — 서비스 오픈 전에 신청
+
+### 9-2-3. 서버 .env 설정
+
+```bash
+NAVER_CLIENT_ID=<Client ID>
+NAVER_CLIENT_SECRET=<Client Secret>
+NAVER_CALLBACK_URL=https://api.<도메인>/api/auth/naver/callback
+```
+
+### 9-2-4. 서버 구현 (Google/Kakao와 동일 패턴)
+
+```
+src/passport/naverStrategy.js  — passport-naver-v2 전략 (oauthProfile 변환)
+src/passport/index.js           — naverStrategy 등록
+src/user/routes/auth.js         — GET /auth/naver, GET /auth/naver/callback, POST /auth/naver/native
+src/user/controllers/auth.js    — naverNativeLogin (openapi.naver.com/v1/nid/me로 프로필 조회)
+```
+
+네이버 API 응답 구조: `{ response: { id, email, nickname, profile_image } }` — `response` 안에 프로필이 있음.
+
+### 9-2-5. iOS WebView 동작
+
+카카오와 마찬가지로 **WebView 내 OAuth 차단 없음**. 네이티브 SDK 불필요.
+
+### ⚠️ 시행착오
+
+1. **nickname unique 제약 충돌** — 같은 이름으로 Google/Kakao/Naver 각각 가입하면 nickname unique 인덱스 때문에 `중복된 값이 존재합니다` 에러 발생. **해결: User 모델에서 nickname unique 제거 + 마이그레이션으로 DB 인덱스 삭제**
+2. **마이그레이션 인덱스 이름** — Sequelize가 생성한 인덱스 이름이 `users_nickname`이 아니라 `nickname`일 수 있음. `SHOW INDEX FROM users WHERE Column_name = 'nickname'`으로 실제 이름 확인 필수
+3. **개발중 상태** — 검수 전에는 앱에 등록된 네이버 계정(본인)만 테스트 가능. 다른 사람 테스트는 검수 승인 후
+4. **네이버 API 응답 구조 주의** — 다른 OAuth와 달리 `{ response: { ... } }` 형태. profile 데이터가 `response` 필드 안에 있음
+
+---
+
 ## 10. EC2 서버 .env 세팅
 
 CI/CD로 관리하지 않음 (보안). SSH로 수동 설정.
@@ -656,6 +727,10 @@ GOOGLE_CALLBACK_URL=https://api.<도메인>/api/auth/google/callback
 KAKAO_CLIENT_ID=<REST API 키>
 KAKAO_CLIENT_SECRET=<카카오 로그인 코드>
 KAKAO_CALLBACK_URL=https://api.<도메인>/api/auth/kakao/callback
+
+NAVER_CLIENT_ID=<Client ID>
+NAVER_CLIENT_SECRET=<Client Secret>
+NAVER_CALLBACK_URL=https://api.<도메인>/api/auth/naver/callback
 
 AWS_ACCESS_KEY_ID=<AWS키>
 AWS_SECRET_ACCESS_KEY=<AWS시크릿>
@@ -761,30 +836,222 @@ pm2 restart lordhill-server
 
 ## 13. 네이티브 앱 (iOS/Android WebView)
 
-### iOS (SwiftUI + WKWebView)
-- 참고: `~/Documents/cheeze/healthcare/healthcare-ios`
-- Bundle ID: `com.<프로젝트>.<앱>`
-- Constants.swift에 환경별 URL (.local/.dev/.live)
-- Info.plist: ATS `NSAllowsArbitraryLoads: true` (개발용)
-- 실기기 테스트: 설정 → 일반 → VPN 및 기기 관리 → 개발자 신뢰
+웹 + AWS + CI/CD + OAuth가 모두 완료된 후에 네이티브 앱을 세팅한다.
+네이티브 앱은 WebView로 웹앱을 래핑하는 구조. OAuth는 네이티브 SDK를 사용.
 
-### Android (Kotlin + Compose + WebView)
-- 참고: `~/Documents/cheeze/healthcare/healthcare-android`
-- build.gradle.kts에 debug/release URL 분리 (EnvManagerImpl)
-- Android Studio: Open → Gradle Sync → ▶ Run
-- 실기기: 설정 → 개발자 옵션 → USB 디버깅
+### iOS (SwiftUI + WKWebView) — Xcode 프로젝트 기본 세팅
 
-### 각 네이티브 앱 Git 레포 별도 관리
-```bash
-gh repo create <유저명>/<앱명> --private --source <경로> --push
+참고: `~/Documents/cheeze/healthcare/healthcare-ios`
+
+#### 프로젝트 생성
+1. Xcode → New Project → App → SwiftUI
+2. Bundle ID: `com.<프로젝트>.<앱>`
+3. Git 레포 별도 생성: `gh repo create <유저명>/<앱명> --private --source <경로> --push`
+
+#### 핵심 파일 구조
+```
+<앱>/
+├── App/
+│   ├── <앱>App.swift        # @main, OAuth SDK 초기화, onOpenURL 딥링크 처리
+│   └── AppDelegate.swift    # URL Scheme 처리 (Google/Kakao/Naver)
+├── View/
+│   ├── ContentView.swift    # 스플래시 → 웹뷰 전환
+│   └── <앱>WebView.swift    # WKWebView 래퍼, OAuth URL 인터셉트, JS 브릿지
+├── Model/
+│   └── Constants.swift      # 환경별 URL (.local/.dev/.live)
+├── Util/
+│   ├── DeepLinkUtil.swift   # OAuth URL 판별 (Google/Kakao/Naver)
+│   └── NaverLoginHandler.swift  # Naver SDK delegate → 클로저 변환
+├── Assets.xcassets/
+└── Info.plist               # URL Schemes, ATS, 권한
 ```
 
-### ⚠️ 시행착오
-- iOS Signing: Apple ID를 Xcode에 추가하면 무료 Personal Team으로 개발 가능 ($99 불필요)
-- iOS 실기기: "신뢰하지 않는 개발자" → 설정에서 수동 신뢰 필요 (최초 1회)
-- Android: 에뮬레이터에서 로컬 서버 접속 시 `10.0.2.2`로 변경 필요할 수 있음
-- Android Studio Gradle Sync 후 AGP 자동 업그레이드 제안 → 수락해도 됨
-- iOS Constants.swift의 live URL은 `https://www.lordhill-sns.kr/` (www 포함 필수, 루트 도메인은 포워딩이라 웹뷰에서 안 될 수 있음)
+#### Constants.swift — 환경 URL 설정
+```swift
+struct WEB {
+    enum Environment: String {
+        case local = "http://192.168.x.x:5173/"   // 실기기용 (Mac IP)
+        case dev = "http://localhost:5173/"         // 시뮬레이터용
+        case live = "https://www.<도메인>/"         // 운영 (www 포함 필수!)
+    }
+    static let environment: Environment = .live
+    static var baseUrl: String { environment.rawValue }
+}
+```
+
+#### Info.plist 필수 설정
+- `NSAllowsArbitraryLoads: true` + `NSAllowsLocalNetworking: true` (개발용)
+- URL Schemes: lordhill (딥링크), Google/Kakao/Naver 각 SDK용
+- `LSApplicationQueriesSchemes`: 카카오톡/네이버 앱 연동용
+
+#### WKWebView 핵심 설정 (WebView 래퍼)
+- JS 브릿지: `getToken` (토큰 전달), `jsLog` (로그)
+- `window.isIOSApp = true` 플래그 주입
+- OAuth URL 인터셉트 → 네이티브 SDK 실행 → accessToken/idToken → 서버 → JWT → 웹뷰 콜백
+- 비디오 인라인 재생, 핀치줌 비활성화, 컨텍스트 메뉴 비활성화
+
+#### Xcode Signing (무료)
+1. Xcode → Settings → Accounts → Apple ID 추가
+2. 프로젝트 → Signing & Capabilities → Team: Personal Team 선택
+3. Bundle Identifier를 고유하게 변경
+
+#### 실기기 테스트
+1. USB 연결 → Xcode에서 디바이스 선택 → Run
+2. 첫 실행 시: 아이폰 **설정 → 일반 → VPN 및 기기 관리 → 개발자 신뢰** (최초 1회)
+
+### Android (Kotlin + Compose + WebView) — 상세 세팅
+
+참고: `~/Documents/cheeze/healthcare/healthcare-android`
+
+#### 프로젝트 구조 (iOS 대비)
+
+```
+lordhill-android/
+├── build.gradle.kts          ← 프로젝트 레벨 빌드 (iOS에는 없는 개념)
+├── settings.gradle.kts       ← 모듈 등록
+├── gradle/libs.versions.toml ← 의존성 버전 관리 (= iOS Package.resolved)
+├── gradlew                   ← Gradle 실행 스크립트
+└── app/                      ← 실제 앱 모듈
+    ├── build.gradle.kts      ← 앱 레벨 빌드 (= iOS xcodeproj 설정)
+    └── src/
+        ├── main/
+        │   ├── AndroidManifest.xml           ← 앱 설정 (= iOS Info.plist)
+        │   ├── assets/offline.html           ← 오프라인 에러 페이지
+        │   ├── java/com/<패키지>/
+        │   │   ├── LordhillApplication.kt    ← 앱 진입점 (= iOS App.swift)
+        │   │   ├── MainActivity.kt           ← WebView 호스트 (= iOS ContentView)
+        │   │   ├── MainViewModel.kt          ← 상태 관리
+        │   │   ├── CustomWebViewClient.kt    ← URL 처리 (= iOS LordhillWebView)
+        │   │   ├── CustomWebChromeClient.kt  ← WebView 크롬 클라이언트
+        │   │   ├── AndroidBridge.kt          ← JS 브릿지 (= iOS WKScriptMessageHandler)
+        │   │   ├── EnvManager.kt             ← 환경 URL 인터페이스
+        │   │   ├── CommonDefine.kt           ← 상수
+        │   │   ├── LordhillSharedPref.kt     ← 토큰 저장 (= iOS UserDefaults)
+        │   │   ├── Logger.kt                 ← 로깅
+        │   │   ├── common/
+        │   │   │   └── GoogleSignInHelper.kt ← Google 로그인
+        │   │   ├── splash/
+        │   │   │   ├── StartActivity.kt      ← 스플래시 시작
+        │   │   │   └── SplashScreen.kt       ← 스플래시 UI
+        │   │   └── ui/theme/                 ← Compose 테마
+        │   └── res/                          ← 리소스 (= iOS Assets.xcassets)
+        │       ├── drawable/                 ← 아이콘, 이미지
+        │       ├── mipmap-*/                 ← 앱 아이콘
+        │       ├── values/                   ← 색상, 문자열, 테마
+        │       └── xml/                      ← 백업 규칙
+        ├── debug/
+        │   └── java/.../EnvManagerImpl.kt    ← 디버그 URL (로컬 Mac IP)
+        └── release/
+            └── java/.../EnvManagerImpl.kt    ← 릴리즈 URL (운영 도메인)
+```
+
+#### iOS와 1:1 대응
+
+| 역할 | iOS | Android |
+|-----|-----|---------|
+| 앱 진입점 | `App.swift` (@main) | `LordhillApplication.kt` (@HiltAndroidApp) |
+| 메인 화면 | `ContentView.swift` | `MainActivity.kt` |
+| WebView | `LordhillWebView.swift` | `CustomWebViewClient.kt` |
+| JS 브릿지 | WKScriptMessageHandler | `AndroidBridge.kt` (@JavascriptInterface) |
+| 환경 URL | `Constants.swift` (수동 전환) | `EnvManagerImpl.kt` (debug/release 자동) |
+| 앱 설정 | `Info.plist` | `AndroidManifest.xml` |
+| 토큰 저장 | UserDefaults | SharedPreferences |
+| 빌드 도구 | Xcode Build System | Gradle |
+| 의존성 | SPM | Gradle (libs.versions.toml) |
+
+#### 환경 URL 설정 — `app/build.gradle.kts`
+
+iOS는 Constants.swift에서 수동 전환, Android는 **빌드 타입으로 자동 분리**:
+
+```kotlin
+buildTypes {
+    release {
+        buildConfigField("String", "BASE_URL", "\"https://www.<도메인>\"")
+    }
+    debug {
+        buildConfigField("String", "BASE_URL", "\"http://<Mac IP>:5173\"")
+    }
+}
+```
+
+- ▶ Run → debug 빌드 → 로컬 서버 URL 자동 적용
+- APK 릴리즈 → release 빌드 → 운영 URL 자동 적용
+- **build.gradle.kts 수정 후 반드시 Gradle Sync** (상단 코끼리 아이콘 또는 "Sync Now" 배너)
+
+#### Gradle이란?
+
+Android의 빌드 도구. iOS의 Xcode Build System에 해당.
+
+| | iOS | Android |
+|---|---|---|
+| 빌드 설정 | `.xcodeproj` | `build.gradle.kts` |
+| 의존성 추가 | SPM (Xcode GUI) | `build.gradle.kts`에 코드로 추가 |
+| 설정 반영 | Xcode가 자동 | **Gradle Sync 수동 필요** |
+
+#### Android Studio 기본 사용법
+
+1. **프로젝트 열기**: Open → 폴더 선택 → Gradle Sync 대기 (첫 실행 1~3분)
+2. **"Trust this project?" 팝업** → Trust Project 선택
+3. **Sync 완료** 확인: 하단 Build 탭에 `BUILD SUCCESSFUL`
+4. **AGP 업그레이드 제안** → 수락해도 됨
+
+#### 실물기기 연결 (USB)
+
+1. Android 폰 → **설정** → **휴대전화 정보** → **빌드번호 7번 탭** → 개발자 모드 활성화
+2. **설정** → **개발자 옵션** → **USB 디버깅** ON
+3. USB 케이블로 Mac에 연결
+4. "USB 디버깅을 허용하시겠습니까?" → **허용** (항상 허용 체크)
+5. Android Studio 상단 디바이스 드롭다운에서 실기기 선택 → **▶ Run**
+
+iOS와 차이: 별도 인증서 신뢰 불필요. USB 디버깅만 켜면 바로 됨.
+
+#### 무선 디버깅
+
+1. 먼저 USB로 한번 연결
+2. 폰 **설정** → **개발자 옵션** → **무선 디버깅** ON
+3. **페어링 코드로 기기 페어링** → 코드 확인
+4. Android Studio → Tools → Device Manager → Pair using Wi-Fi → 코드 입력
+5. 이후 USB 없이 같은 Wi-Fi에서 ▶ Run 가능
+
+#### 에뮬레이터 (AVD)
+
+1. Android Studio 상단 디바이스 드롭다운 → Device Manager → Create Device
+2. Pixel 7 추천 → API 레벨 선택 → Finish
+3. 디바이스 선택 후 ▶ Run
+4. ⚠️ 에뮬레이터에서 로컬 서버: `localhost` 아니라 `10.0.2.2` 사용
+
+#### AndroidManifest.xml 필수 권한
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
+
+`ACCESS_NETWORK_STATE` 빠지면 앱 크래시! (`SecurityException`)
+
+#### 핵심 단축키 (Mac)
+
+| 동작 | 단축키 |
+|-----|--------|
+| Run | `Ctrl + R` |
+| Stop | `Cmd + F2` |
+| Rebuild | `Cmd + F9` |
+| Gradle Sync | 코끼리 아이콘 |
+
+### ⚠️ 시행착오 (iOS + Android)
+
+**iOS:**
+- Signing: Apple ID를 Xcode에 추가하면 무료 Personal Team으로 개발 가능 ($99 불필요)
+- 실기기: "신뢰하지 않는 개발자" → 설정에서 수동 신뢰 필요 (최초 1회)
+- Constants.swift의 live URL은 `https://www.<도메인>/` (www 포함 필수)
+
+**Android:**
+- `ACCESS_NETWORK_STATE` 권한 누락 → 앱 크래시 (`SecurityException`). AndroidManifest.xml에 반드시 추가
+- build.gradle.kts 수정 후 **Gradle Sync 필수** — 안 하면 변경 안 반영
+- AGP 자동 업그레이드 제안 → 수락해도 됨
+- 에뮬레이터에서 로컬 서버: `10.0.2.2` 사용 (localhost는 에뮬레이터 자기 자신)
+- "Live Edit" 에러 (`IllegalFormatConversionException`) → 무시해도 됨, 앱 실행과 무관
+- debug/release URL 분리: build.gradle.kts의 `buildConfigField`로 자동. iOS처럼 수동 전환 불필요
 
 ---
 
@@ -886,6 +1153,352 @@ router.post('/google/native', asyncHandler(googleNativeLogin));
 
 ---
 
+## 13-2. iOS 네이티브 Kakao/Naver 로그인
+
+Google SDK와 동일한 패턴. WebView에서 OAuth URL 인터셉트 → 네이티브 SDK 로그인 → accessToken → 서버 native 엔드포인트 → JWT → 웹뷰 콜백.
+
+카카오/네이버는 WebView에서도 웹 OAuth가 동작하지만, **네이티브 SDK를 쓰면 UX가 훨씬 좋음** (카카오톡 앱 로그인, 네이버 앱 로그인).
+
+### 13-2-1. SDK 설치 (Xcode SPM) — ⚠️ 코드 작성 전에 반드시 먼저!
+
+SDK 패키지를 먼저 추가하지 않으면 `No such module` 빌드 에러 발생.
+**코드를 작성하기 전에 Xcode에서 패키지부터 추가할 것.**
+
+Xcode → **File → Add Package Dependencies** → URL 입력 → Add Package → 모듈 선택:
+
+| SDK | URL | 선택할 모듈 |
+|-----|-----|----------|
+| **Kakao SDK** | `https://github.com/kakao/kakao-ios-sdk` | `KakaoSDKCommon`, `KakaoSDKAuth`, `KakaoSDKUser` |
+| **Naver SDK** | `https://github.com/naver/naveridlogin-sdk-ios-swift` | `NidThirdPartyLogin` |
+
+패키지 추가 후 한번 빌드해서 import가 정상인지 확인한 뒤 코드 작업 진행.
+
+### 13-2-1-1. 각 개발자 콘솔에서 iOS 플랫폼 등록 (SDK 사용 전 필수!)
+
+네이티브 SDK를 쓰려면 각 개발자 콘솔에 **iOS 플랫폼을 별도 등록**해야 함. 안 하면 `KOE008 잘못된 요청` 등 에러 발생.
+
+**카카오:**
+1. https://developers.kakao.com → 내 애플리케이션 → 앱 선택
+2. **앱 설정** → **플랫폼 키** → **네이티브 앱 키 추가**
+3. 키 이름: `<프로젝트>-ios`, iOS 앱 정보의 번들 ID: `com.<프로젝트>.<앱>` (Xcode와 동일)
+4. 나머지 (안드로이드, 스토어 URL 등)는 비워두기
+
+**네이버:**
+1. https://developers.naver.com → Application → 앱 선택 → **수정**
+2. 로그인 오픈 API 서비스 환경에 **iOS** 추가
+3. 설정:
+
+| 항목 | 값 |
+|-----|---|
+| 다운로드 URL | 임시로 `https://www.<도메인>` (필수값, 앱스토어 등록 후 교체) |
+| URL Scheme | `<프로젝트>-naver` |
+
+### 13-2-2. Info.plist 설정
+
+URL Schemes 추가:
+```xml
+<!-- Kakao -->
+<dict>
+    <key>CFBundleURLName</key>
+    <string>KakaoLogin</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+        <string>kakao<REST API 키></string>
+    </array>
+</dict>
+
+<!-- Naver -->
+<dict>
+    <key>CFBundleURLName</key>
+    <string>NaverLogin</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+        <string><프로젝트>-naver</string>
+    </array>
+</dict>
+```
+
+카카오톡/네이버 앱 연동용:
+```xml
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>kakaokompassauth</string>
+    <string>storykompassauth</string>
+    <string>kakaolink</string>
+    <string>naversearchapp</string>
+    <string>naversearchthirdlogin</string>
+</array>
+```
+
+### 13-2-3. SDK 초기화 (App.swift)
+
+```swift
+import KakaoSDKCommon
+import KakaoSDKAuth
+import NidThirdPartyLogin
+
+init() {
+    // Kakao (⚠️ 네이티브 앱 키! REST API 키 아님!)
+    KakaoSDK.initSDK(appKey: "<네이티브 앱 키>")
+
+    // Naver (새 SDK: NidOAuth)
+    NidOAuth.shared.initialize(
+        appName: "<앱 이름>",
+        clientId: "<Client ID>",
+        clientSecret: "<Client Secret>",
+        urlScheme: "<프로젝트>-naver"
+    )
+}
+```
+
+### 13-2-4. URL 처리 (onOpenURL + AppDelegate)
+
+```swift
+// onOpenURL
+if AuthApi.isKakaoTalkLoginUrl(url) {
+    _ = AuthController.handleOpenUrl(url: url)
+    return
+}
+if NidOAuth.shared.handleURL(url) {
+    return
+}
+
+// AppDelegate application(_:open:options:) 에도 동일 처리
+```
+
+### 13-2-5. OAuth URL 인터셉트 (WebView)
+
+DeepLinkUtil에 판별 함수 추가:
+```swift
+static func isKakaoOAuthURL(_ url: URL) -> Bool {
+    // kauth.kakao.com 또는 /api/auth/kakao 감지
+}
+static func isNaverOAuthURL(_ url: URL) -> Bool {
+    // nid.naver.com 또는 /api/auth/naver 감지
+}
+```
+
+WebView decidePolicyFor에서:
+```swift
+if DeepLinkUtil.isKakaoOAuthURL(url) {
+    performNativeKakaoSignIn()   // 카카오톡 앱 또는 웹 로그인
+    decisionHandler(.cancel)
+    return
+}
+if DeepLinkUtil.isNaverOAuthURL(url) {
+    performNativeNaverSignIn()   // 네이버 앱 로그인
+    decisionHandler(.cancel)
+    return
+}
+```
+
+### 13-2-6. 네이티브 로그인 → 서버 토큰 전송
+
+**Kakao:**
+```swift
+// 카카오톡 설치 여부에 따라 앱/웹 분기
+if UserApi.isKakaoTalkLoginAvailable() {
+    UserApi.shared.loginWithKakaoTalk { oauthToken, error in ... }
+} else {
+    UserApi.shared.loginWithKakaoAccount { oauthToken, error in ... }
+}
+// accessToken → POST /api/auth/kakao/native
+```
+
+**Naver:** (새 SDK — 콜백 방식, delegate 불필요)
+```swift
+NidOAuth.shared.requestLogin { result in
+    switch result {
+    case .success(let loginResult):
+        let accessToken = loginResult.accessToken.tokenString
+        self.sendNaverTokenToServer(accessToken: accessToken)
+    case .failure(let error):
+        print("[OAuth] Naver 로그인 실패: \(error)")
+    }
+}
+// accessToken → POST /api/auth/naver/native
+```
+
+NaverLoginHandler 헬퍼 불필요 — 새 SDK가 콜백 방식이라 delegate 변환 없이 바로 사용.
+
+### 13-2-7. 공통 토큰 전송 헬퍼
+
+Google/Kakao/Naver 모두 서버에 토큰을 보내고 JWT를 받아 웹뷰 콜백을 로드하는 패턴이 동일. 공통 헬퍼로 중복 제거:
+```swift
+private func sendTokenRequest(request: URLRequest) {
+    URLSession.shared.dataTask(with: request) { data, _, error in
+        // JSON 파싱 → accessToken 추출 → 웹뷰에서 /auth/callback?token=xxx 로드
+    }.resume()
+}
+```
+
+### ⚠️ 시행착오
+
+1. **Kakao SDK의 appKey = 네이티브 앱 키** (REST API 키 아님!) — 카카오 개발자 콘솔에서 네이티브 앱 키를 발급받아 사용. REST API 키를 넣으면 `KOE008 잘못된 요청` 에러
+2. **Kakao URL Scheme 형식** — `kakao` + 네이티브 앱 키 (공백 없이 붙임). 예: `kakaoef9d45e16f2863ae9b5f5ddd7e3da2ed`
+3. **Naver 새 SDK는 콜백 방식** — 구 SDK(NaverThirdPartyLogin)는 delegate 패턴이었지만, 새 SDK(NidThirdPartyLogin)는 콜백 방식. NaverLoginHandler 헬퍼 불필요
+4. **Naver urlScheme** — Info.plist의 URL Scheme과 `NidOAuth.shared.initialize(urlScheme:)`이 정확히 일치해야 함
+5. **네이버 다운로드 URL 필수** — iOS 환경 등록 시 다운로드 URL이 필수값. 앱스토어 미등록이면 임시로 웹 도메인 입력
+5. **LSApplicationQueriesSchemes 필수** — 카카오톡/네이버 앱 설치 여부 확인에 필요. 없으면 앱 로그인 불가
+6. **SPM 패키지는 CLI로 추가 불가** — Xcode에서 수동으로 File → Add Package Dependencies. **코드 작성 전에 먼저 추가해야 함!** 안 하면 `No such module 'KakaoSDKCommon'` 등 빌드 에러
+7. **NaverLoginHandler.swift 파일** — 파일 생성 후 .xcodeproj에 자동 등록 안 될 수 있음. Xcode에서 수동으로 드래그 추가
+8. **작업 순서 중요** — ① SPM 패키지 추가 → ② 빌드 확인 → ③ 코드 작성. 순서가 바뀌면 빌드 에러 해결에 시간 낭비
+9. **개발자 콘솔에 iOS 플랫폼 등록 필수** — 카카오: 앱 설정 → 플랫폼 키 → 네이티브 앱 키 추가 (번들 ID). 네이버: 앱 수정 → 서비스 환경에 iOS 추가 (URL Scheme + 다운로드 URL). 안 하면 `KOE008 잘못된 요청` 에러
+10. **카카오 키 구분 (웹 vs 네이티브)** — 서버(Passport): REST API 키 + 카카오 로그인 코드. iOS SDK: 네이티브 앱 키. 네이버는 웹/네이티브 같은 키 사용
+11. **Naver SDK 버전 주의** — 구버전(`NaverThirdPartyLogin`, nicemak 레포)과 새 버전(`NidThirdPartyLogin`, naver 공식 레포)이 있음. 새 버전은 `NidOAuth.shared`를 사용하고 API가 완전히 다름. 반드시 `https://github.com/naver/naveridlogin-sdk-ios-swift` (공식 새 버전) 사용
+
+---
+
+## 13-3. Android 네이티브 Google/Kakao/Naver 로그인
+
+iOS와 동일한 패턴. WebView에서 OAuth URL 인터셉트 → 네이티브 SDK 로그인 → 토큰 → 서버 native 엔드포인트 → JWT → 웹뷰 콜백.
+
+서버 엔드포인트(`/api/auth/{provider}/native`)는 iOS와 공유 — 추가 작업 없음.
+
+### 13-3-1. SDK 의존성 추가 (build.gradle.kts)
+
+`gradle/libs.versions.toml`에 버전 추가:
+```toml
+[versions]
+kakaoSdk = "2.20.6"
+naverLogin = "5.10.0"
+
+[libraries]
+kakao-user = { module = "com.kakao.sdk:v2-user", version.ref = "kakaoSdk" }
+naver-login = { module = "com.navercorp.nid:oauth-jdk8", version.ref = "naverLogin" }
+```
+
+`app/build.gradle.kts`에 의존성 추가:
+```kotlin
+// Kakao SDK
+implementation(libs.kakao.user)
+// Naver Login SDK
+implementation(libs.naver.login)
+```
+
+`settings.gradle.kts`에 Kakao Maven 저장소 추가:
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        // ... 기존 저장소
+        maven { url = uri("https://devrepo.kakao.com/nexus/content/groups/public/") }
+    }
+}
+```
+
+Google은 Credential Manager 의존성이 이미 있으므로 추가 불필요.
+
+### 13-3-2. 각 개발자 콘솔에서 Android 등록
+
+⚠️ **SDK 사용 전 반드시 등록!**
+
+**Google:**
+1. Google Cloud Console → 사용자 인증 정보 → OAuth 클라이언트 ID 만들기
+2. 애플리케이션 유형: **Android**
+3. 패키지 이름: `com.<프로젝트>.<앱>`
+4. SHA-1 인증서 지문:
+   ```bash
+   keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android | grep "SHA1:"
+   ```
+
+**카카오:**
+1. 카카오 개발자 콘솔 → 앱 설정 → 플랫폼 키 → 네이티브 앱 키 수정
+2. 안드로이드 앱 정보:
+   - 패키지명: `com.<프로젝트>.<앱>`
+   - 키 해시: **런타임에서 추출한 값** (아래 참고)
+3. ⚠️ keytool로 추출한 키 해시와 런타임 값이 다를 수 있음!
+
+키 해시 런타임 추출 코드 (Application.onCreate에 추가):
+```kotlin
+import com.kakao.sdk.common.util.Utility
+val keyHash = Utility.getKeyHash(this)
+Log.d("keyhash", "Kakao KeyHash: $keyHash")
+```
+→ Logcat에서 확인 후 카카오 콘솔에 등록. **이 값이 정확한 값.**
+
+**네이버:**
+1. 네이버 개발자 콘솔 → Application → 앱 수정
+2. 서비스 환경에 **Android** 추가:
+   - 다운로드 URL: `https://www.<도메인>` (필수값, 임시)
+   - 패키지 이름: `com.<프로젝트>.<앱>`
+
+### 13-3-3. SDK 초기화 (Application.kt)
+
+```kotlin
+import com.kakao.sdk.common.KakaoSdk
+import com.navercorp.nid.NaverIdLoginSDK
+
+override fun onCreate() {
+    super.onCreate()
+    // Kakao (네이티브 앱 키!)
+    KakaoSdk.init(this, "<네이티브 앱 키>")
+    // Naver
+    NaverIdLoginSDK.initialize(this, "<Client ID>", "<Client Secret>", "<앱 이름>")
+}
+```
+
+키 값은 `res/values/strings.xml`에 저장하고 `getString(R.string.xxx)`으로 참조하는 것이 좋음.
+
+### 13-3-4. AndroidManifest.xml 설정
+
+```xml
+<!-- 카카오톡 앱 감지 (Android 11+) -->
+<queries>
+    <package android:name="com.kakao.talk" />
+</queries>
+
+<!-- Kakao SDK 로그인 리다이렉트 Activity -->
+<activity
+    android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+    android:exported="true">
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:host="oauth"
+            android:scheme="kakao<네이티브 앱 키>" />
+    </intent-filter>
+</activity>
+```
+
+### 13-3-5. WebView OAuth URL 인터셉트 (CustomWebViewClient.kt)
+
+```kotlin
+// shouldOverrideUrlLoading에서
+// Google OAuth URL → Credential Manager로 로그인
+// Kakao OAuth URL → UserApiClient (카카오톡 앱 우선, 없으면 웹 폴백)
+// Naver OAuth URL → NaverIdLoginSDK.authenticate() 콜백
+// → 토큰 → POST /api/auth/{provider}/native → JWT → 웹뷰 콜백
+```
+
+### 13-3-6. 공통 서버 토큰 전송 (NativeAuthHelper.kt)
+
+iOS의 `sendTokenRequest`와 동일 역할. 서버에 토큰 POST → JWT 응답 → 웹뷰에서 `/auth/callback?token=xxx` 로드.
+
+### 13-3-7. ProGuard 규칙 (app/proguard-rules.pro)
+
+릴리즈 빌드 시 SDK 코드 난독화 방지:
+```
+# Kakao SDK
+-keep class com.kakao.sdk.** { *; }
+# Naver SDK
+-keep class com.navercorp.nid.** { *; }
+```
+
+### ⚠️ 시행착오
+
+1. **카카오 키 해시 — keytool vs 런타임 값이 다름!** keytool로 추출(`openssl dgst -sha256`)한 값과 `Utility.getKeyHash()`로 추출한 값이 다를 수 있음. **반드시 런타임 값을 카카오 콘솔에 등록**. 이걸로 `Android keyHash validation failed` 에러 해결
+2. **카카오 콘솔 반영 지연** — 키 해시 등록 후 반영에 시간 소요될 수 있음
+3. **카카오 네이티브 앱 키 ≠ REST API 키** — iOS와 마찬가지로 Android SDK도 네이티브 앱 키 사용
+4. **AndroidManifest.xml에 AuthCodeHandlerActivity 필수** — 카카오 SDK 리다이렉트 처리용. 없으면 로그인 후 앱으로 안 돌아옴
+5. **Kakao Maven 저장소 추가 필수** — settings.gradle.kts에 `devrepo.kakao.com` 안 넣으면 의존성 다운로드 실패
+6. **ACCESS_NETWORK_STATE 권한** — AndroidManifest.xml에 없으면 앱 크래시 (`SecurityException`)
+7. **Google Android용 Client ID** — Google Cloud Console에서 Android 유형으로 별도 발급 (SHA-1 + 패키지명). 코드에 넣을 필요 없이 콘솔 등록만 하면 자동 인증
+8. **네이버 다운로드 URL 필수** — Android 환경 등록 시에도 필수값. 임시로 웹 도메인 입력
+
+---
+
 ## 14. 어드민 프론트 배포
 
 어드민용 S3 + CloudFront + DNS를 별도로 세팅. 와일드카드 인증서(`*.<도메인>`)가 이미 있으므로 서브도메인 추가 비용 없음.
@@ -956,6 +1569,174 @@ ADMIN_URL=https://admin.<도메인>
 - CLI로 CloudFront 생성 시 CustomOriginConfig로 만들어질 수 있음 → S3OriginConfig + OAC로 수정 필요
 - 프론트용 CloudFront와 별개 배포이므로 별도의 S3 버킷 정책, OAC, GitHub Secret 필요
 - admin-front의 vite 프록시에서 path rewrite 주의 — 서버가 `/api` prefix를 쓰면 rewrite 하면 안 됨
+
+---
+
+## 15. 어드민 계정 생성 (아이디/비밀번호 로그인)
+
+어드민은 소셜 로그인이 불필요. 아이디/비밀번호 계정을 하나 생성하고, 별도 로그인 엔드포인트를 만든다.
+
+### 15-1. DB 마이그레이션 — username/password 컬럼 추가
+
+기존 `users` 테이블에 어드민 전용 컬럼 추가. 일반 유저는 OAuth라 이 컬럼들이 `null`.
+
+```bash
+cd packages/server && npm run migration -- add-username-password-to-users
+```
+
+```js
+// migrations/xxxxxxxx-add-username-password-to-users.cjs
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.addColumn('users', 'username', {
+      type: Sequelize.STRING(50),
+      allowNull: true,
+      unique: true,
+    });
+    await queryInterface.addColumn('users', 'password', {
+      type: Sequelize.STRING(255),
+      allowNull: true,
+    });
+  },
+  async down(queryInterface) {
+    await queryInterface.removeColumn('users', 'password');
+    await queryInterface.removeColumn('users', 'username');
+  },
+};
+```
+
+User 모델에도 `username`, `password` 필드 추가:
+```js
+// User.init 안에 추가
+username: { type: DataTypes.STRING(50), allowNull: true, unique: true },
+password: { type: DataTypes.STRING(255), allowNull: true },
+```
+
+### 15-2. 시더 — 슈퍼 어드민 계정 생성
+
+```bash
+cd packages/server && npm run migration -- create-super-admin  # 시더 파일 생성 (seeders/ 디렉토리에 수동 이동)
+```
+
+```js
+// seeders/xxxxxxxx-create-super-admin.cjs
+const bcrypt = require('bcryptjs');
+
+module.exports = {
+  async up(queryInterface) {
+    const hashedPassword = await bcrypt.hash('<초기 비밀번호>', 10);
+    await queryInterface.bulkInsert('users', [{
+      email: 'admin@<도메인>',
+      nickname: '관리자',
+      provider: 'dev',
+      provider_id: 'super-admin',
+      role: 'admin',
+      status: 'approved',
+      username: 'admin',
+      password: hashedPassword,
+      created_at: new Date(),
+      updated_at: new Date(),
+    }]);
+  },
+  async down(queryInterface) {
+    await queryInterface.bulkDelete('users', { username: 'admin' });
+  },
+};
+```
+
+실행:
+```bash
+cd packages/server && npm run mig-all    # 마이그레이션 실행
+cd packages/server && npm run db:seed    # 시더 실행
+```
+
+### 15-3. 서버 — 어드민 로그인 엔드포인트
+
+**에러 정의 (err.js):**
+```js
+InvalidCredentials: {
+  statusCode: 401,
+  code: 12,
+  message: '아이디 또는 비밀번호가 올바르지 않습니다.',
+  logLevel: 'warn',
+},
+```
+
+**컨트롤러 (`admin/controllers/auth.js`):**
+```js
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import config from 'config';
+import models from '../../db.js';
+import { ErrClass, ErrInfo } from '../../err.js';
+import { userRole } from '../../define.js';
+
+// 어드민 아이디/비밀번호 로그인
+export const adminLogin = async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) throw new ErrClass(ErrInfo.BadRequest);
+
+  const user = await models.User.findOne({
+    where: { username, role: userRole.admin },
+  });
+  if (!user) throw new ErrClass(ErrInfo.InvalidCredentials);
+
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) throw new ErrClass(ErrInfo.InvalidCredentials);
+
+  const accessToken = jwt.sign(
+    { id: user.id, role: user.role },
+    config.JWT.JWT_SECRET,
+    { expiresIn: config.JWT.EXPIRE_TIME },
+  );
+  res.json({ accessToken });
+};
+```
+
+**라우트 (`admin/routes/auth.js`):**
+```js
+import express from 'express';
+import asyncHandler from 'express-async-handler';
+import { adminLogin } from '../controllers/auth.js';
+
+const router = express.Router();
+router.post('/login', asyncHandler(adminLogin));
+export default router;
+```
+
+### 15-4. 서버 — app.js 라우트 마운트
+
+```js
+import adminAuthRouter from './admin/routes/auth.js';
+
+// 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
+apiRouter.use('/admin', adminAuthRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdmin, adminRouter);
+```
+
+⚠️ **`use('/')` 라우터보다 반드시 위에 배치할 것!** (아래 시행착오 1번 참고)
+
+### 15-5. 어드민 프론트 — 로그인 페이지
+
+`LoginPage.jsx`: 아이디/비밀번호 폼 → `POST /api/admin/login` → `accessToken`을 `localStorage`에 저장 → 홈으로 이동.
+
+`api.js`: 요청 인터셉터에서 Bearer 토큰 첨부, 401 응답 시 localStorage 토큰 삭제 + `/login`으로 리다이렉트.
+
+`App.jsx`의 `AdminRoute` 가드:
+```js
+api.get('/auth/me').then(({ data }) => {
+  setState({
+    loading: false,
+    isAdmin: data.role === 'admin' && data.status === 'approved',
+  });
+});
+```
+
+### ⚠️ 시행착오
+
+1. **`apiRouter.use('/')` 순서 문제** — comment 라우터를 `use('/')`로 마운트하면 prefix `/`가 **모든 경로에 매칭**됨. `POST /admin/login`도 `/`로 시작하므로 comment 라우터의 `onlyLoginUser` 미들웨어가 먼저 실행되어 401 에러 발생. **`use('/')` 라우터는 반드시 다른 모든 라우터보다 마지막에 배치해야 함**
+2. **role/status 대소문자 불일치** — DB enum은 소문자(`admin`, `approved`)인데 프론트에서 대문자(`ADMIN`, `APPROVED`)로 비교하면 항상 `false`. 서버가 내려주는 값과 정확히 일치시켜야 함
+3. **포트 충돌 (EADDRINUSE)** — nodemon 재시작 시 이전 프로세스가 남아 포트 충돌 발생. `kill $(lsof -t -i :3001)` 후 재시작. 여러 터미널에서 서버를 중복 실행하지 않도록 주의
 
 ---
 

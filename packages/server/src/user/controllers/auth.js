@@ -34,14 +34,31 @@ const setCookies = (res, { accessToken, refreshToken }) => {
   });
 };
 
-export const oauthCallback = async (req, res) => {
-  const { provider, providerId, email, profileImageUrl, nickname } =
-    req.oauthProfile;
-
+// 소셜 로그인 시 유저 조회/복구/생성 공통 처리
+const findOrRestoreUser = async ({
+  provider,
+  providerId,
+  email,
+  nickname,
+  profileImageUrl,
+}) => {
+  // soft-deleted 유저도 포함하여 조회
   let user = await models.User.findOne({
     where: { provider, providerId },
+    paranoid: false,
   });
 
+  // 잠금 계정
+  if (user && user.status === userStatus.deactivated) {
+    return { user: null, error: 'account_locked' };
+  }
+
+  // 삭제된 계정
+  if (user && user.deletedAt) {
+    return { user: null, error: 'account_deleted' };
+  }
+
+  // 신규 가입
   if (!user) {
     user = await models.User.create({
       email,
@@ -53,11 +70,31 @@ export const oauthCallback = async (req, res) => {
     });
   }
 
+  return { user, error: null };
+};
+
+export const oauthCallback = async (req, res) => {
+  const { provider, providerId, email, profileImageUrl, nickname } =
+    req.oauthProfile;
+
+  const clientUrl = config.cors.origins[0];
+  const { user, error } = await findOrRestoreUser({
+    provider,
+    providerId,
+    email,
+    nickname,
+    profileImageUrl,
+  });
+
+  // 잠금 계정 → 에러 쿼리 파라미터로 리다이렉트
+  if (error) {
+    return res.redirect(`${clientUrl}/login?error=${error}`);
+  }
+
   const tokens = generateTokens(user);
   setCookies(res, tokens);
 
   // 프론트 OAuthCallbackPage에서 토큰으로 유저 정보 조회 후 분기 처리
-  const clientUrl = config.cors.origins[0];
   return res.redirect(`${clientUrl}/auth/callback?token=${tokens.accessToken}`);
 };
 
@@ -79,20 +116,15 @@ export const googleNativeLogin = async (req, res) => {
   const payload = await response.json();
   const { sub: providerId, email, name, picture } = payload;
 
-  let user = await models.User.findOne({
-    where: { provider: 'google', providerId },
+  const { user, error } = await findOrRestoreUser({
+    provider: 'google',
+    providerId,
+    email,
+    nickname: name,
+    profileImageUrl: picture,
   });
-
-  if (!user) {
-    user = await models.User.create({
-      email,
-      nickname: name,
-      profileImageUrl: picture,
-      provider: 'google',
-      providerId,
-      status: userStatus.approved,
-    });
-  }
+  if (error === 'account_locked') throw new ErrClass(ErrInfo.UserDeactivated);
+  if (error === 'account_deleted') throw new ErrClass(ErrInfo.UserDeleted);
 
   const tokens = generateTokens(user);
   res.json({ accessToken: tokens.accessToken });
@@ -120,20 +152,15 @@ export const kakaoNativeLogin = async (req, res) => {
   const profileImageUrl =
     payload.kakao_account?.profile?.profile_image_url || '';
 
-  let user = await models.User.findOne({
-    where: { provider: 'kakao', providerId },
+  const { user, error } = await findOrRestoreUser({
+    provider: 'kakao',
+    providerId,
+    email,
+    nickname,
+    profileImageUrl,
   });
-
-  if (!user) {
-    user = await models.User.create({
-      email,
-      nickname,
-      profileImageUrl,
-      provider: 'kakao',
-      providerId,
-      status: userStatus.approved,
-    });
-  }
+  if (error === 'account_locked') throw new ErrClass(ErrInfo.UserDeactivated);
+  if (error === 'account_deleted') throw new ErrClass(ErrInfo.UserDeleted);
 
   const tokens = generateTokens(user);
   res.json({ accessToken: tokens.accessToken });
@@ -160,20 +187,15 @@ export const naverNativeLogin = async (req, res) => {
   const nickname = profile.nickname || profile.name || '';
   const profileImageUrl = profile.profile_image || '';
 
-  let user = await models.User.findOne({
-    where: { provider: 'naver', providerId },
+  const { user, error } = await findOrRestoreUser({
+    provider: 'naver',
+    providerId,
+    email,
+    nickname,
+    profileImageUrl,
   });
-
-  if (!user) {
-    user = await models.User.create({
-      email,
-      nickname,
-      profileImageUrl,
-      provider: 'naver',
-      providerId,
-      status: userStatus.approved,
-    });
-  }
+  if (error === 'account_locked') throw new ErrClass(ErrInfo.UserDeactivated);
+  if (error === 'account_deleted') throw new ErrClass(ErrInfo.UserDeleted);
 
   const tokens = generateTokens(user);
   res.json({ accessToken: tokens.accessToken });

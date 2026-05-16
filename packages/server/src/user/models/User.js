@@ -49,6 +49,16 @@ export default (sequelize) => {
         allowNull: false,
         field: 'provider_id',
       },
+      // 어드민 아이디/비밀번호 로그인용 (일반 유저는 OAuth라 null)
+      username: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        unique: true,
+      },
+      password: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
       role: {
         type: DataTypes.ENUM('member', 'admin'),
         allowNull: false,
@@ -66,6 +76,7 @@ export default (sequelize) => {
       tableName: 'users',
       underscored: true,
       timestamps: true,
+      paranoid: true,
       indexes: [
         {
           unique: true,

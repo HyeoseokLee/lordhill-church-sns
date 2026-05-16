@@ -17,6 +17,7 @@ export const oauthProvider = {
   google: 'google',
   kakao: 'kakao',
   naver: 'naver',
+  dev: 'dev',
 };
 
 // 미디어 타입
@@ -46,6 +47,9 @@ export const contentLimit = {
 export const auditAction = {
   approveUser: 'approve_user',
   rejectUser: 'reject_user',
+  deactivateUser: 'deactivate_user',
+  deleteUser: 'delete_user',
+  restoreUser: 'restore_user',
   deletePost: 'delete_post',
   deleteComment: 'delete_comment',
 };

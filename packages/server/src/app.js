@@ -13,6 +13,7 @@ import usersRouter from './user/routes/my.js';
 import postsRouter from './post/routes/post.js';
 import commentRouter from './comment/routes/comment.js';
 import adminRouter from './admin/routes/admin.js';
+import adminAuthRouter from './admin/routes/auth.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -50,11 +51,12 @@ apiRouter.use('/users', onlyLoginUser, onlyApprovedUser, usersRouter);
 // 포스트 (승인된 사용자만)
 apiRouter.use('/posts', onlyLoginUser, onlyApprovedUser, postsRouter);
 
-// 댓글 (승인된 사용자만)
-apiRouter.use('/', onlyLoginUser, onlyApprovedUser, commentRouter);
-
-// 관리자
+// 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
+apiRouter.use('/admin', adminAuthRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, adminRouter);
+
+// 댓글 (승인된 사용자만 — use('/')는 모든 경로에 매칭되므로 반드시 마지막에 배치)
+apiRouter.use('/', onlyLoginUser, onlyApprovedUser, commentRouter);
 
 // /api 프리픽스로 마운트 + 토큰 체크
 app.use('/api', checkUserToken, apiRouter);
