@@ -40,6 +40,7 @@ export default function UsersPage() {
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -70,13 +71,10 @@ export default function UsersPage() {
     fetchUsers();
   };
 
-  const handleDeactivate = async (user) => {
-    const isLocked = user.status === 'deactivated';
-    const msg = isLocked
-      ? '이 회원의 계정잠금을 해제하시겠습니까?'
-      : '이 회원의 계정을 잠금하시겠습니까?';
-    if (!confirm(msg)) return;
-    await api.patch(`/admin/users/${user.id}/deactivate`);
+  const handleDeactivate = async () => {
+    if (!deactivateTarget) return;
+    await api.patch(`/admin/users/${deactivateTarget.id}/deactivate`);
+    setDeactivateTarget(null);
     fetchUsers();
   };
 
@@ -204,7 +202,7 @@ export default function UsersPage() {
                         user.status !== 'pending' && (
                           <>
                             <button
-                              onClick={() => handleDeactivate(user)}
+                              onClick={() => setDeactivateTarget(user)}
                               className={`px-3 py-1 rounded text-xs ${
                                 user.status === 'deactivated'
                                   ? 'bg-green-600 text-white hover:bg-green-700'
@@ -229,6 +227,37 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* 계정잠금/해제 확인 모달 */}
+      <Dialog open={!!deactivateTarget} onClose={() => setDeactivateTarget(null)}>
+        <DialogTitle>
+          {deactivateTarget?.status === 'deactivated' ? '계정 잠금해제' : '계정 잠금'}
+        </DialogTitle>
+        <DialogContent>
+          <p className="text-sm text-gray-700">
+            <strong>{deactivateTarget?.nickname || deactivateTarget?.email}</strong> 회원의
+            계정을 {deactivateTarget?.status === 'deactivated' ? '잠금해제' : '잠금'}
+            하시겠습니까?
+          </p>
+          {deactivateTarget?.status !== 'deactivated' && (
+            <p className="text-sm text-yellow-600 mt-2">
+              잠금된 회원은 소셜 로그인이 차단됩니다.
+            </p>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeactivateTarget(null)} color="inherit">
+            취소
+          </Button>
+          <Button
+            onClick={handleDeactivate}
+            color={deactivateTarget?.status === 'deactivated' ? 'primary' : 'warning'}
+            variant="contained"
+          >
+            {deactivateTarget?.status === 'deactivated' ? '잠금해제' : '잠금'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 회원 삭제 확인 모달 */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
