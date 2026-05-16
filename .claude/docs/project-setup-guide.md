@@ -1740,6 +1740,150 @@ api.get('/auth/me').then(({ data }) => {
 
 ---
 
+## 16. 회원 상태 관리 (잠금/삭제/복구)
+
+어드민에서 회원을 잠금(로그인 차단)/삭제(소프트 딜리트)/복구할 수 있게 한다. 소셜 로그인 시 상태에 따라 로그인을 차단하고 프론트에서 안내 모달을 띄운다.
+
+### 회원 상태 정리
+
+| 상태 | DB 값 | 소셜 로그인 시도 시 |
+|------|--------|-------------------|
+| 활성 | `status: approved` | 정상 로그인 |
+| 잠금 | `status: deactivated` | 차단 + "계정이 잠겨있습니다" 모달 |
+| 삭제 | `deletedAt` 존재 (soft delete) | 차단 + "삭제된 계정입니다" 모달 |
+
+### 16-1. User 모델에 paranoid 추가 (soft delete)
+
+마이그레이션으로 `deleted_at` 컬럼 추가:
+```js
+// migrations/xxxxxxxx-add-deleted-at-to-users.cjs
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.addColumn('users', 'deleted_at', {
+      type: Sequelize.DATE,
+      allowNull: true,
+      defaultValue: null,
+    });
+  },
+  async down(queryInterface) {
+    await queryInterface.removeColumn('users', 'deleted_at');
+  },
+};
+```
+
+User 모델에 `paranoid: true` 추가:
+```js
+User.init({ ... }, {
+  sequelize,
+  tableName: 'users',
+  timestamps: true,
+  paranoid: true,  // destroy() 시 deleted_at만 설정, 행은 유지
+});
+```
+
+### 16-2. 서버 — 소셜 로그인 시 상태 체크
+
+OAuth 콜백 + 네이티브 로그인에서 공통 헬퍼 사용:
+```js
+const findOrRestoreUser = async ({ provider, providerId, email, nickname, profileImageUrl }) => {
+  // soft-deleted 유저도 포함하여 조회
+  let user = await models.User.findOne({
+    where: { provider, providerId },
+    paranoid: false,
+  });
+
+  // 잠금 계정
+  if (user && user.status === userStatus.deactivated) {
+    return { user: null, error: 'account_locked' };
+  }
+  // 삭제된 계정
+  if (user && user.deletedAt) {
+    return { user: null, error: 'account_deleted' };
+  }
+  // 신규 가입
+  if (!user) {
+    user = await models.User.create({ ... });
+  }
+  return { user, error: null };
+};
+```
+
+**웹 OAuth** — 에러 시 쿼리 파라미터로 리다이렉트:
+```js
+if (error) {
+  return res.redirect(`${clientUrl}/login?error=${error}`);
+}
+```
+
+**네이티브 로그인** — 에러 시 JSON 에러 throw:
+```js
+if (error === 'account_locked') throw new ErrClass(ErrInfo.UserDeactivated);
+if (error === 'account_deleted') throw new ErrClass(ErrInfo.UserDeleted);
+```
+
+### 16-3. 서버 — 어드민 API
+
+```js
+// 계정잠금/해제 토글
+router.patch('/users/:id/deactivate', asyncHandler(deactivateUser));
+// 회원 삭제 (soft delete — paranoid가 자동 처리)
+router.delete('/users/:id', asyncHandler(deleteUser));
+// 삭제된 회원 복구
+router.patch('/users/:id/restore', asyncHandler(restoreUser));
+```
+
+**회원 목록**에서 삭제된 유저도 포함하려면 `paranoid: false` + `deletedAt` 필드 포함:
+```js
+const users = await models.User.findAll({
+  where,
+  paranoid: false,
+  attributes: [..., 'deletedAt'],
+});
+```
+
+`?status=deleted` 필터는 `deletedAt`이 null이 아닌 유저만 조회:
+```js
+if (status === 'deleted') {
+  where.deletedAt = { [Op.ne]: null };
+}
+```
+
+### 16-4. 앱 프론트 — 잠금/삭제 안내 모달
+
+`LoginPage`에서 URL 쿼리 `?error=account_locked` 또는 `?error=account_deleted`를 감지하여 MUI Dialog로 안내:
+```tsx
+const ERROR_MESSAGES: Record<string, string> = {
+  account_locked: '계정이 잠겨있습니다. 관리자에게 문의하세요.',
+  account_deleted: '삭제된 계정입니다. 관리자에게 문의하세요.',
+  oauth_failed: '소셜 로그인에 실패했습니다. 다시 시도해주세요.',
+};
+```
+
+⚠️ `useEffect` 안에서 `setState`를 호출하면 React lint 에러 (`react-hooks/set-state-in-effect`). 대신 `useState`의 초기값으로 처리:
+```tsx
+const errorParam = searchParams.get('error');
+const [errorMessage, setErrorMessage] = useState(
+  errorParam ? ERROR_MESSAGES[errorParam] || '' : ''
+);
+```
+
+### 16-5. 어드민 프론트 — 회원 관리 UI
+
+- 상태 표시: 활성/잠금/삭제됨/대기/거절됨
+- 삭제된 유저: 행 반투명(`opacity-50`) + "삭제복구" 버튼만 표시
+- 잠금: "잠금해제"/"계정잠금" 토글 버튼
+- 삭제: MUI Dialog로 확인 후 soft delete
+- 필터 탭: 전체/대기/활성/잠금/삭제됨/거절됨
+
+### ⚠️ 시행착오
+
+1. **`paranoid: true`와 `findOne`** — paranoid 모델에서 `findOne()`은 기본적으로 `deletedAt IS NULL` 조건이 붙음. 삭제된 유저를 찾으려면 반드시 `paranoid: false` 옵션 필요. 빠뜨리면 삭제 유저가 신규 가입으로 처리됨
+2. **웹 OAuth vs 네이티브 에러 처리 방식이 다름** — 웹 OAuth는 리다이렉트 방식이라 에러를 JSON으로 반환 불가, 쿼리 파라미터(`?error=account_locked`)로 전달. 네이티브 로그인은 JSON 에러 throw
+3. **React `useEffect` 내 `setState` lint 에러** — `react-hooks/set-state-in-effect` 규칙. URL 파라미터에서 초기 에러를 읽을 때 `useEffect` 대신 `useState` 초기값으로 처리해야 함
+4. **어드민 회원 목록에서 삭제 유저 필터** — `status` 컬럼에 'deleted' 값이 없으므로 쿼리 파라미터 `?status=deleted`를 서버에서 `deletedAt IS NOT NULL` 조건으로 변환해야 함. 일반 status 필터와 분기 처리 필요
+
+---
+
 ## 부록: 프리 티어 요약
 
 | 서비스 | 무료 범위 | 기간 |

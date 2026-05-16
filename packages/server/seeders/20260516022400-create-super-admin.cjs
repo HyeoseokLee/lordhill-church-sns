@@ -1,8 +1,15 @@
-// 슈퍼 어드민 계정 시더
+// 슈퍼 어드민 계정 시더 (중복 실행 안전)
 const bcrypt = require('bcryptjs');
 
 module.exports = {
-  async up(queryInterface) {
+  async up(queryInterface, Sequelize) {
+    // 이미 존재하면 스킵
+    const [existing] = await queryInterface.sequelize.query(
+      `SELECT id FROM users WHERE username = 'admin' LIMIT 1`,
+      { type: Sequelize.QueryTypes.SELECT },
+    );
+    if (existing) return;
+
     const hashedPassword = await bcrypt.hash('lordhill2026!', 10);
 
     await queryInterface.bulkInsert('users', [
