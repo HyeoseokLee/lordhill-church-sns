@@ -1878,12 +1878,91 @@ const [errorMessage, setErrorMessage] = useState(
 - 삭제: MUI Dialog로 확인 후 soft delete
 - 필터 탭: 전체/대기/활성/잠금/삭제됨/거절됨
 
+### 16-6. 네이티브 앱 (iOS/Android) — 잠금/삭제 계정 처리
+
+웹 OAuth는 서버가 `/login?error=account_locked`로 리다이렉트하면 끝이지만, **네이티브 SDK 로그인은 흐름이 다르다**:
+
+```
+네이티브 SDK 로그인 성공 → POST /api/auth/{provider}/native → 403 JSON 에러
+→ 앱에서 에러 코드를 읽고 → 웹뷰에서 /login?error=account_locked 로드
+→ LoginPage의 MUI Dialog 모달 표시
+```
+
+서버는 이미 403 + `{ code: 23 }` (잠금) / `{ code: 26 }` (삭제)을 반환하므로, 앱 쪽에서 HTTP 응답 코드를 체크하고 웹뷰 에러 페이지를 로드하면 된다.
+
+**iOS (`LordhillWebView.swift` — `sendTokenRequest` 수정):**
+
+기존 `sendTokenRequest`는 서버 응답에서 `accessToken`만 파싱. 403 에러 시 조용히 실패.
+
+```swift
+// 403 에러 응답 처리 추가
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // ... 기존 에러/파싱 체크 ...
+
+    // HTTP 403 → 잠금/삭제 계정
+    if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 403 {
+        let code = json["code"] as? Int ?? 0
+        // code 23: 잠금, code 26: 삭제
+        let errorParam = code == 26 ? "account_deleted" : "account_locked"
+        let errorUrl = "\(baseUrl)/login?error=\(errorParam)"
+        DispatchQueue.main.async {
+            self.webView?.load(URLRequest(url: URL(string: errorUrl)!))
+        }
+        return
+    }
+
+    // 정상: accessToken 파싱 → 콜백 로드 (기존 코드)
+}
+```
+
+핵심: `URLSession.shared.dataTask`의 두 번째 파라미터를 `_`에서 `response`로 변경하여 HTTP 상태 코드 접근.
+
+**Android (`NativeAuthHelper.kt` + `CustomWebViewClient.kt` 수정):**
+
+`AuthResult`를 sealed class로 변경하여 성공/차단을 구분:
+
+```kotlin
+// NativeAuthHelper.kt
+sealed class AuthResult {
+    data class Success(val accessToken: String) : AuthResult()
+    data class AccountBlocked(val errorParam: String) : AuthResult()
+}
+
+// sendTokenToServer에서 403 처리 추가
+} else if (responseCode == HttpURLConnection.HTTP_FORBIDDEN) {
+    val code = try { JSONObject(errorBody).optInt("code", 0) } catch (_: Exception) { 0 }
+    val errorParam = if (code == 26) "account_deleted" else "account_locked"
+    AuthResult.AccountBlocked(errorParam = errorParam)
+}
+```
+
+`CustomWebViewClient.kt`에서 `loadCallbackUrl`을 `handleAuthResult`로 교체:
+
+```kotlin
+// 공통 응답 처리
+private fun handleAuthResult(view: WebView, result: NativeAuthHelper.AuthResult?) {
+    val baseUrl = EnvManager.getBaseUrl().trimEnd('/')
+    when (result) {
+        is NativeAuthHelper.AuthResult.Success -> {
+            view.post { view.loadUrl("$baseUrl/auth/callback?token=${result.accessToken}") }
+        }
+        is NativeAuthHelper.AuthResult.AccountBlocked -> {
+            view.post { view.loadUrl("$baseUrl/login?error=${result.errorParam}") }
+        }
+        null -> { Logger.e("[OAuth] 서버 응답 처리 실패") }
+    }
+}
+```
+
+3개 로그인 핸들러(Google/Kakao/Naver)에서 `loadCallbackUrl(view, result.accessToken)` → `handleAuthResult(view, result)` 로 교체.
+
 ### ⚠️ 시행착오
 
 1. **`paranoid: true`와 `findOne`** — paranoid 모델에서 `findOne()`은 기본적으로 `deletedAt IS NULL` 조건이 붙음. 삭제된 유저를 찾으려면 반드시 `paranoid: false` 옵션 필요. 빠뜨리면 삭제 유저가 신규 가입으로 처리됨
-2. **웹 OAuth vs 네이티브 에러 처리 방식이 다름** — 웹 OAuth는 리다이렉트 방식이라 에러를 JSON으로 반환 불가, 쿼리 파라미터(`?error=account_locked`)로 전달. 네이티브 로그인은 JSON 에러 throw
+2. **웹 OAuth vs 네이티브 에러 처리 방식이 다름** — 웹 OAuth는 서버가 리다이렉트(`/login?error=xxx`)로 처리. 네이티브 SDK 로그인은 JSON 에러(403)를 반환하므로, **앱에서 HTTP 상태 코드를 확인하고 직접 웹뷰에서 에러 URL을 로드**해야 함. 이 처리가 없으면 잠금/삭제 계정이 소셜로그인 시 모달 없이 그냥 로그인 실패만 됨
 3. **React `useEffect` 내 `setState` lint 에러** — `react-hooks/set-state-in-effect` 규칙. URL 파라미터에서 초기 에러를 읽을 때 `useEffect` 대신 `useState` 초기값으로 처리해야 함
 4. **어드민 회원 목록에서 삭제 유저 필터** — `status` 컬럼에 'deleted' 값이 없으므로 쿼리 파라미터 `?status=deleted`를 서버에서 `deletedAt IS NOT NULL` 조건으로 변환해야 함. 일반 status 필터와 분기 처리 필요
+5. **iOS `sendTokenRequest`의 response 파라미터** — 기존 코드가 `data, _, error`로 response를 무시하고 있었음. `data, response, error`로 변경해야 HTTP 상태 코드 접근 가능
 
 ---
 
