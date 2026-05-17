@@ -95,10 +95,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      className="bg-bg flex items-center justify-center overflow-x-hidden"
-      style={{ minHeight: '100dvh' }}
-    >
+    <div className="bg-bg fixed inset-0 flex items-center justify-center overflow-x-hidden overflow-y-auto">
       <main className="w-full max-w-[480px] px-6 py-12 flex flex-col items-center">
         {/* 앱 아이덴티티 */}
         <div className="mb-16 text-center flex flex-col items-center">
@@ -109,11 +106,11 @@ export default function LoginPage() {
               className="w-full h-full object-cover"
             />
           </div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-text">
+          {/* <h1 className="text-[28px] font-extrabold tracking-tight text-text">
             손안의 교회
-          </h1>
+          </h1> */}
           <p className="mt-2 text-[15px] font-medium text-text-muted">
-            Lordhill Church SNS
+            주안의교회
           </p>
         </div>
 

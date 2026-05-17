@@ -828,9 +828,42 @@ pm2 restart lordhill-server
 </FeedWithOutlet>
 ```
 
+### 독립 페이지 (MainLayout 밖)의 전체 높이 처리
+
+LoginPage 등 MainLayout을 거치지 않는 독립 페이지에서 뷰포트 전체를 채우려면:
+
+**1. index.css에서 html/body/#root 높이 체인:**
+```css
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+```
+
+**2. 페이지 루트에 `fixed inset-0` 사용:**
+```tsx
+<div className="bg-bg fixed inset-0 flex items-center justify-center overflow-y-auto">
+  {/* 페이지 콘텐츠 */}
+</div>
+```
+
+⚠️ `min-h-screen`, `100vh`, `100dvh`는 Android WebView에서 정확히 동작하지 않을 수 있음. `position: fixed; inset: 0`이 **iOS/Android WebView 모두에서 가장 확실한 방법**.
+
+### Android WebView 설정 주의
+
+```kotlin
+// 모바일 전용 SPA에서는 false로 설정
+settings.loadWithOverviewMode = false
+settings.useWideViewPort = false
+```
+
+`true`로 설정하면 데스크톱 페이지를 축소해서 보여주는 모드가 되어 뷰포트 높이 계산이 틀어질 수 있음.
+
 ### ⚠️ 시행착오
 - 글쓰기 Drawer를 특정 페이지에 두면, 다른 페이지에서 열었을 때 이전 페이지에 남아있음 → MainLayout으로 이동
 - scrollInner 안의 콘텐츠에 px-5를 중복으로 주면 패딩이 이중 적용됨
+- **Android WebView에서 `min-h-screen`/`100dvh`가 안 먹힘** — `html, body, #root`에 `height: 100%` 체인을 걸어도 Android WebView에서 높이가 3/5만 채워지는 현상. `position: fixed; inset: 0`으로 해결. iOS에서는 문제없음
+- **Android `Scaffold` 하단 회색 영역** — `enableEdgeToEdge()` 사용 시 Scaffold 기본 배경색이 네비게이션 바 뒤에 노출됨. `containerColor = Color.White`로 설정
 
 ---
 
@@ -1402,8 +1435,11 @@ Google은 Credential Manager 의존성이 이미 있으므로 추가 불필요.
    ```
 
 **카카오:**
-1. 카카오 개발자 콘솔 → 앱 설정 → 플랫폼 키 → 네이티브 앱 키 수정
-2. 안드로이드 앱 정보:
+
+⚠️ **카카오는 iOS/Android를 같은 페이지에서 설정한다!** 네이티브 앱 키는 하나이고, 그 안에 iOS 앱정보 섹션과 Android 앱정보 섹션이 함께 있다. iOS 설정 시 만든 키를 **새로 만들지 말고**, 같은 키의 Android 앱정보 섹션에 추가해야 한다.
+
+1. 카카오 개발자 콘솔 → 앱 설정 → 플랫폼 키 → (iOS 때 만든) 네이티브 앱 키 수정
+2. **Android 앱정보** 섹션에 입력:
    - 패키지명: `com.<프로젝트>.<앱>`
    - 키 해시: **런타임에서 추출한 값** (아래 참고)
 3. ⚠️ keytool로 추출한 키 해시와 런타임 값이 다를 수 있음!
@@ -1488,9 +1524,11 @@ iOS의 `sendTokenRequest`와 동일 역할. 서버에 토큰 POST → JWT 응답
 
 ### ⚠️ 시행착오
 
-1. **카카오 키 해시 — keytool vs 런타임 값이 다름!** keytool로 추출(`openssl dgst -sha256`)한 값과 `Utility.getKeyHash()`로 추출한 값이 다를 수 있음. **반드시 런타임 값을 카카오 콘솔에 등록**. 이걸로 `Android keyHash validation failed` 에러 해결
-2. **카카오 콘솔 반영 지연** — 키 해시 등록 후 반영에 시간 소요될 수 있음
-3. **카카오 네이티브 앱 키 ≠ REST API 키** — iOS와 마찬가지로 Android SDK도 네이티브 앱 키 사용
+1. **카카오 iOS/Android는 같은 네이티브 앱 키에서 설정!** — 카카오 개발자 콘솔의 "네이티브 앱 키 수정" 페이지 안에 iOS 앱정보 섹션과 Android 앱정보 섹션이 **함께** 있다. iOS 때 키를 만들었으면 Android 용으로 **새 키를 만들지 말고**, 같은 키의 Android 앱정보 섹션에 패키지명 + 키 해시를 추가해야 함. 별도로 만들면 `Android keyHash validation failed` 에러 발생
+2. **카카오 키 해시 — keytool vs 런타임 값이 다름!** keytool로 추출(`openssl dgst -sha256`)한 값과 `Utility.getKeyHash()`로 추출한 값이 다를 수 있음. **반드시 런타임 값을 카카오 콘솔에 등록**. 이걸로 `Android keyHash validation failed` 에러 해결
+3. **카카오 콘솔 패키지명 오타 주의** — 패키지명이 한 글자라도 다르면 `keyHash validation failed`. 실제로 `church`를 `chucrh`로 오타 내서 하루 넘게 삽질한 사례 있음
+4. **카카오 콘솔 반영 지연** — 키 해시 등록 후 반영에 시간 소요될 수 있음. 안 되면 키 해시 삭제 후 재등록
+5. **카카오 네이티브 앱 키 ≠ REST API 키** — iOS와 마찬가지로 Android SDK도 네이티브 앱 키 사용
 4. **AndroidManifest.xml에 AuthCodeHandlerActivity 필수** — 카카오 SDK 리다이렉트 처리용. 없으면 로그인 후 앱으로 안 돌아옴
 5. **Kakao Maven 저장소 추가 필수** — settings.gradle.kts에 `devrepo.kakao.com` 안 넣으면 의존성 다운로드 실패
 6. **ACCESS_NETWORK_STATE 권한** — AndroidManifest.xml에 없으면 앱 크래시 (`SecurityException`)
