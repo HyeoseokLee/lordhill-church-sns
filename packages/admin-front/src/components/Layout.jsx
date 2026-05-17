@@ -7,7 +7,9 @@ export default function Layout({ children }) {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch {}
+    } catch {
+      /* 로그아웃 실패해도 로컬 토큰 삭제 진행 */
+    }
     navigate('/login');
   };
 

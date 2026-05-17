@@ -14,7 +14,10 @@ function AdminRoute({ children }) {
     api
       .get('/auth/me')
       .then(({ data }) => {
-        setState({ loading: false, isAdmin: data.role === 'admin' && data.status === 'approved' });
+        setState({
+          loading: false,
+          isAdmin: data.role === 'admin' && data.status === 'approved',
+        });
       })
       .catch(() => {
         setState({ loading: false, isAdmin: false });
@@ -39,9 +42,30 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<AdminRoute><DashboardPage /></AdminRoute>} />
-        <Route path="/users" element={<AdminRoute><UsersPage /></AdminRoute>} />
-        <Route path="/content" element={<AdminRoute><ContentPage /></AdminRoute>} />
+        <Route
+          path="/"
+          element={
+            <AdminRoute>
+              <DashboardPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <AdminRoute>
+              <UsersPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/content"
+          element={
+            <AdminRoute>
+              <ContentPage />
+            </AdminRoute>
+          }
+        />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

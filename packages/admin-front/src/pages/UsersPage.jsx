@@ -21,16 +21,16 @@ const STATUS_COLORS = {
 };
 
 // 삭제된 유저인지 판별
-const isDeleted = (user) => !!user.deletedAt;
+const isDeleted = user => !!user.deletedAt;
 
 // 상태 라벨 (삭제 포함)
-const getStatusLabel = (user) => {
+const getStatusLabel = user => {
   if (isDeleted(user)) return '삭제됨';
   return STATUS_LABELS[user.status] || user.status;
 };
 
 // 상태 색상 (삭제 포함)
-const getStatusColor = (user) => {
+const getStatusColor = user => {
   if (isDeleted(user)) return 'bg-red-100 text-red-800';
   return STATUS_COLORS[user.status] || '';
 };
@@ -57,15 +57,16 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  const handleApprove = async (userId) => {
+  const handleApprove = async userId => {
     if (!confirm('이 회원을 승인하시겠습니까?')) return;
     await api.patch(`/admin/users/${userId}/approve`);
     fetchUsers();
   };
 
-  const handleReject = async (userId) => {
+  const handleReject = async userId => {
     if (!confirm('이 회원을 거절하시겠습니까?')) return;
     await api.patch(`/admin/users/${userId}/reject`);
     fetchUsers();
@@ -85,7 +86,7 @@ export default function UsersPage() {
     fetchUsers();
   };
 
-  const handleRestore = async (userId) => {
+  const handleRestore = async userId => {
     if (!confirm('이 회원의 계정을 복구하시겠습니까?')) return;
     await api.patch(`/admin/users/${userId}/restore`);
     fetchUsers();
@@ -106,7 +107,7 @@ export default function UsersPage() {
 
       {/* 필터 탭 */}
       <div className="flex gap-2 mb-4">
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <button
             key={tab.value}
             onClick={() => setFilter(tab.value)}
@@ -126,12 +127,24 @@ export default function UsersPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">닉네임</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">이메일</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">OAuth</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">상태</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">가입일</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">액션</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                닉네임
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                이메일
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                OAuth
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                상태
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                가입일
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                액션
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -148,7 +161,7 @@ export default function UsersPage() {
                 </td>
               </tr>
             ) : (
-              users.map((user) => (
+              users.map(user => (
                 <tr
                   key={user.id}
                   className={`border-b last:border-0 hover:bg-gray-50 ${
@@ -157,7 +170,9 @@ export default function UsersPage() {
                 >
                   <td className="px-4 py-3">{user.nickname || '-'}</td>
                   <td className="px-4 py-3 text-gray-500">{user.email}</td>
-                  <td className="px-4 py-3 text-gray-500 capitalize">{user.provider}</td>
+                  <td className="px-4 py-3 text-gray-500 capitalize">
+                    {user.provider}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user)}`}
@@ -209,7 +224,9 @@ export default function UsersPage() {
                                   : 'bg-yellow-500 text-white hover:bg-yellow-600'
                               }`}
                             >
-                              {user.status === 'deactivated' ? '잠금해제' : '계정잠금'}
+                              {user.status === 'deactivated'
+                                ? '잠금해제'
+                                : '계정잠금'}
                             </button>
                             <button
                               onClick={() => setDeleteTarget(user)}
@@ -229,14 +246,22 @@ export default function UsersPage() {
       </div>
 
       {/* 계정잠금/해제 확인 모달 */}
-      <Dialog open={!!deactivateTarget} onClose={() => setDeactivateTarget(null)}>
+      <Dialog
+        open={!!deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+      >
         <DialogTitle>
-          {deactivateTarget?.status === 'deactivated' ? '계정 잠금해제' : '계정 잠금'}
+          {deactivateTarget?.status === 'deactivated'
+            ? '계정 잠금해제'
+            : '계정 잠금'}
         </DialogTitle>
         <DialogContent>
           <p className="text-sm text-gray-700">
-            <strong>{deactivateTarget?.nickname || deactivateTarget?.email}</strong> 회원의
-            계정을 {deactivateTarget?.status === 'deactivated' ? '잠금해제' : '잠금'}
+            <strong>
+              {deactivateTarget?.nickname || deactivateTarget?.email}
+            </strong>{' '}
+            회원의 계정을{' '}
+            {deactivateTarget?.status === 'deactivated' ? '잠금해제' : '잠금'}
             하시겠습니까?
           </p>
           {deactivateTarget?.status !== 'deactivated' && (
@@ -251,7 +276,9 @@ export default function UsersPage() {
           </Button>
           <Button
             onClick={handleDeactivate}
-            color={deactivateTarget?.status === 'deactivated' ? 'primary' : 'warning'}
+            color={
+              deactivateTarget?.status === 'deactivated' ? 'primary' : 'warning'
+            }
             variant="contained"
           >
             {deactivateTarget?.status === 'deactivated' ? '잠금해제' : '잠금'}
@@ -264,11 +291,12 @@ export default function UsersPage() {
         <DialogTitle>회원 삭제</DialogTitle>
         <DialogContent>
           <p className="text-sm text-gray-700">
-            <strong>{deleteTarget?.nickname || deleteTarget?.email}</strong> 회원을
-            삭제하시겠습니까?
+            <strong>{deleteTarget?.nickname || deleteTarget?.email}</strong>{' '}
+            회원을 삭제하시겠습니까?
           </p>
           <p className="text-sm text-red-600 mt-2">
-            삭제된 회원은 소셜 로그인이 차단되며, 어드민에서 삭제복구할 수 있습니다.
+            삭제된 회원은 소셜 로그인이 차단되며, 어드민에서 삭제복구할 수
+            있습니다.
           </p>
         </DialogContent>
         <DialogActions>

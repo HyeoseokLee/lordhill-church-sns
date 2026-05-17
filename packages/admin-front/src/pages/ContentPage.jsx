@@ -21,12 +21,12 @@ export default function ContentPage() {
     fetchPosts();
   }, []);
 
-  const handleDeletePost = async (postId) => {
+  const handleDeletePost = async postId => {
     if (!confirm('이 포스트를 삭제하시겠습니까?')) return;
     try {
       await api.delete(`/admin/posts/${postId}`);
       fetchPosts();
-    } catch (err) {
+    } catch {
       alert('삭제에 실패했습니다.');
     }
   };
@@ -39,12 +39,24 @@ export default function ContentPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">작성자</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">내용</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">미디어</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">반응</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">작성일</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">액션</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                작성자
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                내용
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                미디어
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                반응
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                작성일
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
+                액션
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -61,9 +73,14 @@ export default function ContentPage() {
                 </td>
               </tr>
             ) : (
-              posts.map((post) => (
-                <tr key={post.id} className="border-b last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3">{post.author?.nickname || '익명'}</td>
+              posts.map(post => (
+                <tr
+                  key={post.id}
+                  className="border-b last:border-0 hover:bg-gray-50"
+                >
+                  <td className="px-4 py-3">
+                    {post.author?.nickname || '익명'}
+                  </td>
                   <td className="px-4 py-3 text-gray-600 max-w-xs truncate">
                     {post.content?.slice(0, 50) || '(내용 없음)'}
                     {post.content?.length > 50 ? '...' : ''}
@@ -72,7 +89,8 @@ export default function ContentPage() {
                     {post.media?.length > 0 ? `${post.media.length}개` : '-'}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
-                    ♡ {post._count?.likes || 0} · 💬 {post._count?.comments || 0}
+                    ♡ {post._count?.likes || 0} · 💬{' '}
+                    {post._count?.comments || 0}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(post.createdAt).toLocaleDateString('ko-KR')}
