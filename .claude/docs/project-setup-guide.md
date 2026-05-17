@@ -2001,6 +2001,58 @@ private fun handleAuthResult(view: WebView, result: NativeAuthHelper.AuthResult?
 3. **React `useEffect` 내 `setState` lint 에러** — `react-hooks/set-state-in-effect` 규칙. URL 파라미터에서 초기 에러를 읽을 때 `useEffect` 대신 `useState` 초기값으로 처리해야 함
 4. **어드민 회원 목록에서 삭제 유저 필터** — `status` 컬럼에 'deleted' 값이 없으므로 쿼리 파라미터 `?status=deleted`를 서버에서 `deletedAt IS NOT NULL` 조건으로 변환해야 함. 일반 status 필터와 분기 처리 필요
 5. **iOS `sendTokenRequest`의 response 파라미터** — 기존 코드가 `data, _, error`로 response를 무시하고 있었음. `data, response, error`로 변경해야 HTTP 상태 코드 접근 가능
+6. **네이티브 앱에서 모달이 안 닫힘** — `window.location.assign`으로 OAuth URL 이동 시, 네이티브 앱은 URL을 인터셉트하여 SDK로 처리하므로 실제 페이지 이동이 안 됨. 모달 state를 먼저 닫고(`setPendingProvider(null)`) 그 다음 `window.location.assign` 호출해야 함
+
+### 16-7. 복수 소셜 로그인 중복 계정 방지 UX
+
+같은 사람이 Google/Kakao/Naver로 각각 로그인하면 별도 계정이 생성되는 문제. 전화번호 기반 매칭은 Google에서 전화번호를 제공하지 않아 불가. 대신 **UX로 방지**:
+
+**전략:**
+1. 로그인 성공 시 `localStorage`에 `lastProvider` 저장 (예: `google`)
+2. 로그인 페이지 진입 시 해당 버튼에 **"최근 로그인" 뱃지** 표시
+3. 다른 소셜 버튼 클릭 시 **경고 모달**: "이미 Google으로 가입한 계정이 있습니다. Kakao로 로그인하면 새로운 계정이 생성됩니다."
+4. 사용자가 "계속하기"를 누르면 진행, "취소"면 취소
+
+**OAuthCallbackPage — provider 저장:**
+```tsx
+authApi.getMe().then(res => {
+  setUser(res.data);
+  if (res.data.provider) {
+    localStorage.setItem('lastProvider', res.data.provider);
+  }
+  navigate('/', { replace: true });
+});
+```
+
+**LoginPage — 최근 로그인 뱃지 + 경고 모달:**
+```tsx
+const lastProvider = localStorage.getItem('lastProvider') || '';
+
+// 버튼 클릭 시
+const handleLogin = (provider) => {
+  if (lastProvider && lastProvider !== provider.key) {
+    setPendingProvider(provider);  // 경고 모달 오픈
+    return;
+  }
+  window.location.assign(`${API_BASE_URL}${provider.url}`);
+};
+
+// 경고 확인 후 진행 — 모달을 먼저 닫고 로그인 진행
+const handleConfirmDifferentLogin = () => {
+  const url = pendingProvider.url;
+  setPendingProvider(null);  // 모달 먼저 닫기 (네이티브 앱 대응)
+  window.location.assign(`${API_BASE_URL}${url}`);
+};
+```
+
+뱃지 스타일 (secondary — 흰 배경 + 초록 테두리 + 초록 글씨):
+```tsx
+<span className="absolute -top-2 right-3 bg-white text-accent text-[10px] font-bold px-2 py-0.5 rounded-full border border-accent">
+  최근 로그인
+</span>
+```
+
+모달 버튼은 DESIGN.md의 **Primary/Secondary 버튼 스타일** 적용 (MUI Button 대신 커스텀 `<button>` + Tailwind).
 
 ---
 
