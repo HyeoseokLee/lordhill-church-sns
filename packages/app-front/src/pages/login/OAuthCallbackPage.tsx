@@ -17,6 +17,10 @@ export default function OAuthCallbackPage() {
         .getMe()
         .then(res => {
           setUser(res.data);
+          // 최근 로그인한 소셜 프로바이더 저장
+          if (res.data.provider) {
+            localStorage.setItem('lastProvider', res.data.provider);
+          }
           navigate('/', { replace: true });
         })
         .catch(() => {

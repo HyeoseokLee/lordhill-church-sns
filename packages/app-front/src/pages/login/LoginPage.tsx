@@ -1,10 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import Button from '@mui/material/Button';
 import { useAuthStore } from '@/stores/authStore';
 import { API_BASE_URL } from '@/config/define';
 import { MessageCircle } from 'lucide-react';
@@ -14,6 +10,7 @@ import logoImg from '@/assets/images/img_logo3.png';
 const OAUTH_PROVIDERS = [
   {
     name: 'Google',
+    key: 'google',
     url: '/api/auth/google',
     label: 'Google로 계속하기',
     className: 'bg-surface hover:bg-surface-strong',
@@ -41,6 +38,7 @@ const OAUTH_PROVIDERS = [
   },
   {
     name: 'Kakao',
+    key: 'kakao',
     url: '/api/auth/kakao',
     label: 'Kakao로 계속하기',
     className: 'bg-[#FEE500] hover:brightness-95',
@@ -51,6 +49,7 @@ const OAUTH_PROVIDERS = [
   },
   {
     name: 'Naver',
+    key: 'naver',
     url: '/api/auth/naver',
     label: 'Naver로 계속하기',
     className: 'bg-[#03C75A] hover:brightness-95',
@@ -59,13 +58,15 @@ const OAUTH_PROVIDERS = [
   },
 ];
 
-// 에러 코드별 메시지
 // 서버에서 리다이렉트된 에러 코드별 메시지
 const ERROR_MESSAGES: Record<string, string> = {
   account_locked: '계정이 잠겨있습니다. 관리자에게 문의하세요.',
   account_deleted: '삭제된 계정입니다. 관리자에게 문의하세요.',
   oauth_failed: '소셜 로그인에 실패했습니다. 다시 시도해주세요.',
 };
+
+// localStorage에서 최근 로그인 프로바이더 조회
+const getLastProvider = () => localStorage.getItem('lastProvider') || '';
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuthStore();
@@ -75,6 +76,13 @@ export default function LoginPage() {
   const errorParam = searchParams.get('error');
   const initialError = errorParam ? ERROR_MESSAGES[errorParam] || '' : '';
   const [errorMessage, setErrorMessage] = useState(initialError);
+
+  // 다른 소셜 로그인 경고 모달
+  const [pendingProvider, setPendingProvider] = useState<
+    (typeof OAUTH_PROVIDERS)[number] | null
+  >(null);
+
+  const lastProvider = getLastProvider();
 
   // 모달 닫기 시 URL 쿼리도 정리
   const handleCloseError = () => {
@@ -89,10 +97,27 @@ export default function LoginPage() {
     return <Navigate to="/" replace />;
   }
 
-  // OAuth 로그인은 서버로 직접 리다이렉트
-  const handleLogin = (url: string) => {
-    window.location.assign(`${API_BASE_URL}${url}`);
+  // OAuth 로그인 처리
+  const handleLogin = (provider: (typeof OAUTH_PROVIDERS)[number]) => {
+    // 최근 로그인 기록이 있고, 다른 소셜을 눌렀으면 경고
+    if (lastProvider && lastProvider !== provider.key) {
+      setPendingProvider(provider);
+      return;
+    }
+    window.location.assign(`${API_BASE_URL}${provider.url}`);
   };
+
+  // 경고 확인 후 로그인 진행
+  const handleConfirmDifferentLogin = () => {
+    if (pendingProvider) {
+      const url = pendingProvider.url;
+      setPendingProvider(null);
+      window.location.assign(`${API_BASE_URL}${url}`);
+    }
+  };
+
+  const lastProviderName =
+    OAUTH_PROVIDERS.find(p => p.key === lastProvider)?.name || '';
 
   return (
     <div className="bg-bg fixed inset-0 flex items-center justify-center overflow-x-hidden overflow-y-auto">
@@ -106,9 +131,6 @@ export default function LoginPage() {
               className="w-full h-full object-cover"
             />
           </div>
-          {/* <h1 className="text-[28px] font-extrabold tracking-tight text-text">
-            손안의 교회
-          </h1> */}
           <p className="mt-2 text-[15px] font-medium text-text-muted">
             주안의교회
           </p>
@@ -117,20 +139,27 @@ export default function LoginPage() {
         {/* 소셜 로그인 버튼 */}
         <div className="w-full space-y-3">
           {OAUTH_PROVIDERS.map(provider => (
-            <button
-              key={provider.name}
-              onClick={() => handleLogin(provider.url)}
-              className={`w-full flex items-center justify-center gap-3 py-[14px] px-6 rounded-[12px] transition-all duration-150 ease-out active:scale-[0.98] group ${provider.className}`}
-            >
-              <div className="w-5 h-5 flex items-center justify-center">
-                {provider.icon}
-              </div>
-              <span
-                className={`font-semibold text-[15px] ${provider.textClassName}`}
+            <div key={provider.name} className="relative">
+              <button
+                onClick={() => handleLogin(provider)}
+                className={`w-full flex items-center justify-center gap-3 py-[14px] px-6 rounded-[12px] transition-all duration-150 ease-out active:scale-[0.98] group ${provider.className}`}
               >
-                {provider.label}
-              </span>
-            </button>
+                <div className="w-5 h-5 flex items-center justify-center">
+                  {provider.icon}
+                </div>
+                <span
+                  className={`font-semibold text-[15px] ${provider.textClassName}`}
+                >
+                  {provider.label}
+                </span>
+              </button>
+              {/* 최근 로그인 뱃지 */}
+              {lastProvider === provider.key && (
+                <span className="absolute -top-2 right-3 bg-white text-accent text-[10px] font-bold px-2 py-0.5 rounded-full border border-accent">
+                  최근 로그인
+                </span>
+              )}
+            </div>
           ))}
         </div>
 
@@ -146,15 +175,50 @@ export default function LoginPage() {
 
       {/* 계정 잠금 등 에러 모달 */}
       <Dialog open={!!errorMessage} onClose={handleCloseError}>
-        <DialogTitle>로그인 불가</DialogTitle>
-        <DialogContent>
-          <p className="text-sm text-gray-700">{errorMessage}</p>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseError} color="inherit">
-            확인
-          </Button>
-        </DialogActions>
+        <div className="px-6 pt-6 pb-5">
+          <h3 className="text-[17px] font-bold text-text mb-3">로그인 불가</h3>
+          <p className="text-[14px] text-text-muted">{errorMessage}</p>
+          <div className="mt-5">
+            <button
+              onClick={handleCloseError}
+              className="w-full px-5 py-2.5 bg-accent text-white font-bold text-[14px] rounded-[12px] hover:bg-accent-dark active:scale-[0.98] transition-colors duration-150"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* 다른 소셜 로그인 경고 모달 */}
+      <Dialog open={!!pendingProvider} onClose={() => setPendingProvider(null)}>
+        <div className="px-6 pt-6 pb-5">
+          <h3 className="text-[17px] font-bold text-text mb-3">
+            다른 계정으로 로그인
+          </h3>
+          <p className="text-[14px] text-text-muted">
+            이미 <strong className="text-text">{lastProviderName}</strong>으로
+            가입한 계정이 있습니다.
+          </p>
+          <p className="text-[14px] text-text-muted mt-2">
+            <strong className="text-text">{pendingProvider?.name}</strong>으로
+            로그인하면 <strong className="text-text">새로운 계정</strong>이
+            생성됩니다.
+          </p>
+          <div className="mt-5 flex gap-3">
+            <button
+              onClick={() => setPendingProvider(null)}
+              className="flex-1 px-5 py-2.5 bg-white text-accent font-bold text-[14px] rounded-[12px] border border-accent hover:bg-accent-light active:scale-[0.98] transition-colors duration-150"
+            >
+              취소
+            </button>
+            <button
+              onClick={handleConfirmDifferentLogin}
+              className="flex-1 px-5 py-2.5 bg-accent text-white font-bold text-[14px] rounded-[12px] hover:bg-accent-dark active:scale-[0.98] transition-colors duration-150"
+            >
+              계속하기
+            </button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

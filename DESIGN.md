@@ -56,6 +56,12 @@
 - **Duration:** micro(50-100ms) short(150-250ms)
 - **원칙:** 전환과 상태 변화에만 사용. 장식적 애니메이션 없음.
 
+## Buttons
+- **Primary:** `bg-accent text-white font-bold text-[14px] rounded-[12px] hover:bg-accent-dark active:scale-[0.98] transition-colors duration-150` — 주요 액션 (게시, 확인, 저장)
+- **Secondary:** `bg-white text-accent font-bold text-[14px] rounded-[12px] border border-accent hover:bg-accent-light active:scale-[0.98] transition-colors duration-150` — 보조 액션 (취소, 뒤로)
+- **패딩:** `px-5 py-2.5` (기본), `px-4 py-2` (소형)
+- **MUI Dialog 내 사용 시:** MUI Button 대신 `<button>` 태그에 위 스타일 직접 적용
+
 ## Do's and Don'ts
 
 ### Do:
