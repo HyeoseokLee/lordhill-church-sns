@@ -29,6 +29,7 @@
 14. 어드민 프론트 배포
 15. 어드민 계정 생성 (아이디/비밀번호 로그인)
 16. 회원 상태 관리 (잠금/삭제/복구)
+17. 푸시 알림 (FCM)
 ```
 
 ### ⚠️ 순서 중요!
@@ -2053,6 +2054,460 @@ const handleConfirmDifferentLogin = () => {
 ```
 
 모달 버튼은 DESIGN.md의 **Primary/Secondary 버튼 스타일** 적용 (MUI Button 대신 커스텀 `<button>` + Tailwind).
+
+---
+
+## 17. 푸시 알림 (FCM)
+
+Firebase Cloud Messaging(FCM)을 사용한 푸시 알림. iOS/Android 네이티브 앱에서 수신.
+
+### 전체 흐름
+
+```
+[1회 세팅]
+Firebase 콘솔에서 프로젝트 생성 → iOS/Android 앱 등록
+→ iOS: APNs 인증 키 등록 (Apple Developer에서 발급)
+→ Android: google-services.json 다운로드
+→ 서버: Firebase Admin SDK + 서비스 계정 키 설정
+
+[앱 실행 시]
+앱 시작 → FCM SDK가 디바이스 토큰(FCM Token) 발급
+→ 네이티브가 서버에 토큰 전송 → 서버가 DB에 userId + fcmToken 저장
+
+[푸시 발생 시]
+서버에서 이벤트 발생 (예: 새 댓글, 어드민 수동 전송)
+→ 대상 userId의 fcmToken을 DB에서 조회
+→ Firebase Admin SDK로 { to: fcmToken, title, body } 전송
+→ Firebase가 해당 기기에 푸시 전달
+
+[기기에서 수신]
+네이티브가 푸시 수신 → 알림 표시 → 탭하면 앱 열기 + 해당 화면으로 이동
+```
+
+### 참고
+- 로컬에서도 푸시 테스트 가능 — Firebase는 서버 위치와 무관하게 기기에 직접 전달
+- 단, 실물 기기 필요 (iOS 에뮬레이터는 푸시 불가, Android 에뮬레이터는 Google Play Services 있으면 가능)
+- 한 유저가 여러 기기 사용 가능 → fcmToken은 1:N 관계
+- fcmToken은 앱 재설치, 토큰 갱신 등으로 바뀔 수 있어 갱신 처리 필수
+
+### 17-1. Firebase 콘솔 세팅
+
+#### A. Firebase 프로젝트 생성
+1. https://console.firebase.google.com → 프로젝트 추가
+2. 프로젝트 이름 입력 → Google Analytics는 비활성화해도 됨 → 프로젝트 만들기
+
+#### B. 서버용 서비스 계정 키 발급
+1. Firebase 콘솔 → **프로젝트 설정** (톱니바퀴) → **서비스 계정** 탭
+2. **새 비공개 키 생성** 클릭 → JSON 파일 다운로드
+3. 파일명을 `firebase-service-account.json`으로 변경
+4. `packages/server/` 에 배치
+5. `.gitignore`에 `firebase-service-account.json` 추가 (보안!)
+
+#### C. iOS 앱 등록
+1. Firebase 콘솔 → **Project Overview** → **+ 앱 추가** → iOS 아이콘 클릭
+2. **Apple 번들 ID** 입력 (Xcode Bundle Identifier와 정확히 일치)
+3. 앱 닉네임, App Store ID는 선택
+4. **앱 등록** 클릭
+5. **GoogleService-Info.plist** 다운로드 → Xcode 프로젝트에 추가할 예정
+6. 나머지 단계(SDK 추가 등)는 "다음"으로 넘겨도 됨
+
+#### D. APNs 인증 키 (.p8) 발급 — Apple Developer
+
+Firebase가 Apple 푸시 시스템(APNs)에 접근하기 위한 인증 키.
+
+1. https://developer.apple.com/account 접속
+2. **Certificates, Identifiers & Profiles** → 좌측 **Keys** 메뉴
+3. **+** (Add) 버튼 클릭
+4. **Key Name** 입력 (예: `Lordhill Church Push`)
+5. **Apple Push Notifications service (APNs)** 체크
+6. **Continue** → **Configure Key** 화면:
+   - **Environment**: `Sandbox & Production` 선택 (개발+배포 모두 지원)
+   - **Key Restriction**: `Team Scoped` 선택 (계정 내 모든 앱에 사용 가능)
+7. **Save** → **Register** → **Download** 클릭
+
+기록할 항목:
+- **Key ID**: Keys 목록에서 10자리 영숫자 확인
+- **Team ID**: Apple Developer → Account → Membership에서 10자리 확인
+- **.p8 파일**: 다운로드 (안전한 곳에 즉시 백업!)
+
+#### E. Firebase 콘솔에 APNs 키 업로드
+
+1. Firebase 콘솔 → **프로젝트 설정** → **Cloud Messaging** 탭
+2. **Apple app configuration** 섹션
+3. **"개발 APNs 인증 키가 없습니다. 업로드"** 클릭 → .p8 파일 + Key ID + Team ID 입력 → Upload
+4. **"프로덕션 APNs 인증 키가 없습니다. 업로드"** 클릭 → 같은 .p8 파일 + Key ID + Team ID 입력 → Upload
+
+(개발/프로덕션 둘 다 같은 .p8 키로 등록)
+
+### ⚠️ 시행착오
+
+1. **.p8 파일은 한 번만 다운로드 가능** — 분실하면 키를 Revoke하고 새로 만들어야 함. 즉시 1Password 등에 백업 필수
+2. **APNs Key vs Certificate** — Key(.p8) 사용 권장. Certificate(.p12)는 매년 갱신 필요하고 환경별 별도 생성. Key는 만료 없음 + Sandbox/Production 자동 지원
+3. **계정당 APNs 키 최대 2개** — 하나의 키로 해당 계정의 모든 앱에 푸시 가능하므로 앱별로 만들 필요 없음
+4. **Bundle ID 불일치** — Firebase에 등록한 Bundle ID와 Xcode Bundle Identifier가 정확히 일치해야 함. 대소문자까지 확인
+5. **Configure Key 화면** — APNs 체크 후 Continue 하면 Environment(Sandbox/Production/Both)와 Key Restriction(Team Scoped/Topic Specific) 선택 화면이 나옴. `Sandbox & Production` + `Team Scoped`가 가장 범용적
+6. **Firebase Cloud Messaging 탭에서 개발/프로덕션 따로 업로드** — APNs 인증 키 섹션에 개발/프로덕션 두 행이 있음. 둘 다 같은 .p8 파일로 업로드하면 됨. 하단의 "APNs 인증서" 섹션은 무시 (레거시)
+
+---
+
+### 17-2. 서버 — Firebase Admin SDK + 푸시 전송
+
+서버 구현은 완료된 상태. 구조 정리:
+
+#### 파일 구조
+```
+packages/server/
+├── firebase-service-account.json   # Firebase 서비스 계정 키 (gitignore!)
+├── src/
+│   ├── firebase.js                 # Firebase Admin SDK 초기화
+│   └── push/
+│       ├── models/FcmToken.js      # FCM 토큰 모델 (userId, token, platform)
+│       ├── controllers/fcmToken.js # 토큰 등록/삭제 컨트롤러
+│       ├── routes/fcmToken.js      # POST/DELETE /api/users/fcm-token
+│       └── pushService.js          # 푸시 전송 서비스 (sendPushToUser, sendPushToTokens)
+```
+
+#### 의존성
+```bash
+npm install firebase-admin
+```
+
+#### firebase.js — SDK 초기화
+```js
+import admin from 'firebase-admin';
+import { readFileSync } from 'fs';
+const serviceAccount = JSON.parse(readFileSync('firebase-service-account.json', 'utf8'));
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+```
+
+#### FcmToken 모델
+- `userId` (FK → users), `token` (UNIQUE, STRING 500), `platform` (ENUM: ios/android)
+- 마이그레이션: `fcm_tokens` 테이블, token 유니크 인덱스 + user_id 인덱스
+
+#### API 엔드포인트
+- `POST /api/users/fcm-token` — 토큰 등록 (로그인 필요). body: `{ token, platform }`
+- `DELETE /api/users/fcm-token` — 토큰 삭제 (로그아웃 시). body: `{ token }`
+- `POST /api/admin/push/send` — 어드민 수동 푸시. body: `{ userId, title, body }`
+
+#### pushService.js — 전송 로직
+- `sendEachForMulticast`로 다중 토큰에 전송
+- 만료/무효 토큰 자동 정리 (messaging/registration-token-not-registered)
+- iOS용 `apns` 필드 (sound: 'default') + Android용 `android` 필드 추가 필요
+
+### ⚠️ 시행착오
+
+1. **firebase-service-account.json은 반드시 .gitignore에 포함** — 이 파일에 비공개 키가 포함됨. git에 올리면 보안 사고
+2. **iOS에서 무음 알림** — pushService의 message에 `apns.payload.aps.sound: 'default'`가 없으면 iOS에서 소리 없이 알림이 도착함. 반드시 추가
+3. **sendEachForMulticast로 iOS/Android 통합 전송 가능** — message 객체에 `apns`와 `android` 필드를 동시에 넣으면, FCM이 토큰 플랫폼에 따라 해당 필드만 적용. 분리 전송 불필요
+
+### 17-3. iOS — FCM SDK + 토큰 발급 + 수신 처리
+
+#### A. Xcode 프로젝트 설정 (수동)
+
+**1) Firebase SDK 설치 (SPM)**
+1. Xcode → File → Add Package Dependencies
+2. URL 직접 입력: `https://github.com/firebase/firebase-ios-sdk` (검색으로는 안 나옴!)
+3. Dependency Rule: Up to Next Major Version
+4. **FirebaseCore** + **FirebaseMessaging**만 체크, 나머지 해제
+5. Add Package
+
+**2) Capability 추가**
+1. Xcode → 프로젝트 → Targets → 앱 타겟 → Signing & Capabilities 탭
+2. + Capability → **Push Notifications** 추가
+3. + Capability → **Background Modes** 추가 → **Remote notifications** 체크
+
+⚠️ Push Notifications capability는 **무료 Personal Team으로는 추가 불가**. Apple Developer Program 멤버십($99/년) 필요.
+
+**3) GoogleService-Info.plist 추가**
+- Firebase 콘솔에서 다운로드한 파일을 Xcode 프로젝트에 드래그
+- "Copy items if needed" 체크
+
+**4) Info.plist 설정**
+- `FirebaseAppDelegateProxyEnabled` = `NO` 추가 (SwiftUI 앱에서 swizzling 비활성화)
+
+#### B. 코드 구현
+
+**핵심 포인트:** 앱 시작 시 FCM 토큰이 먼저 발급되지만, JWT가 없으므로 서버 등록은 스킵. **로그인 완료 시점에** 웹 → 네이티브 브릿지로 JWT를 전달받고, 그때 FCM 토큰을 서버에 등록.
+
+**1) AppDelegate.swift — Firebase 초기화 + 푸시 권한 + FCM 토큰 수신**
+```swift
+import FirebaseCore
+import FirebaseMessaging
+import UserNotifications
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
+
+    func application(_ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: ...) -> Bool {
+        FirebaseApp.configure()
+
+        // 푸시 알림 권한 요청
+        UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in }
+        application.registerForRemoteNotifications()
+
+        // FCM delegate
+        Messaging.messaging().delegate = self
+        return true
+    }
+
+    // APNs 토큰 → FCM에 전달
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    // FCM 토큰 수신/갱신 → 로컬 저장 + 서버 등록 시도
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let token = fcmToken else { return }
+        UserDefaults.standard.set(token, forKey: "fcm-token")
+        FcmTokenManager.registerToken(fcmToken: token)  // JWT 없으면 내부에서 스킵
+    }
+
+    // 포그라운드에서 푸시 수신 시 알림 표시
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: ...) {
+        completionHandler([.banner, .badge, .sound])
+    }
+
+    // 푸시 탭 시 딥링크 이동
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse, ...) {
+        let userInfo = response.notification.request.content.userInfo
+        if let path = userInfo["path"] as? String {
+            NotificationCenter.default.post(name: .init("DeepLinkReceived"),
+                userInfo: ["url": "\(WEB.baseUrl)\(path)"])
+        }
+        completionHandler()
+    }
+}
+```
+
+**2) FcmTokenManager.swift (Util/) — 서버 토큰 등록/삭제**
+```swift
+struct FcmTokenManager {
+    private static func getApiBase() -> String {
+        if WEB.environment == .live { return "https://api.<도메인>" }
+        // 로컬: WEB.baseUrl에서 프론트 포트를 서버 포트로 변환
+        return WEB.baseUrl.replacingOccurrences(of: ":5173", with: ":3001")
+    }
+
+    static func registerToken(fcmToken: String) {
+        let authToken = UserDefaults.standard.string(forKey: "auth-token") ?? ""
+        if authToken.isEmpty { return }  // JWT 없으면 스킵
+
+        // POST /api/users/fcm-token { token, platform: "ios" }
+        // Authorization: Bearer <JWT>
+    }
+
+    static func unregisterToken() {
+        // DELETE /api/users/fcm-token { token }
+    }
+}
+```
+
+**3) LordhillWebView.swift — 로그인 시 FCM 토큰 서버 등록**
+
+`getToken` JS 메시지 핸들러에서 JWT 저장 후 FCM 등록:
+```swift
+if message.name == "getToken" {
+    if let token = message.body as? String {
+        UserDefaults.standard.set(token, forKey: "auth-token")
+        // 로그인 완료 → 로컬에 저장된 FCM 토큰으로 서버 등록
+        if let fcmToken = UserDefaults.standard.string(forKey: "fcm-token"), !fcmToken.isEmpty {
+            FcmTokenManager.registerToken(fcmToken: fcmToken)
+        }
+    }
+}
+```
+
+**4) 웹 프론트 OAuthCallbackPage.tsx — 네이티브 브릿지 호출**
+
+로그인 성공 시 JWT를 네이티브에 전달해야 FCM 등록이 트리거됨:
+```tsx
+// 네이티브 앱에 JWT 토큰 전달
+window.webkit?.messageHandlers?.getToken?.postMessage(token);  // iOS
+window.AndroidBridge?.onToken?.(token);  // Android
+```
+
+TypeScript 타입 선언 (`types/window.d.ts`):
+```ts
+interface Window {
+  webkit?: {
+    messageHandlers: {
+      getToken?: { postMessage: (token: string) => void };
+    };
+  };
+  AndroidBridge?: {
+    onToken?: (token: string) => void;
+  };
+}
+```
+
+**5) getApiBase() — 실물 기기 로컬 테스트 대응**
+
+⚠️ `localhost:3001`은 실물 기기에서 Mac 서버에 접근 불가! `Constants.swift`의 baseUrl에서 포트만 교체하는 패턴 사용:
+```swift
+// ❌ 실물 기기에서 접근 불가
+"http://localhost:3001"
+
+// ✅ Constants.swift의 IP를 그대로 활용
+WEB.baseUrl.replacingOccurrences(of: ":5173", with: ":3001")
+```
+이 패턴을 `FcmTokenManager`와 `LordhillWebView`의 `getApiBase()` 모두에 적용.
+
+#### 참고
+- iOS 프로젝트 위치: `~/Documents/church/lordhill-ios/`
+- 시뮬레이터에서 FCM 푸시 테스트 불가 → **실물 기기 필수**
+- APNs 토큰 ≠ FCM 토큰: FCM 토큰만 서버에 전송 (Firebase SDK가 내부 매핑)
+
+### ⚠️ 시행착오
+
+1. **SPM에서 Firebase 검색 안 됨** — URL을 직접 붙여넣어야 함: `https://github.com/firebase/firebase-ios-sdk`
+2. **FirebaseCore + FirebaseMessaging만 필요** — 나머지 모듈 체크 해제. 불필요한 모듈은 빌드 시간만 증가
+3. **SPM 패키지는 코드 작성 전에 먼저 추가** — 안 하면 `No such module 'FirebaseCore'` 빌드 에러
+4. **Push Notifications capability는 유료 개발자 계정 필수** — 무료 Personal Team으로는 불가
+5. **CLI로 만든 Swift 파일은 Xcode에 자동 등록 안 됨** — Xcode 좌측 네비게이터에서 수동으로 Add Files 해야 함. 안 하면 `Cannot find 'FcmTokenManager' in scope` 에러
+6. **FcmTokenManager 파일이 2개 생기지 않도록 주의** — App/, Util/ 등 다른 위치에 동명 파일이 있으면 잘못된 파일이 사용됨. 하나만 유지
+7. **`localhost`는 실물 기기에서 Mac이 아닌 기기 자신** — `getApiBase()`에서 `localhost:3001` 하드코딩하면 실물 기기 테스트 불가. `WEB.baseUrl`에서 포트만 교체하는 패턴 사용. 이 수정을 `FcmTokenManager`와 `LordhillWebView` 두 곳 모두에 적용해야 함
+8. **FCM 토큰이 JWT보다 먼저 발급됨** — 앱 시작 시 FCM 토큰은 바로 발급되지만, JWT는 로그인 후에 생김. 따라서 FCM 토큰 발급 시점에는 서버 등록을 스킵하고, **로그인 완료 시점(웹→네이티브 브릿지)에 FCM 등록을 재시도**해야 함. 이 브릿지 호출이 없으면 FCM 토큰이 서버에 영원히 등록되지 않음
+9. **웹→네이티브 브릿지 호출 누락** — OAuthCallbackPage에서 `localStorage`에 토큰 저장만 하고 네이티브에 전달하지 않으면, 네이티브는 로그인 사실을 모름. `webkit.messageHandlers.getToken.postMessage(token)` 호출 필수
+10. **Team ID 변경 시 기존 앱 삭제 필요** — Apple Developer 계정을 변경하면 Signing Team이 바뀌어 앱 설치 시 `application-identifier entitlement string does not match` 에러. iPhone에서 기존 앱을 삭제 후 재설치
+
+### 17-4. Android — FCM SDK + 토큰 발급 + 수신 처리
+
+#### A. 프로젝트 설정
+
+**1) google-services.json 추가**
+Firebase 콘솔에서 다운로드한 파일을 Android 프로젝트의 `app/` 디렉토리에 복사.
+
+**2) Gradle 의존성**
+
+`gradle/libs.versions.toml`:
+```toml
+[versions]
+firebaseBom = "33.7.0"
+googleServices = "4.4.2"
+
+[libraries]
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+
+[plugins]
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+```
+
+프로젝트 `build.gradle.kts`:
+```kotlin
+plugins {
+    alias(libs.plugins.google.services) apply false
+}
+```
+
+앱 `app/build.gradle.kts`:
+```kotlin
+plugins {
+    alias(libs.plugins.google.services)
+}
+
+dependencies {
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
+}
+```
+
+**3) AndroidManifest.xml**
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+<!-- FCM 푸시 수신 서비스 -->
+<service android:name=".fcm.LordhillFirebaseMessagingService" android:exported="false">
+    <intent-filter>
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+    </intent-filter>
+</service>
+
+<!-- 기본 알림 채널 -->
+<meta-data
+    android:name="com.google.firebase.messaging.default_notification_channel_id"
+    android:value="default" />
+```
+
+#### B. 코드 구현
+
+**1) LordhillFirebaseMessagingService.kt (fcm/) — 푸시 수신 + 토큰 갱신**
+```kotlin
+class LordhillFirebaseMessagingService : FirebaseMessagingService() {
+    override fun onNewToken(token: String) {
+        // 서버에 토큰 등록 (JWT 없으면 내부에서 스킵)
+        CoroutineScope(Dispatchers.IO).launch {
+            FcmTokenManager.registerToken(token)
+        }
+    }
+
+    override fun onMessageReceived(message: RemoteMessage) {
+        // 알림 표시 (알림 채널 + PendingIntent)
+        showNotification(message.notification?.title, message.notification?.body)
+    }
+}
+```
+
+알림 채널 생성 (Android 8+ 필수):
+```kotlin
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    NotificationChannel("default", "손안의 교회 알림", NotificationManager.IMPORTANCE_HIGH)
+}
+```
+
+**2) FcmTokenManager.kt (fcm/) — 서버 토큰 등록/삭제**
+- iOS와 동일한 패턴: JWT 없으면 스킵, 있으면 `POST /api/users/fcm-token` 전송
+- `getApiBase()`도 `EnvManager.getBaseUrl()`에서 포트 교체
+
+**3) MainActivity.kt — 로그인 시 FCM 토큰 등록**
+```kotlin
+override fun onJavascriptToken(data: String) {
+    LordhillSharedPref.saveToken(this, data)
+    // 로그인 완료 → FCM 토큰 서버에 등록
+    FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+        lifecycleScope.launch { FcmTokenManager.registerToken(fcmToken) }
+    }
+}
+```
+
+**4) LordhillSharedPref.kt — FCM 토큰 로컬 저장 메서드 추가**
+```kotlin
+fun saveFcmToken(context: Context, token: String)
+fun getFcmToken(context: Context): String
+fun clearFcmToken(context: Context)
+```
+
+### 17-5. 어드민 프론트 — 푸시 관리 페이지
+
+`admin-front/src/pages/PushPage.jsx`:
+
+**푸시 전송 폼 (MUI Dialog):**
+- 대상 선택: "전체 회원" / "특정 유저" 토글 + 유저 드롭다운 (닉네임 + provider 표시)
+- title, body 입력
+- 전송 버튼 → `POST /api/admin/push/send` → 결과(성공/실패 건수) 인라인 표시
+
+**푸시 이력 테이블:**
+- 전송일시, 대상(유저명 또는 "전체"), 제목, 내용, 상태(뱃지), 성공/실패 건수
+- 페이지네이션 (`GET /api/admin/push/logs?page=&limit=10`)
+
+**라우팅/네비게이션:**
+- `App.jsx`에 `/push` → `PushPage` 라우트 추가 (AdminRoute 감싸기)
+- `Layout.jsx` 사이드바에 "푸시 관리" 메뉴 링크 추가
+
+### ⚠️ 시행착오 (전체)
+
+1. **FCM 토큰 등록 타이밍이 핵심** — 앱 시작 시 FCM 토큰은 발급되지만 JWT가 없어 서버 등록 불가. 로그인 완료 시 웹→네이티브 브릿지로 JWT를 전달하고, 그 시점에 FCM 등록을 재시도해야 함
+2. **웹→네이티브 브릿지 호출은 OAuthCallbackPage에서** — `localStorage` 저장만으로는 네이티브가 로그인 사실을 모름. `webkit.messageHandlers` (iOS) / `AndroidBridge` (Android)로 토큰 전달 필수
+3. **웹→네이티브 브릿지 메서드명 일치 확인** — iOS는 `webkit.messageHandlers.getToken.postMessage(token)`, Android는 `AndroidBridge.updateToken(token)`. 네이티브 코드의 실제 메서드명과 웹에서 호출하는 이름이 **정확히 일치**해야 함. 불일치하면 토큰 전달 자체가 안 돼서 FCM 등록 불가
+4. **`localhost`는 실물 기기에서 접근 불가** — iOS/Android 모두 `getApiBase()`에서 `WEB.baseUrl`의 포트만 교체하는 패턴 사용. 하드코딩 금지
+5. **Android debug IP 주소 변경 시 Gradle Sync 필수** — `build.gradle.kts`의 `BASE_URL`을 수정하면 반드시 Gradle Sync 후 빌드. 안 하면 이전 IP로 연결됨. Wi-Fi 환경이 바뀌면 Mac IP도 바뀌므로 주의
+6. **Android `POST_NOTIFICATIONS` 권한 필수** — Android 13(API 33)부터 푸시 알림에 `POST_NOTIFICATIONS` 런타임 권한 필요. AndroidManifest.xml에 선언하면 앱 설치 시 자동 요청
+7. **유저 드롭다운에 provider 표시** — 같은 이름의 유저가 Google/Kakao/Naver로 각각 가입할 수 있으므로, 드롭다운에 `닉네임 (provider)` 형식으로 표시
+8. **라이브 배포 시 firebase-service-account.json** — 이 파일은 gitignore되므로 EC2에 수동으로 배치하거나, CI/CD에서 GitHub Secrets로 주입해야 함
 
 ---
 

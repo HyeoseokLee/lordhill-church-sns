@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import ContentPage from './pages/ContentPage';
+import PushPage from './pages/PushPage';
 
 function AdminRoute({ children }) {
   const [state, setState] = useState({ loading: true, isAdmin: false });
@@ -63,6 +64,14 @@ export default function App() {
           element={
             <AdminRoute>
               <ContentPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/push"
+          element={
+            <AdminRoute>
+              <PushPage />
             </AdminRoute>
           }
         />

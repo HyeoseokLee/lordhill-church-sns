@@ -6,6 +6,8 @@ import PostMedia from './post/models/PostMedia.js';
 import Like from './post/models/Like.js';
 import Comment from './comment/models/Comment.js';
 import AdminAuditLog from './admin/models/AdminAuditLog.js';
+import FcmToken from './push/models/FcmToken.js';
+import PushLog from './push/models/PushLog.js';
 
 const dbconfig = config.sequelize;
 
@@ -44,6 +46,8 @@ db.PostMedia = PostMedia(sequelize);
 db.Like = Like(sequelize);
 db.Comment = Comment(sequelize);
 db.AdminAuditLog = AdminAuditLog(sequelize);
+db.FcmToken = FcmToken(sequelize);
+db.PushLog = PushLog(sequelize);
 
 // Association 설정
 Object.keys(db).forEach((modelName) => {

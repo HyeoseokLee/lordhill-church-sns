@@ -14,6 +14,7 @@ import postsRouter from './post/routes/post.js';
 import commentRouter from './comment/routes/comment.js';
 import adminRouter from './admin/routes/admin.js';
 import adminAuthRouter from './admin/routes/auth.js';
+import fcmTokenRouter from './push/routes/fcmToken.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -50,6 +51,9 @@ apiRouter.use('/users', onlyLoginUser, onlyApprovedUser, usersRouter);
 
 // 포스트 (승인된 사용자만)
 apiRouter.use('/posts', onlyLoginUser, onlyApprovedUser, postsRouter);
+
+// 푸시 토큰 (로그인한 사용자)
+apiRouter.use('/users', onlyLoginUser, fcmTokenRouter);
 
 // 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
 apiRouter.use('/admin', adminAuthRouter);

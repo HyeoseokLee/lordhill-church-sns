@@ -12,6 +12,16 @@ declare global {
       getPlatform: () => 'web' | 'ios' | 'android';
     };
     capacitorBridge?: CapacitorBridge;
+    webkit?: {
+      messageHandlers: {
+        getToken?: { postMessage: (token: string) => void };
+        jsLog?: { postMessage: (msg: string) => void };
+      };
+    };
+    AndroidBridge?: {
+      updateToken?: (token: string) => void;
+    };
+    isIOSApp?: boolean;
   }
 }
 

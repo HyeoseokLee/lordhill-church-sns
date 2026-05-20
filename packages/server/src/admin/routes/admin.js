@@ -11,6 +11,7 @@ import {
   deleteCommentByAdmin,
   getDashboard,
 } from '../controllers/admin.js';
+import { sendPush, getPushLogs } from '../controllers/push.js';
 
 const router = express.Router();
 
@@ -40,5 +41,11 @@ router.delete('/posts/:id', asyncHandler(deletePostByAdmin));
 
 // 댓글 강제 삭제
 router.delete('/comments/:id', asyncHandler(deleteCommentByAdmin));
+
+// 푸시 알림 전송
+router.post('/push/send', asyncHandler(sendPush));
+
+// 푸시 이력 조회
+router.get('/push/logs', asyncHandler(getPushLogs));
 
 export default router;

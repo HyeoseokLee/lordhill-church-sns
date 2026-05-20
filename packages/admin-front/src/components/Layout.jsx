@@ -33,6 +33,9 @@ export default function Layout({ children }) {
           <NavLink to="/content" className={linkClass}>
             컨텐츠 관리
           </NavLink>
+          <NavLink to="/push" className={linkClass}>
+            푸시 관리
+          </NavLink>
         </nav>
         <button
           onClick={handleLogout}

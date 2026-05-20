@@ -13,6 +13,19 @@ export default function OAuthCallbackPage() {
     const token = searchParams.get('token');
     if (token) {
       localStorage.setItem('accessToken', token);
+
+      // 네이티브 앱에 JWT 토큰 전달 (iOS/Android 브릿지)
+      try {
+        if (window.webkit?.messageHandlers?.getToken) {
+          window.webkit.messageHandlers.getToken.postMessage(token);
+        }
+        if (window.AndroidBridge?.updateToken) {
+          window.AndroidBridge.updateToken(token);
+        }
+      } catch {
+        // 웹 브라우저에서는 무시
+      }
+
       authApi
         .getMe()
         .then(res => {
