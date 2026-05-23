@@ -182,11 +182,7 @@ export default function PostDetailPage() {
               <div
                 className={`w-10 h-10 rounded-full bg-surface-strong flex items-center justify-center flex-shrink-0 ${isMyPost ? 'ring-2 ring-accent ring-offset-1' : ''}`}
               >
-                <User
-                  size={20}
-                  strokeWidth={1.5}
-                  className="text-text-muted"
-                />
+                <User size={20} strokeWidth={1.5} className="text-text-muted" />
               </div>
             )}
             <div className="flex-1 min-w-0">
