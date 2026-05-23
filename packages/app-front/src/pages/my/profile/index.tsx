@@ -8,8 +8,8 @@ export default function ProfilePage() {
 
   return (
     <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
+      <SubPageHeader title="프로필 수정" />
       <div className="scrollInner">
-        <SubPageHeader title="프로필 수정" />
         <div className="w-full">
           <p className="text-sm text-text-muted">
             {currentUser?.name || '사용자'}

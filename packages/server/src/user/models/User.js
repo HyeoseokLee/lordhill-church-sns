@@ -6,11 +6,11 @@ export default (sequelize) => {
   class User extends Sequelize.Model {
     static associate(models) {
       this.hasMany(models.Post, {
-        foreignKey: 'authorId',
+        foreignKey: 'userId',
         as: 'posts',
       });
       this.hasMany(models.Comment, {
-        foreignKey: 'authorId',
+        foreignKey: 'userId',
         as: 'comments',
       });
       this.hasMany(models.Like, {

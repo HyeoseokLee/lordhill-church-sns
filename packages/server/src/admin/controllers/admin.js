@@ -120,7 +120,7 @@ export const deletePostByAdmin = async (req, res) => {
 
   await post.destroy(); // soft delete
   await logAudit(req.user.id, auditAction.deletePost, `post:${post.id}`, {
-    authorId: post.authorId,
+    userId: post.userId,
   });
 
   res.json({ message: 'ok' });
@@ -138,12 +138,59 @@ export const deleteCommentByAdmin = async (req, res) => {
     auditAction.deleteComment,
     `comment:${comment.id}`,
     {
-      authorId: comment.authorId,
+      userId: comment.userId,
       postId: comment.postId,
     },
   );
 
   res.json({ message: 'ok' });
+};
+
+// 어드민 게시글 목록 (좋아요 수 포함, 페이지네이션)
+export const getPosts = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  const pageSize = Math.min(parseInt(limit, 10), 50);
+  const offset = (parseInt(page, 10) - 1) * pageSize;
+
+  const { rows, count } = await models.Post.findAndCountAll({
+    include: [
+      {
+        model: models.User,
+        as: 'user',
+        attributes: ['id', 'nickname', 'profileImageUrl'],
+      },
+    ],
+    order: [['createdAt', 'DESC']],
+    limit: pageSize,
+    offset,
+  });
+
+  // 좋아요 수 집계
+  const postIds = rows.map((p) => p.id);
+  const likeCounts = await models.Like.findAll({
+    attributes: [
+      'postId',
+      [models.sequelize.fn('COUNT', models.sequelize.col('id')), 'count'],
+    ],
+    where: { postId: postIds },
+    group: ['postId'],
+    raw: true,
+  });
+  const likeMap = Object.fromEntries(
+    likeCounts.map((l) => [l.postId, parseInt(l.count, 10)]),
+  );
+
+  const items = rows.map((post) => ({
+    ...post.toJSON(),
+    likeCount: likeMap[post.id] || 0,
+  }));
+
+  res.json({
+    items,
+    total: count,
+    page: parseInt(page, 10),
+    totalPages: Math.ceil(count / pageSize),
+  });
 };
 
 export const getDashboard = async (_req, res) => {

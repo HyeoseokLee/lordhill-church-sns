@@ -6,8 +6,8 @@ export default (sequelize) => {
   class Comment extends Sequelize.Model {
     static associate(models) {
       this.belongsTo(models.User, {
-        foreignKey: 'authorId',
-        as: 'author',
+        foreignKey: 'userId',
+        as: 'user',
       });
       this.belongsTo(models.Post, {
         foreignKey: 'postId',
@@ -29,10 +29,10 @@ export default (sequelize) => {
         field: 'post_id',
         references: { model: 'posts', key: 'id' },
       },
-      authorId: {
+      userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        field: 'author_id',
+        field: 'user_id',
         references: { model: 'users', key: 'id' },
       },
       content: {

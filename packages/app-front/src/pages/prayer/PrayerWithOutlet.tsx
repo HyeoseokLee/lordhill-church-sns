@@ -18,7 +18,7 @@ export default function PrayerWithOutlet() {
   return (
     <>
       <div
-        className="w-full"
+        className="w-full flex-1 flex flex-col overflow-hidden"
         style={{
           transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
           transition: isSettled

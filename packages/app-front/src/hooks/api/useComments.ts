@@ -10,8 +10,8 @@ export function useComments(postId: string, page = 1) {
   );
 
   return {
-    comments: data?.comments ?? [],
-    totalCount: data?.totalCount ?? 0,
+    comments: data?.items ?? [],
+    total: data?.total ?? 0,
     error,
     isLoading,
     mutate,

@@ -24,9 +24,7 @@ export default function MainLayout() {
 
   return (
     <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
-      <main className="scrollInner">
-        <Outlet />
-      </main>
+      <Outlet />
     </FullHeightBox>
   );
 }

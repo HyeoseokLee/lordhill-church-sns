@@ -7,6 +7,10 @@ export const commentApi = {
   createComment: (postId: string, content: string) =>
     axiosInstance.post(`/posts/${postId}/comments`, { content }),
 
-  deleteComment: (postId: string, commentId: string) =>
-    axiosInstance.delete(`/posts/${postId}/comments/${commentId}`),
+  // 댓글 수정
+  updateComment: (commentId: string, content: string) =>
+    axiosInstance.put(`/comments/${commentId}`, { content }),
+
+  deleteComment: (commentId: string) =>
+    axiosInstance.delete(`/comments/${commentId}`),
 };

@@ -15,7 +15,8 @@ import RecycleWithOutlet from '@/pages/recycle/RecycleWithOutlet';
 import PrayerWithOutlet from '@/pages/prayer/PrayerWithOutlet';
 import MyWithOutlet from '@/pages/my/MyWithOutlet';
 // 자식 페이지
-import PostDetailPage from '@/pages/feed/post/index';
+import PostDetailPage from '@/pages/feed/detail/index';
+import FeedWritePage from '@/pages/feed/post/index';
 import RecycleWritePage from '@/pages/recycle/write/index';
 import PrayerWritePage from '@/pages/prayer/write/index';
 import ProfilePage from '@/pages/my/profile/index';
@@ -46,7 +47,10 @@ const router = createBrowserRouter([
       {
         path: 'feed',
         element: <FeedWithOutlet />,
-        children: [{ path: 'post/:postId', element: <PostDetailPage /> }],
+        children: [
+          { path: 'post', element: <FeedWritePage /> },
+          { path: 'detail/:postId', element: <PostDetailPage /> },
+        ],
       },
       // 돌고래(재활용) 탭
       {

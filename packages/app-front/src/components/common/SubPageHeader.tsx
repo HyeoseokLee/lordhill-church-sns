@@ -12,7 +12,7 @@ export default function SubPageHeader({ title, right }: Props) {
   const navigate = useNavigate();
 
   return (
-    <header className="w-full flex items-center justify-between py-3">
+    <header className="w-full flex items-center justify-between py-3 px-5">
       <div className="flex items-center gap-2">
         <button
           onClick={() => navigate(-1)}

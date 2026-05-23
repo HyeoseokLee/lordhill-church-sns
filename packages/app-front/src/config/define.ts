@@ -21,9 +21,16 @@ export const FEED_PAGE_SIZE = 20;
 // Comment pagination
 export const COMMENT_PAGE_SIZE = 20;
 
+// 콘텐츠 제한 (서버 define.js와 동일)
+export const contentLimit = {
+  postMaxLength: 2000,
+  commentMaxLength: 500,
+  imageMaxCount: 10,
+} as const;
+
 // Image upload limits
 export const IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
-export const IMAGE_MAX_COUNT = 5;
+export const IMAGE_MAX_COUNT = 10;
 
 // Video upload limits
 export const VIDEO_MAX_SIZE = 100 * 1024 * 1024; // 100MB

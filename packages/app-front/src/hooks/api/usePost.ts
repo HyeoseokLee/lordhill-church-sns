@@ -10,7 +10,7 @@ export function usePost(postId: string) {
   );
 
   return {
-    post: data?.post,
+    post: data,
     error,
     isLoading,
     mutate,

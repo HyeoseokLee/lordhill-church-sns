@@ -6,8 +6,8 @@ export default (sequelize) => {
   class Post extends Sequelize.Model {
     static associate(models) {
       this.belongsTo(models.User, {
-        foreignKey: 'authorId',
-        as: 'author',
+        foreignKey: 'userId',
+        as: 'user',
       });
       this.hasMany(models.PostMedia, {
         foreignKey: 'postId',
@@ -31,10 +31,10 @@ export default (sequelize) => {
         primaryKey: true,
         autoIncrement: true,
       },
-      authorId: {
+      userId: {
         type: DataTypes.INTEGER,
         allowNull: false,
-        field: 'author_id',
+        field: 'user_id',
         references: { model: 'users', key: 'id' },
       },
       content: {

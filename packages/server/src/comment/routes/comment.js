@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import {
   getComments,
   createComment,
+  updateComment,
   deleteComment,
 } from '../controllers/comment.js';
 
@@ -13,6 +14,9 @@ router.get('/posts/:postId/comments', asyncHandler(getComments));
 
 // 댓글 작성
 router.post('/posts/:postId/comments', asyncHandler(createComment));
+
+// 댓글 수정
+router.put('/comments/:id', asyncHandler(updateComment));
 
 // 댓글 삭제 (soft delete)
 router.delete('/comments/:id', asyncHandler(deleteComment));

@@ -7,6 +7,7 @@ import {
   deactivateUser,
   deleteUser,
   restoreUser,
+  getPosts,
   deletePostByAdmin,
   deleteCommentByAdmin,
   getDashboard,
@@ -35,6 +36,9 @@ router.delete('/users/:id', asyncHandler(deleteUser));
 
 // 삭제된 회원 복구
 router.patch('/users/:id/restore', asyncHandler(restoreUser));
+
+// 어드민 게시글 목록
+router.get('/posts', asyncHandler(getPosts));
 
 // 포스트 강제 삭제
 router.delete('/posts/:id', asyncHandler(deletePostByAdmin));

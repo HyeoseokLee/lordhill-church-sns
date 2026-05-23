@@ -20,15 +20,15 @@ export default function MyPage() {
 
   return (
     <>
-      {/* 상단 헤더 */}
-      <header className="w-full flex items-center justify-between py-4">
+      {/* 상단 헤더 (고정, 스크롤 안 됨) */}
+      <header className="w-full flex items-center justify-between py-4 px-5">
         <h1 className="text-[22px] font-extrabold tracking-tight text-text">
           마이페이지
         </h1>
       </header>
 
-      {/* 프로필 요약 영역 */}
-      <div className="w-full">
+      {/* 스크롤 영역 */}
+      <div className="scrollInner">
         <p className="mt-2 text-sm text-text-muted">
           {currentUser?.name || '사용자'}
         </p>

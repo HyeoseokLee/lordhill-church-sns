@@ -1,9 +1,12 @@
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import useOutletTransition from '@/hooks/useOutletTransition';
 import FeedPage from './index';
 import BottomNavigation from '@/components/common/BottomNavigation';
 
 // 피드 탭 WithOutlet 래퍼 (네이티브 푸시 트랜지션)
 export default function FeedWithOutlet() {
+  const navigate = useNavigate();
   const {
     hasOutlet,
     displayOutlet,
@@ -21,7 +24,7 @@ export default function FeedWithOutlet() {
     <>
       {/* 메인 콘텐츠 */}
       <div
-        className="w-full"
+        className="w-full flex-1 flex flex-col overflow-hidden"
         style={{
           transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
           transition: isSettled
@@ -31,6 +34,15 @@ export default function FeedWithOutlet() {
       >
         <FeedPage />
       </div>
+      {/* 글쓰기 플로팅 버튼 (transform 래퍼 바깥이라 fixed 정상 동작) */}
+      {!hasOutlet && (
+        <button
+          onClick={() => navigate('/feed/post')}
+          className="fixed bottom-[70px] right-5 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors duration-150 active:scale-[0.95] z-40"
+        >
+          <Plus size={28} strokeWidth={2} />
+        </button>
+      )}
       <BottomNavigation />
       {/* 자식 페이지 오버레이 */}
       {showOverlay && (

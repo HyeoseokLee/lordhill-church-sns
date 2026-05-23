@@ -1,14 +1,50 @@
-import { Bell, MessageCircle } from 'lucide-react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell, MessageCircle, Heart, MessageSquare, User } from 'lucide-react';
+import { useFeed } from '@/hooks/api/useFeed';
+import { useAuthStore } from '@/stores/authStore';
+import { postApi } from '@/api/postApi';
+import { formatRelativeTime } from '@/util/dateUtil';
 
 // 홈 피드 페이지
 export default function FeedPage() {
   const navigate = useNavigate();
+  const currentUser = useAuthStore(s => s.user);
+  const { posts, hasMore, isLoading, isLoadingMore, loadMore, mutate } =
+    useFeed();
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  // 자식 페이지(글쓰기)에서 신호를 받으면 피드 새로고침
+  useEffect(() => {
+    const handler = () => mutate();
+    window.addEventListener('feed-refresh', handler);
+    return () => window.removeEventListener('feed-refresh', handler);
+  }, [mutate]);
+
+  // 무한스크롤 — IntersectionObserver
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+        loadMore();
+      }
+    },
+    [hasMore, isLoadingMore, loadMore],
+  );
+
+  useEffect(() => {
+    const el = observerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(handleObserver, {
+      threshold: 0.1,
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [handleObserver]);
 
   return (
     <>
-      {/* 상단 헤더 */}
-      <header className="w-full flex items-center justify-between py-4">
+      {/* 상단 헤더 (고정, 스크롤 안 됨) */}
+      <header className="w-full flex items-center justify-between py-4 px-5">
         <h1 className="text-[22px] font-extrabold tracking-tight text-text">
           손안의 교회
         </h1>
@@ -17,28 +53,124 @@ export default function FeedPage() {
         </button>
       </header>
 
-      {/* 피드 영역 */}
-      <div className="flex flex-col gap-4">
-        {/* 피드 비어있을 때 */}
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <MessageCircle
-            size={48}
-            strokeWidth={1}
-            className="text-surface-strong mb-4"
-          />
-          <p className="text-[15px] font-semibold text-text-muted mb-1">
-            아직 게시글이 없습니다
-          </p>
-          <p className="text-[13px] text-text-muted">
-            첫 번째 게시글을 작성해보세요!
-          </p>
-          <button
-            onClick={() => navigate('/feed/post/new')}
-            className="mt-6 px-6 py-3 bg-accent text-white font-bold text-[14px] rounded-[12px] hover:bg-accent-dark transition-colors duration-150 active:scale-[0.98]"
-          >
-            글쓰기
-          </button>
-        </div>
+      {/* 스크롤 영역 */}
+      <div className="scrollInner">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <p className="text-[14px] text-text-muted">불러오는 중...</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <MessageCircle
+              size={48}
+              strokeWidth={1}
+              className="text-surface-strong mb-4"
+            />
+            <p className="text-[15px] font-semibold text-text-muted mb-1">
+              아직 게시글이 없습니다
+            </p>
+            <p className="text-[13px] text-text-muted">
+              첫 번째 게시글을 작성해보세요!
+            </p>
+          </div>
+        ) : (
+          <div className="w-full flex flex-col">
+            {posts.map((post: any) => (
+              <article
+                key={post.id}
+                className="py-4 border-b border-surface last:border-0"
+              >
+                {/* 작성자 */}
+                <div className="flex items-center gap-3 mb-3">
+                  {(() => {
+                    const isMe =
+                      currentUser &&
+                      String(post.user?.id) === String(currentUser.id);
+                    const ring = isMe ? 'ring-2 ring-accent ring-offset-1' : '';
+                    return (
+                      <div className="relative flex-shrink-0">
+                        {post.user?.profileImageUrl ? (
+                          <img
+                            src={post.user.profileImageUrl}
+                            alt=""
+                            className={`w-9 h-9 rounded-full object-cover ${ring}`}
+                          />
+                        ) : (
+                          <div
+                            className={`w-9 h-9 rounded-full bg-surface-strong flex items-center justify-center ${ring}`}
+                          >
+                            <User
+                              size={18}
+                              strokeWidth={1.5}
+                              className="text-text-muted"
+                            />
+                          </div>
+                        )}
+                        {isMe && (
+                          <span className="absolute -bottom-2 -right-3 bg-white text-accent text-[11px] font-semibold italic px-[3px] py-[1px] rounded-full leading-none border border-accent">
+                            me
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-bold text-text truncate">
+                      {post.user?.nickname || '익명'}
+                    </p>
+                    <p className="text-[12px] text-text-muted">
+                      {formatRelativeTime(post.createdAt)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 본문 (클릭 시 상세 이동) */}
+                <button
+                  onClick={() => navigate(`/feed/detail/${post.id}`)}
+                  className="w-full text-left"
+                >
+                  {post.content && (
+                    <p className="text-[14px] text-text leading-relaxed whitespace-pre-wrap mb-3">
+                      {post.content}
+                    </p>
+                  )}
+                </button>
+
+                {/* 좋아요/댓글 카운트 */}
+                <div className="flex items-center gap-4 text-text-muted">
+                  <button
+                    onClick={() =>
+                      postApi.toggleLike(String(post.id)).then(() => mutate())
+                    }
+                    className="flex items-center gap-1"
+                  >
+                    <Heart
+                      size={16}
+                      strokeWidth={1.5}
+                      className={post.isLiked ? 'fill-error text-error' : ''}
+                    />
+                    <span className="text-[12px]">{post.likeCount || 0}</span>
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <MessageSquare size={16} strokeWidth={1.5} />
+                    <span className="text-[12px]">
+                      {post.commentCount || 0}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            ))}
+
+            {/* 무한스크롤 감지 영역 */}
+            <div ref={observerRef} className="h-10">
+              {isLoadingMore && (
+                <p className="text-center text-[13px] text-text-muted py-2">
+                  불러오는 중...
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
