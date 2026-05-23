@@ -5,7 +5,7 @@ import logger from '../../logger.js';
 
 // 어드민에서 푸시 전송 (단일 유저 또는 전체)
 export const sendPush = async (req, res) => {
-  const { userId, title, body } = req.body;
+  const { userId, title, body, path } = req.body;
   const senderId = req.user.id;
 
   if (!title || !body) {
@@ -28,7 +28,8 @@ export const sendPush = async (req, res) => {
         status: 'pending',
       });
 
-      result = await sendPushToUser(userId, { title, body });
+      const data = path ? { path } : {};
+      result = await sendPushToUser(userId, { title, body, data });
     } else {
       // 전체 approved 유저 대상
       pushLog = await models.PushLog.create({

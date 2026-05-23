@@ -1,14 +1,24 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { useEffect } from 'react';
+import {
+  createBrowserRouter,
+  RouterProvider,
+  Navigate,
+} from 'react-router-dom';
 import MainLayout from '@/components/frame/MainLayout';
 import LoginPage from '@/pages/login/LoginPage';
-import FeedPage from '@/pages/feed/FeedPage';
-import HomePage from '@/pages/home/index';
-import PostDetailPage from '@/pages/post/PostDetailPage';
-import CreatePostPage from '@/pages/post/CreatePostPage';
-import ProfilePage from '@/pages/profile/ProfilePage';
 import PendingPage from '@/pages/login/PendingPage';
-import NotFoundPage from '@/pages/error/NotFoundPage';
 import OAuthCallbackPage from '@/pages/login/OAuthCallbackPage';
+import NotFoundPage from '@/pages/error/NotFoundPage';
+// 메인 탭 WithOutlet 래퍼
+import FeedWithOutlet from '@/pages/feed/FeedWithOutlet';
+import RecycleWithOutlet from '@/pages/recycle/RecycleWithOutlet';
+import PrayerWithOutlet from '@/pages/prayer/PrayerWithOutlet';
+import MyWithOutlet from '@/pages/my/MyWithOutlet';
+// 자식 페이지
+import PostDetailPage from '@/pages/feed/post/index';
+import RecycleWritePage from '@/pages/recycle/write/index';
+import PrayerWritePage from '@/pages/prayer/write/index';
+import ProfilePage from '@/pages/my/profile/index';
 
 const router = createBrowserRouter([
   {
@@ -27,29 +37,34 @@ const router = createBrowserRouter([
     path: '/',
     element: <MainLayout />,
     children: [
+      // 루트 → 피드로 리다이렉트
       {
         index: true,
-        element: <HomePage />,
+        element: <Navigate to="/feed" replace />,
       },
+      // 피드 탭 (홈)
       {
         path: 'feed',
-        element: <FeedPage />,
+        element: <FeedWithOutlet />,
+        children: [{ path: 'post/:postId', element: <PostDetailPage /> }],
       },
+      // 돌고래(재활용) 탭
       {
-        path: 'posts/:postId',
-        element: <PostDetailPage />,
+        path: 'recycle',
+        element: <RecycleWithOutlet />,
+        children: [{ path: 'write', element: <RecycleWritePage /> }],
       },
+      // 기도 탭
       {
-        path: 'posts/new',
-        element: <CreatePostPage />,
+        path: 'prayer',
+        element: <PrayerWithOutlet />,
+        children: [{ path: 'write', element: <PrayerWritePage /> }],
       },
+      // 마이페이지 탭
       {
-        path: 'profile/:userId',
-        element: <ProfilePage />,
-      },
-      {
-        path: 'profile',
-        element: <ProfilePage />,
+        path: 'my',
+        element: <MyWithOutlet />,
+        children: [{ path: 'profile', element: <ProfilePage /> }],
       },
     ],
   },
@@ -60,5 +75,15 @@ const router = createBrowserRouter([
 ]);
 
 export default function Router() {
+  // 네이티브 브릿지에서 호출할 navigate 함수를 window에 등록
+  useEffect(() => {
+    window.__navigateTo = (path: string) => {
+      router.navigate(path);
+    };
+    return () => {
+      delete window.__navigateTo;
+    };
+  }, []);
+
   return <RouterProvider router={router} />;
 }

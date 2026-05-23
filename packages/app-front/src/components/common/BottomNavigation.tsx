@@ -1,26 +1,24 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, SquarePen, User } from 'lucide-react';
-import { useUIStore } from '@/stores/uiStore';
+import { Home, Recycle, HandHeart, User } from 'lucide-react';
 
-// 하단 네비게이션 아이템 (홈, 글쓰기, 프로필)
+// 하단 네비게이션 아이템 (홈, 돌고래/재활용, 기도, 마이페이지)
 const navItems = [
-  { path: '/', icon: Home },
-  { path: '/posts/new', icon: SquarePen },
-  { path: '/profile', icon: User },
+  { path: '/feed', icon: Home },
+  { path: '/recycle', icon: Recycle },
+  { path: '/prayer', icon: HandHeart },
+  { path: '/my', icon: User },
 ];
 
+// 메인 탭 페이지 전용 하단 네비게이션 (각 WithOutlet에서 렌더링)
 export default function BottomNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isVisible = useUIStore(s => s.isBottomNavVisible);
-
-  if (!isVisible) return null;
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-[480px] -translate-x-1/2 bg-bg">
-      <div className="flex justify-around py-3">
+    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-[480px] -translate-x-1/2 bg-bg h-[50px]">
+      <div className="flex justify-around">
         {navItems.map(({ path, icon: Icon }) => {
-          const isActive = location.pathname === path;
+          const isActive = location.pathname.startsWith(path);
           return (
             <button
               key={path}

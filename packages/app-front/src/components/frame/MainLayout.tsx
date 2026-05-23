@@ -1,9 +1,8 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import FullHeightBox from '@/components/common/FullHeightBox';
-import BottomNavigation from '@/components/common/BottomNavigation';
 
-// 인증된 페이지의 공통 레이아웃
+// 인증된 페이지의 공통 레이아웃 (BottomNavigation은 각 메인 탭 페이지에서 관리)
 export default function MainLayout() {
   const { isAuthenticated, isLoading, user } = useAuthStore();
 
@@ -28,7 +27,6 @@ export default function MainLayout() {
       <main className="scrollInner">
         <Outlet />
       </main>
-      <BottomNavigation />
     </FullHeightBox>
   );
 }

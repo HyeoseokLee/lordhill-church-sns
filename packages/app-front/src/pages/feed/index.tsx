@@ -1,8 +1,8 @@
-import { useNavigate } from 'react-router-dom';
 import { Bell, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 // 홈 피드 페이지
-export default function HomePage() {
+export default function FeedPage() {
   const navigate = useNavigate();
 
   return (
@@ -33,7 +33,7 @@ export default function HomePage() {
             첫 번째 게시글을 작성해보세요!
           </p>
           <button
-            onClick={() => navigate('/posts/new')}
+            onClick={() => navigate('/feed/post/new')}
             className="mt-6 px-6 py-3 bg-accent text-white font-bold text-[14px] rounded-[12px] hover:bg-accent-dark transition-colors duration-150 active:scale-[0.98]"
           >
             글쓰기

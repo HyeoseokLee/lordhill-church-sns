@@ -22,6 +22,7 @@ declare global {
       updateToken?: (token: string) => void;
     };
     isIOSApp?: boolean;
+    __navigateTo?: (path: string) => void;
   }
 }
 

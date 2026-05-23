@@ -45,6 +45,16 @@
   }
 }
 
+/* 네이티브 푸시 트랜지션 (부모 ← 살짝 밀림, 자식 ← 오른쪽에서 등장/퇴장) */
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes slideOutToRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
 /* FullHeightBox 내부 스크롤 영역 (healthcare-front scrollInner 패턴) */
 @utility scrollInner {
   position: relative;

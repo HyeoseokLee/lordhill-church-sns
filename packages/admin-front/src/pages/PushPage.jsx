@@ -22,6 +22,7 @@ export default function PushPage() {
     userId: '',
     title: '',
     body: '',
+    path: '',
   });
 
   const fetchLogs = async (p = page) => {
@@ -55,7 +56,13 @@ export default function PushPage() {
 
   const handleOpenDialog = () => {
     fetchUsers();
-    setFormData({ targetType: 'all', userId: '', title: '', body: '' });
+    setFormData({
+      targetType: 'all',
+      userId: '',
+      title: '',
+      body: '',
+      path: '',
+    });
     setResultMessage(null);
     setDialogOpen(true);
   };
@@ -90,10 +97,13 @@ export default function PushPage() {
       if (formData.targetType === 'user' && formData.userId) {
         payload.userId = Number(formData.userId);
       }
+      if (formData.path.trim()) {
+        payload.path = formData.path.trim();
+      }
 
       const { data } = await api.post('/admin/push/send', payload);
-      const success = data.successCount ?? 0;
-      const failure = data.failureCount ?? 0;
+      const success = data.success ?? data.successCount ?? 0;
+      const failure = data.failure ?? data.failureCount ?? 0;
       setResultMessage({
         type: 'success',
         text: `전송 완료 — 성공: ${success}건, 실패: ${failure}건`,
@@ -359,6 +369,23 @@ export default function PushPage() {
                 rows={4}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
+            </div>
+
+            {/* 이동 경로 (선택) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                이동 경로 (선택)
+              </label>
+              <input
+                type="text"
+                value={formData.path}
+                onChange={e => handleFormChange('path', e.target.value)}
+                placeholder="예: /posts/123, /feed"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                비워두면 앱 홈으로 이동합니다.
+              </p>
             </div>
 
             {/* 전송 결과 메시지 */}

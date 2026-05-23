@@ -811,23 +811,178 @@ pm2 restart lordhill-server
 
 ### BottomNavigation
 - 아이콘만 (텍스트 없음), Lucide React
-- 글쓰기 버튼은 페이지 이동 아닌 Drawer 오픈 (uiStore)
+- 4탭 구성: 홈(`Home`), 돌고래/재활용(`Recycle`), 기도(`HandHeart`), 마이페이지(`User`)
 - 활성 상태: accent 색상 + 굵은 strokeWidth
 
-### WriteDrawer
-- MUI Drawer (anchor="right")
-- MainLayout에서 렌더링 → 어느 페이지에서든 열림
-- 게시 완료 시 → 드로어 닫기 + 홈(`/`)으로 이동
+### 탭 페이지 기본 포맷
 
-### WithOutlet 오버레이 패턴 (리스트→상세)
+BottomNavigation의 각 탭 페이지는 동일한 포맷을 사용해야 한다. MainLayout의 `scrollInner`가 좌우 패딩(0 20px 40px)을 관리하므로, 페이지 자체에 패딩을 주면 이중 적용됨.
+
 ```tsx
-// 부모가 항상 마운트, 자식이 fixed 오버레이로 위에 덮임
-// 뒤로가기 시 스크롤 위치 유지
-<FeedWithOutlet>
-  <FeedPage />
-  {outlet && <div style={{ position: 'fixed', ... }}>{outlet}</div>}
-</FeedWithOutlet>
+// 탭 페이지 기본 구조
+export default function SomePage() {
+  return (
+    <>
+      {/* 상단 헤더 */}
+      <header className="w-full flex items-center justify-between py-4">
+        <h1 className="text-[22px] font-extrabold tracking-tight text-text">
+          페이지 제목
+        </h1>
+        {/* 우측 액션 버튼 (선택) */}
+      </header>
+
+      {/* 콘텐츠 영역 */}
+      <div className="w-full">
+        {/* 페이지 콘텐츠 */}
+      </div>
+    </>
+  );
+}
 ```
+
+**규칙:**
+- 래퍼: `<>` (Fragment) — `<div className="p-4">` 등 자체 패딩 금지
+- 제목: `text-[22px] font-extrabold tracking-tight text-text` (모든 탭 동일)
+- 헤더: `w-full flex items-center justify-between py-4`
+- 콘텐츠가 가로로 꽉 차야 하면 `w-full` 명시
+- MUI의 `Typography`, `Button` 등 단순 컴포넌트 대신 Tailwind로 작성
+
+### 페이지 구조 (메인 탭 + 자식 페이지)
+
+4개 메인 탭(feed, recycle, prayer, my)은 BottomNavigation 포함. 자식 페이지는 WithOutlet 오버레이로 표시되며 BottomNavigation 없음.
+
+**폴더 구조 규칙** — 부모 폴더 아래 자식 폴더로 점층적 구성:
+```
+pages/
+├── feed/                    # 메인 탭
+│   ├── FeedWithOutlet.tsx   # WithOutlet 래퍼
+│   ├── index.tsx            # 메인 페이지
+│   └── post/
+│       └── index.tsx        # 자식 페이지 (게시글 상세)
+├── recycle/
+│   ├── RecycleWithOutlet.tsx
+│   ├── index.tsx
+│   └── write/
+│       └── index.tsx        # 자식 페이지 (글쓰기)
+```
+
+**라우터 구성** — children으로 중첩, WithOutlet이 outlet을 오버레이로 표시:
+```tsx
+{
+  path: '/',
+  element: <MainLayout />,
+  children: [
+    { index: true, element: <Navigate to="/feed" replace /> },
+    {
+      path: 'feed',
+      element: <FeedWithOutlet />,
+      children: [
+        { path: 'post/:postId', element: <PostDetailPage /> },
+      ],
+    },
+    // recycle, prayer, my 동일 패턴
+  ],
+}
+```
+
+**MainLayout** — 인증 가드 + FullHeightBox만 담당. BottomNavigation은 각 WithOutlet에서 렌더링.
+
+### WithOutlet 네이티브 푸시 트랜지션
+
+자식 페이지 진입/퇴장 시 iOS 네이티브 push 애니메이션을 구현한다. `useOutletTransition` 훅(`hooks/useOutletTransition.ts`)이 상태를 관리.
+
+**트랜지션 흐름:**
+```
+[진입] 자식 페이지로 이동
+1. 부모 콘텐츠가 translateX(-30%)로 살짝 왼쪽 밀림 (0.3s ease-out)
+2. 자식 페이지가 오른쪽에서 슬라이드 인 (slideInFromRight, 0.3s)
+3. 슬라이드 완료 후 부모가 transition:none으로 몰래 원위치 (오버레이 뒤라 안 보임)
+
+[퇴장] 뒤로가기
+1. 부모는 이미 원위치 — 흔들림 없음 (iOS 엣지 제스처 호환)
+2. 자식 페이지가 오른쪽으로 슬라이드 아웃 (slideOutToRight, 0.3s)
+3. 애니메이션 완료 후 오버레이 언마운트
+```
+
+**CSS 애니메이션 (index.css):**
+```css
+@keyframes slideInFromRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes slideOutToRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+```
+
+**WithOutlet 래퍼 기본 구조:**
+```tsx
+import useOutletTransition from '@/hooks/useOutletTransition';
+import SomePage from './index';
+import BottomNavigation from '@/components/common/BottomNavigation';
+
+export default function SomeWithOutlet() {
+  const { hasOutlet, displayOutlet, isExiting, isSettled, showOverlay, transitionMs } =
+    useOutletTransition();
+
+  const parentShifted = hasOutlet && !isSettled;
+
+  return (
+    <>
+      <div
+        className="w-full"
+        style={{
+          transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
+          transition: isSettled ? 'none' : `transform ${transitionMs}ms ease-out`,
+        }}
+      >
+        <SomePage />
+      </div>
+      <BottomNavigation />
+      {showOverlay && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 1200, backgroundColor: '#FFFFFF',
+          animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
+        }}>
+          {displayOutlet}
+        </div>
+      )}
+    </>
+  );
+}
+```
+
+**자식 페이지 기본 구조** — 자체 FullHeightBox + scrollInner + 뒤로가기 헤더:
+```tsx
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import FullHeightBox from '@/components/common/FullHeightBox';
+
+export default function ChildPage() {
+  const navigate = useNavigate();
+  return (
+    <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
+      <div className="scrollInner">
+        <header className="w-full flex items-center gap-3 py-4">
+          <button onClick={() => navigate(-1)}
+            className="w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150">
+            <ArrowLeft size={22} strokeWidth={1.5} />
+          </button>
+          <h1 className="text-[18px] font-bold text-text">페이지 제목</h1>
+        </header>
+        <div className="w-full">{/* 콘텐츠 */}</div>
+      </div>
+    </FullHeightBox>
+  );
+}
+```
+
+### ⚠️ 시행착오 (페이지 트랜지션)
+- **부모 translateX 복구 타이밍** — 자식 진입 시 부모를 왼쪽으로 밀었다가 퇴장 시 원위치하면, iOS 엣지 제스처 뒤로가기 시 부모가 왼쪽갔다 오른쪽으로 흔들림. 해결: 슬라이드 인 완료 후 `transition: none`으로 즉시 원위치 (오버레이 뒤라 안 보임)
+- **exit 애니메이션** — `{outlet && ...}`로 렌더링하면 outlet이 null이 되는 즉시 언마운트되어 퇴장 애니메이션 불가. `useOutletTransition` 훅이 이전 outlet을 `displayOutlet`으로 유지하며 타이머로 애니메이션 후 언마운트
+- **React Router index 라우트에 element 없으면 흰 화면** — `{ index: true }` (element 미지정)는 빈 Outlet을 렌더링. WithOutlet이 직접 메인 페이지를 렌더링하므로 index route 불필요, children에 자식 페이지만 등록
 
 ### 독립 페이지 (MainLayout 밖)의 전체 높이 처리
 
@@ -2508,6 +2663,155 @@ fun clearFcmToken(context: Context)
 6. **Android `POST_NOTIFICATIONS` 권한 필수** — Android 13(API 33)부터 푸시 알림에 `POST_NOTIFICATIONS` 런타임 권한 필요. AndroidManifest.xml에 선언하면 앱 설치 시 자동 요청
 7. **유저 드롭다운에 provider 표시** — 같은 이름의 유저가 Google/Kakao/Naver로 각각 가입할 수 있으므로, 드롭다운에 `닉네임 (provider)` 형식으로 표시
 8. **라이브 배포 시 firebase-service-account.json** — 이 파일은 gitignore되므로 EC2에 수동으로 배치하거나, CI/CD에서 GitHub Secrets로 주입해야 함
+
+---
+
+## 18. 푸시 탭 시 페이지 이동
+
+푸시 알림을 탭하면 웹뷰의 특정 페이지로 이동. 서버가 path를 포함해서 보내고, 네이티브가 앱 상태에 따라 분기 처리.
+
+### 동작 정리
+
+| 앱 상태 | 탭 시 동작 |
+|---------|-----------|
+| 종료/백그라운드 | `loadURL(baseUrl + path)` — 웹뷰 전체 로드 |
+| 포그라운드 | 브릿지로 path 전달 → 웹에서 `navigate(path)` — SPA 내부 이동 |
+
+### 18-1. 서버 — path 포함 전송
+
+`pushService.js`의 `sendPushToUser`는 이미 `data` 파라미터를 FCM에 전달하는 구조. 호출 시 `data: { path }`를 포함하면 됨.
+
+어드민 컨트롤러에서 path를 받아 data에 포함:
+```js
+// admin/controllers/push.js
+const { userId, title, body, path } = req.body;
+const data = path ? { path } : {};
+result = await sendPushToUser(userId, { title, body, data });
+```
+
+나중에 자동 푸시(댓글, 좋아요 등)에서도 같은 패턴:
+```js
+await sendPushToUser(post.authorId, {
+  title: '새 댓글',
+  body: `${user.nickname}님이 댓글을 남겼습니다.`,
+  data: { path: `/posts/${post.id}` },
+});
+```
+
+### 18-2. 어드민 — path 입력 필드
+
+`PushPage.jsx`의 푸시 전송 폼에 "이동 경로" 입력 필드 추가:
+- placeholder: `예: /posts/123, /feed`
+- 비워두면 앱 홈으로 이동
+- formData에 `path` 필드 추가, payload에 `path.trim()` 포함
+
+### 18-3. 네이티브 — 푸시 탭 시 이동 구현
+
+#### 핵심 분기
+
+| 앱 상태 | 탭 시 동작 |
+|---------|-----------|
+| 종료/백그라운드 | `loadURL(baseUrl + path)` — 웹뷰 전체 로드 |
+| 포그라운드 | JS 브릿지 `window.__navigateTo(path)` — SPA 내부 이동 |
+
+#### iOS
+
+**AppDelegate.swift** — 푸시 탭 시 `fromPush: true` 플래그와 함께 딥링크 전달:
+```swift
+func userNotificationCenter(_ center: ..., didReceive response: ...) {
+    let userInfo = response.notification.request.content.userInfo
+    if let path = userInfo["path"] as? String {
+        NotificationCenter.default.post(
+            name: .init("DeepLinkReceived"),
+            userInfo: ["url": "\(WEB.baseUrl)\(path)", "fromPush": true]
+        )
+    }
+}
+```
+
+**LordhillWebView.swift** — `handleDeepLink`에서 분기:
+```swift
+@objc private func handleDeepLink(_ notification: Notification) {
+    let isForPush = userInfo["fromPush"] as? Bool ?? false
+
+    // 포그라운드: 웹뷰가 이미 로드된 상태면 JS navigate
+    if isForPush, let webView = self.webView, webView.url != nil {
+        let js = "window.__navigateTo && window.__navigateTo('\(fullPath)')"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+        return
+    }
+
+    // 종료/백그라운드: 웹뷰 전체 로드
+    webView?.load(URLRequest(url: finalUrl))
+}
+```
+
+#### Android
+
+**LordhillFirebaseMessagingService.kt** — 알림 탭 intent에 `deepLinkPath` 전달:
+```kotlin
+val intent = Intent(this, StartActivity::class.java).apply {
+    data["path"]?.let { putExtra("deepLinkPath", it) }
+}
+```
+
+**StartActivity.kt** — 푸시 intent extra에서 path 추출:
+```kotlin
+private fun extractDeepLinkPath(intent: Intent): String? {
+    intent.getStringExtra("deepLinkPath")?.let { return it }
+    // 기존 딥링크 스킴 처리...
+}
+```
+
+**MainActivity.kt** — `onNewIntent`에서 JS navigate (포그라운드):
+```kotlin
+override fun onNewIntent(intent: Intent) {
+    val path = intent.getStringExtra("deepLinkPath")
+    if (!path.isNullOrEmpty()) {
+        webView?.evaluateJavascript(
+            "window.__navigateTo && window.__navigateTo('$path')", null
+        )
+    }
+}
+```
+
+종료/백그라운드에서는 `onCreate`의 `startUrl`에 path가 포함되어 `loadUrl`로 전체 로드.
+
+### 18-4. 앱 프론트 — 브릿지 path 수신 → navigate
+
+**Router.tsx** — `window.__navigateTo` 전역 함수 등록:
+```tsx
+const router = createBrowserRouter([...]);
+
+export default function Router() {
+  useEffect(() => {
+    window.__navigateTo = (path: string) => {
+      router.navigate(path);
+    };
+    return () => { delete window.__navigateTo; };
+  }, []);
+
+  return <RouterProvider router={router} />;
+}
+```
+
+**types/window.d.ts** — 타입 선언:
+```ts
+interface Window {
+  __navigateTo?: (path: string) => void;
+}
+```
+
+네이티브가 `webView.evaluateJavaScript("window.__navigateTo('/posts/123')")` 호출 → React Router가 SPA 내부 이동 처리.
+
+### ⚠️ 시행착오
+
+1. **FCM data 필드는 문자열만 허용** — `data: { path: '/posts/123' }`에서 value는 반드시 string. 숫자나 객체를 넣으면 FCM 전송 실패
+2. **iOS `evaluateJavaScript`는 메인 스레드에서** — `DispatchQueue.main.async` 안에서 호출. 백그라운드 스레드에서 호출하면 크래시
+3. **Android `evaluateJavascript`는 `webView.post {}` 안에서** — UI 스레드에서만 호출 가능
+4. **포그라운드 vs 백그라운드 판별** — iOS는 `fromPush` 플래그 + `webView.url != nil`로 판별. Android는 `onNewIntent`(포그라운드/백그라운드) vs `onCreate`(종료)로 자연스럽게 분기
+5. **`window.__navigateTo`가 아직 등록 안 된 시점에 호출 가능** — `window.__navigateTo && window.__navigateTo(path)` 패턴으로 안전 호출. 웹뷰 로드 중이면 무시됨 (종료 상태에서는 어차피 loadURL 사용)
+6. **어드민에서 path 미입력 시** — 서버가 `data: {}`로 전송, 네이티브에서 path가 없으면 이동 안 함 (앱 홈 유지)
 
 ---
 
