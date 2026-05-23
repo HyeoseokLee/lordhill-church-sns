@@ -118,8 +118,27 @@ export const deletePostByAdmin = async (req, res) => {
     throw new ErrClass(ErrInfo.NotFoundPost);
   }
 
-  await post.destroy(); // soft delete
+  // 게시글 + 관련 댓글/좋아요 모두 삭제
+  await models.Comment.destroy({ where: { postId: post.id } });
+  await models.Like.destroy({ where: { postId: post.id } });
+  await post.destroy();
   await logAudit(req.user.id, auditAction.deletePost, `post:${post.id}`, {
+    userId: post.userId,
+  });
+
+  res.json({ message: 'ok' });
+};
+
+// 삭제된 게시글 복구 (게시글 + 관련 댓글 모두 복구)
+export const restorePost = async (req, res) => {
+  const post = await models.Post.findByPk(req.params.id, { paranoid: false });
+  if (!post) {
+    throw new ErrClass(ErrInfo.NotFoundPost);
+  }
+
+  await post.restore();
+  await models.Comment.restore({ where: { postId: post.id } });
+  await logAudit(req.user.id, 'restore_post', `post:${post.id}`, {
     userId: post.userId,
   });
 
@@ -146,12 +165,31 @@ export const deleteCommentByAdmin = async (req, res) => {
   res.json({ message: 'ok' });
 };
 
+// 삭제된 댓글 복구
+export const restoreComment = async (req, res) => {
+  const comment = await models.Comment.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!comment) {
+    throw new ErrClass(ErrInfo.NotFoundComment);
+  }
+
+  await comment.restore();
+  await logAudit(req.user.id, 'restore_comment', `comment:${comment.id}`, {
+    userId: comment.userId,
+    postId: comment.postId,
+  });
+
+  res.json({ message: 'ok' });
+};
+
 // 어드민 게시글 목록 (좋아요 수 포함, 페이지네이션)
 export const getPosts = async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const pageSize = Math.min(parseInt(limit, 10), 50);
   const offset = (parseInt(page, 10) - 1) * pageSize;
 
+  // 삭제된 게시글도 포함하여 조회
   const { rows, count } = await models.Post.findAndCountAll({
     include: [
       {
@@ -160,29 +198,65 @@ export const getPosts = async (req, res) => {
         attributes: ['id', 'nickname', 'profileImageUrl'],
       },
     ],
+    paranoid: false,
     order: [['createdAt', 'DESC']],
     limit: pageSize,
     offset,
   });
 
-  // 좋아요 수 집계
+  // 좋아요 수, 댓글 수 집계 + 댓글 목록
   const postIds = rows.map((p) => p.id);
-  const likeCounts = await models.Like.findAll({
-    attributes: [
-      'postId',
-      [models.sequelize.fn('COUNT', models.sequelize.col('id')), 'count'],
-    ],
-    where: { postId: postIds },
-    group: ['postId'],
-    raw: true,
-  });
+  const [likeCounts, commentCounts, comments] = await Promise.all([
+    models.Like.findAll({
+      attributes: [
+        'postId',
+        [models.sequelize.fn('COUNT', models.sequelize.col('id')), 'count'],
+      ],
+      where: { postId: postIds },
+      group: ['postId'],
+      raw: true,
+    }),
+    models.Comment.findAll({
+      attributes: [
+        'postId',
+        [models.sequelize.fn('COUNT', models.sequelize.col('id')), 'count'],
+      ],
+      where: { postId: postIds },
+      group: ['postId'],
+      paranoid: false,
+      raw: true,
+    }),
+    models.Comment.findAll({
+      where: { postId: postIds },
+      paranoid: false,
+      include: [
+        {
+          model: models.User,
+          as: 'user',
+          attributes: ['id', 'nickname'],
+        },
+      ],
+      order: [['createdAt', 'ASC']],
+    }),
+  ]);
+
   const likeMap = Object.fromEntries(
     likeCounts.map((l) => [l.postId, parseInt(l.count, 10)]),
   );
+  const commentCountMap = Object.fromEntries(
+    commentCounts.map((c) => [c.postId, parseInt(c.count, 10)]),
+  );
+  const commentMap = {};
+  for (const c of comments) {
+    if (!commentMap[c.postId]) commentMap[c.postId] = [];
+    commentMap[c.postId].push(c);
+  }
 
   const items = rows.map((post) => ({
     ...post.toJSON(),
     likeCount: likeMap[post.id] || 0,
+    commentCount: commentCountMap[post.id] || 0,
+    comments: commentMap[post.id] || [],
   }));
 
   res.json({

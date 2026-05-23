@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Heart,
   MessageSquare,
@@ -8,9 +8,11 @@ import {
   Pencil,
   Check,
   X,
+  Trash2,
 } from 'lucide-react';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import { usePost } from '@/hooks/api/usePost';
 import { useComments } from '@/hooks/api/useComments';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,6 +24,7 @@ import { contentLimit } from '@/config/define';
 // 게시글 상세 페이지 (피드의 자식)
 export default function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>();
+  const navigate = useNavigate();
   const currentUser = useAuthStore(s => s.user);
   const {
     post,
@@ -47,6 +50,12 @@ export default function PostDetailPage() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+
+  // 삭제 확인 모달 상태
+  const [deleteModal, setDeleteModal] = useState<{
+    type: 'post' | 'comment';
+    id: string;
+  } | null>(null);
 
   // 댓글 작성 후 스크롤 하단 이동용
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -75,6 +84,27 @@ export default function PostDetailPage() {
       /* 에러 시 수정 모드 유지 */
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // 삭제 확인 후 실행
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal) return;
+    try {
+      if (deleteModal.type === 'post') {
+        await postApi.deletePost(deleteModal.id);
+        window.dispatchEvent(new Event('feed-refresh'));
+        setDeleteModal(null);
+        navigate(-1);
+      } else {
+        await commentApi.deleteComment(deleteModal.id);
+        setDeleteModal(null);
+        await mutateComments();
+        await mutatePost();
+        window.dispatchEvent(new Event('feed-refresh'));
+      }
+    } catch {
+      setDeleteModal(null);
     }
   };
 
@@ -194,12 +224,20 @@ export default function PostDetailPage() {
               </p>
             </div>
             {isMyPost && !isEditing && (
-              <button
-                onClick={handleEditStart}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
-              >
-                <Pencil size={16} strokeWidth={1.5} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleEditStart}
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
+                >
+                  <Pencil size={16} strokeWidth={1.5} />
+                </button>
+                <button
+                  onClick={() => setDeleteModal({ type: 'post', id: postId! })}
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
+                >
+                  <Trash2 size={16} strokeWidth={1.5} />
+                </button>
+              </div>
             )}
           </div>
 
@@ -312,14 +350,27 @@ export default function PostDetailPage() {
                         <span className="text-[11px] text-text-muted">
                           {formatRelativeTime(comment.createdAt)}
                         </span>
-                        {/* 본인 댓글 수정 버튼 */}
+                        {/* 본인 댓글 수정/삭제 버튼 */}
                         {isMyComment && !isEditingThis && (
-                          <button
-                            onClick={() => handleCommentEditStart(comment)}
-                            className="ml-auto text-text-muted"
-                          >
-                            <Pencil size={12} strokeWidth={1.5} />
-                          </button>
+                          <div className="ml-auto flex items-center gap-3">
+                            <button
+                              onClick={() => handleCommentEditStart(comment)}
+                              className="text-text-muted"
+                            >
+                              <Pencil size={12} strokeWidth={1.5} />
+                            </button>
+                            <button
+                              onClick={() =>
+                                setDeleteModal({
+                                  type: 'comment',
+                                  id: String(comment.id),
+                                })
+                              }
+                              className="text-text-muted"
+                            >
+                              <Trash2 size={12} strokeWidth={1.5} />
+                            </button>
+                          </div>
                         )}
                       </div>
                       {/* 댓글 내용 — 수정 모드 / 읽기 모드 */}
@@ -385,6 +436,18 @@ export default function PostDetailPage() {
           </button>
         </div>
       </div>
+      {/* 삭제 확인 모달 */}
+      <ConfirmModal
+        open={!!deleteModal}
+        message={
+          deleteModal?.type === 'post'
+            ? '게시글을 삭제하시겠습니까?\n좋아요와 댓글도 모두 삭제됩니다.'
+            : '댓글을 삭제하시겠습니까?'
+        }
+        confirmText="삭제"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteModal(null)}
+      />
     </FullHeightBox>
   );
 }

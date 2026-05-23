@@ -2352,8 +2352,16 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 ### ⚠️ 시행착오
 
 1. **firebase-service-account.json은 반드시 .gitignore에 포함** — 이 파일에 비공개 키가 포함됨. git에 올리면 보안 사고
-2. **iOS에서 무음 알림** — pushService의 message에 `apns.payload.aps.sound: 'default'`가 없으면 iOS에서 소리 없이 알림이 도착함. 반드시 추가
-3. **sendEachForMulticast로 iOS/Android 통합 전송 가능** — message 객체에 `apns`와 `android` 필드를 동시에 넣으면, FCM이 토큰 플랫폼에 따라 해당 필드만 적용. 분리 전송 불필요
+2. **라이브 배포 시 firebase-service-account.json 수동 배치 필수** — .gitignore에 포함되어 CI/CD로 배포되지 않음. EC2에 수동으로 올려야 함. 안 하면 `The default Firebase app does not exist` 에러로 푸시 전송 실패
+   ```bash
+   # 로컬에서 EC2로 파일 전송
+   scp -i <키>.pem packages/server/firebase-service-account.json ec2-user@<EC2-IP>:~/app/packages/server/
+   # PM2 재시작
+   ssh -i <키>.pem ec2-user@<EC2-IP> "pm2 restart lordhill-server"
+   ```
+   한번 올리면 이후 배포에도 파일이 유지됨 (CI/CD가 덮어쓰지 않음)
+3. **iOS에서 무음 알림** — pushService의 message에 `apns.payload.aps.sound: 'default'`가 없으면 iOS에서 소리 없이 알림이 도착함. 반드시 추가
+4. **sendEachForMulticast로 iOS/Android 통합 전송 가능** — message 객체에 `apns`와 `android` 필드를 동시에 넣으면, FCM이 토큰 플랫폼에 따라 해당 필드만 적용. 분리 전송 불필요
 
 ### 17-3. iOS — FCM SDK + 토큰 발급 + 수신 처리
 

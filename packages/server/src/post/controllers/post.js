@@ -223,7 +223,10 @@ export const deletePost = async (req, res) => {
     throw new ErrClass(ErrInfo.Forbidden);
   }
 
-  await post.destroy(); // soft delete (paranoid)
+  // 게시글 + 관련 댓글/좋아요 모두 삭제
+  await models.Comment.destroy({ where: { postId: post.id } });
+  await models.Like.destroy({ where: { postId: post.id } });
+  await post.destroy();
   res.json({ message: 'ok' });
 };
 

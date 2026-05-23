@@ -9,7 +9,9 @@ import {
   restoreUser,
   getPosts,
   deletePostByAdmin,
+  restorePost,
   deleteCommentByAdmin,
+  restoreComment,
   getDashboard,
 } from '../controllers/admin.js';
 import { sendPush, getPushLogs } from '../controllers/push.js';
@@ -43,8 +45,14 @@ router.get('/posts', asyncHandler(getPosts));
 // 포스트 강제 삭제
 router.delete('/posts/:id', asyncHandler(deletePostByAdmin));
 
+// 삭제된 포스트 복구
+router.patch('/posts/:id/restore', asyncHandler(restorePost));
+
 // 댓글 강제 삭제
 router.delete('/comments/:id', asyncHandler(deleteCommentByAdmin));
+
+// 삭제된 댓글 복구
+router.patch('/comments/:id/restore', asyncHandler(restoreComment));
 
 // 푸시 알림 전송
 router.post('/push/send', asyncHandler(sendPush));
