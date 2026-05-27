@@ -168,52 +168,8 @@ export default function PostDetailPage() {
     }
   };
 
-  // 로딩 스켈레톤
-  if (postLoading) {
-    return (
-      <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
-        <SubPageHeader title="게시글" />
-        <div className="scrollInner">
-          <div className="pt-2 pb-4 animate-pulse">
-            {/* 작성자 스켈레톤 */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-surface-strong" />
-              <div className="flex-1">
-                <div className="h-3.5 w-20 bg-surface-strong rounded mb-2" />
-                <div className="h-3 w-14 bg-surface rounded" />
-              </div>
-            </div>
-            {/* 본문 스켈레톤 */}
-            <div className="space-y-2">
-              <div className="h-3.5 w-full bg-surface-strong rounded" />
-              <div className="h-3.5 w-4/5 bg-surface-strong rounded" />
-              <div className="h-3.5 w-3/5 bg-surface rounded" />
-            </div>
-            {/* 좋아요/댓글 스켈레톤 */}
-            <div className="flex gap-4 mt-5">
-              <div className="h-4 w-12 bg-surface rounded" />
-              <div className="h-4 w-12 bg-surface rounded" />
-            </div>
-          </div>
-          {/* 댓글 스켈레톤 */}
-          <div className="pt-3 space-y-4 animate-pulse">
-            {[1, 2].map(i => (
-              <div key={i} className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-surface-strong flex-shrink-0" />
-                <div className="flex-1">
-                  <div className="h-3 w-16 bg-surface-strong rounded mb-2" />
-                  <div className="h-3 w-full bg-surface rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </FullHeightBox>
-    );
-  }
-
-  // 에러 또는 게시글 없음
-  if (postError || !post) {
+  // 에러 또는 게시글 없음 (로딩 완료 후)
+  if (!postLoading && (postError || !post)) {
     return (
       <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
         <SubPageHeader title="게시글" />
@@ -239,28 +195,36 @@ export default function PostDetailPage() {
         <div className="pt-2 pb-4 border-b border-surface">
           {/* 작성자 + 수정 버튼 */}
           <div className="flex items-center gap-3 mb-3">
-            {post.user?.profileImageUrl ? (
-              <img
-                src={post.user.profileImageUrl}
-                alt=""
-                className={`w-10 h-10 rounded-full object-cover flex-shrink-0 ${isMyPost ? 'ring-2 ring-accent ring-offset-1' : ''}`}
-              />
+            {post ? (
+              post.user?.profileImageUrl ? (
+                <img
+                  src={post.user.profileImageUrl}
+                  alt=""
+                  className={`w-10 h-10 rounded-full object-cover flex-shrink-0 ${isMyPost ? 'ring-2 ring-accent ring-offset-1' : ''}`}
+                />
+              ) : (
+                <div
+                  className={`w-10 h-10 rounded-full bg-surface-strong flex items-center justify-center flex-shrink-0 ${isMyPost ? 'ring-2 ring-accent ring-offset-1' : ''}`}
+                >
+                  <User
+                    size={20}
+                    strokeWidth={1.5}
+                    className="text-text-muted"
+                  />
+                </div>
+              )
             ) : (
-              <div
-                className={`w-10 h-10 rounded-full bg-surface-strong flex items-center justify-center flex-shrink-0 ${isMyPost ? 'ring-2 ring-accent ring-offset-1' : ''}`}
-              >
-                <User size={20} strokeWidth={1.5} className="text-text-muted" />
-              </div>
+              <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0" />
             )}
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-bold text-text truncate">
-                {post.user?.nickname || '익명'}
+                {post ? post.user?.nickname || '익명' : '\u00A0'}
               </p>
               <p className="text-[12px] text-text-muted">
-                {formatRelativeTime(post.createdAt)}
+                {post ? formatRelativeTime(post.createdAt) : '\u00A0'}
               </p>
             </div>
-            {isMyPost && !isEditing && (
+            {post && isMyPost && !isEditing && (
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleEditStart}
@@ -278,8 +242,10 @@ export default function PostDetailPage() {
             )}
           </div>
 
-          {/* 본문 — 수정 모드 / 읽기 모드 */}
-          {isEditing ? (
+          {/* 본문 — 로딩 중 빈 공간 / 수정 모드 / 읽기 모드 */}
+          {!post ? (
+            <div className="min-h-[80px]" />
+          ) : isEditing ? (
             <div>
               <textarea
                 value={editContent}
@@ -315,7 +281,7 @@ export default function PostDetailPage() {
           )}
 
           {/* 좋아요/댓글 카운트 */}
-          {!isEditing && (
+          {post && !isEditing && (
             <div className="flex items-center gap-4 mt-4 text-text-muted">
               <button
                 onClick={() =>

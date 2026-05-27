@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useOutlet } from 'react-router-dom';
 
-const TRANSITION_MS = 200;
+const TRANSITION_MS = 250;
 
 // 네이티브 푸시 트랜지션을 위한 outlet 상태 관리 훅
 export default function useOutletTransition() {
