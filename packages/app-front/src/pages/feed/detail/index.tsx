@@ -29,6 +29,7 @@ export default function PostDetailPage() {
   const {
     post,
     isLoading: postLoading,
+    error: postError,
     mutate: mutatePost,
   } = usePost(postId || '');
   const {
@@ -167,24 +168,60 @@ export default function PostDetailPage() {
     }
   };
 
+  // 로딩 스켈레톤
   if (postLoading) {
     return (
       <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
         <SubPageHeader title="게시글" />
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-[14px] text-text-muted">불러오는 중...</p>
+        <div className="scrollInner">
+          <div className="pt-2 pb-4 animate-pulse">
+            {/* 작성자 스켈레톤 */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-surface-strong" />
+              <div className="flex-1">
+                <div className="h-3.5 w-20 bg-surface-strong rounded mb-2" />
+                <div className="h-3 w-14 bg-surface rounded" />
+              </div>
+            </div>
+            {/* 본문 스켈레톤 */}
+            <div className="space-y-2">
+              <div className="h-3.5 w-full bg-surface-strong rounded" />
+              <div className="h-3.5 w-4/5 bg-surface-strong rounded" />
+              <div className="h-3.5 w-3/5 bg-surface rounded" />
+            </div>
+            {/* 좋아요/댓글 스켈레톤 */}
+            <div className="flex gap-4 mt-5">
+              <div className="h-4 w-12 bg-surface rounded" />
+              <div className="h-4 w-12 bg-surface rounded" />
+            </div>
+          </div>
+          {/* 댓글 스켈레톤 */}
+          <div className="pt-3 space-y-4 animate-pulse">
+            {[1, 2].map(i => (
+              <div key={i} className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-surface-strong flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="h-3 w-16 bg-surface-strong rounded mb-2" />
+                  <div className="h-3 w-full bg-surface rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </FullHeightBox>
     );
   }
 
-  if (!post) {
+  // 에러 또는 게시글 없음
+  if (postError || !post) {
     return (
       <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
         <SubPageHeader title="게시글" />
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[14px] text-text-muted">
-            게시글을 찾을 수 없습니다.
+            {postError
+              ? '게시글을 불러올 수 없습니다.'
+              : '게시글을 찾을 수 없습니다.'}
           </p>
         </div>
       </FullHeightBox>
