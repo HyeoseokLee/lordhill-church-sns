@@ -63,7 +63,7 @@ export default function ImageCarousel({ images }: Props) {
         {images.map(img => (
           <div
             key={img.id}
-            className="w-full flex-shrink-0 snap-center flex items-center justify-center bg-surface"
+            className="w-full flex-shrink-0 snap-center flex items-center justify-center bg-black"
             style={{ height: maxHeight > 0 ? `${maxHeight}px` : 'auto' }}
           >
             <img
