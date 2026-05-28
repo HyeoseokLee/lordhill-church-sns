@@ -20,6 +20,7 @@ import { postApi } from '@/api/postApi';
 import { commentApi } from '@/api/commentApi';
 import { formatRelativeTime } from '@/util/dateUtil';
 import { contentLimit } from '@/config/define';
+import ImageCarousel from '@/components/common/ImageCarousel';
 
 // 게시글 상세 페이지 (피드의 자식)
 export default function PostDetailPage() {
@@ -281,15 +282,8 @@ export default function PostDetailPage() {
               )}
               {/* 이미지 */}
               {post.media?.length > 0 && (
-                <div className="mt-3 flex flex-col gap-2">
-                  {post.media.map((m: any) => (
-                    <img
-                      key={m.id}
-                      src={m.url}
-                      alt=""
-                      className="w-full rounded-[12px] object-cover"
-                    />
-                  ))}
+                <div className="mt-3">
+                  <ImageCarousel images={post.media} />
                 </div>
               )}
             </>

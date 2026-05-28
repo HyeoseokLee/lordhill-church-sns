@@ -2953,6 +2953,28 @@ interface Window {
 7. **웹 프론트 react-hooks/refs 규칙** — `addImagesRef.current = addImages`를 렌더 중에 하면 lint 에러. `useEffect` 안에서 업데이트해야 함
 8. **S3 CORS 미설정 시 Presigned URL PUT 실패** — 프론트에서 S3에 직접 PUT 요청 시 브라우저가 CORS로 차단. 에러가 catch에서 무시되면 "게시 버튼 깜빡임만 하고 업로드 안 됨" 현상. catch에 `console.error` 추가하여 디버깅
 9. **이미지 없이 텍스트만 게시는 정상 동작** — Presigned URL 흐름은 이미지가 있을 때만 실행. `mediaKeys`가 빈 배열이면 post_media 저장 스킵
+10. **S3 endpoint 기본값이 LocalStack이면 Presigned URL이 localhost로 생성** — `config/default.cjs`에서 `endpoint` 기본값이 `http://localhost:4566`이면 라이브 서버에서도 localhost URL로 presign됨. 해결: `endpoint: process.env.AWS_S3_ENDPOINT || undefined`로 변경. 환경변수 미설정 시 AWS SDK가 기본 S3 엔드포인트 사용. `forcePathStyle`도 endpoint 있을 때만 `true`로 설정
+11. **S3 미디어 버킷 퍼블릭 읽기 설정 필수** — 업로드된 이미지를 프론트에서 `<img src="...">로 표시하려면 S3 버킷이 퍼블릭 GET 허용이어야 함. 기본 생성 시 퍼블릭 접근이 전부 차단되어 이미지가 깨짐:
+    ```bash
+    # 1. 퍼블릭 접근 차단 해제
+    aws s3api put-public-access-block --bucket <미디어버킷> --public-access-block-configuration '{
+      "BlockPublicAcls": false, "IgnorePublicAcls": false,
+      "BlockPublicPolicy": false, "RestrictPublicBuckets": false
+    }'
+    # 2. 퍼블릭 읽기 정책 추가
+    aws s3api put-bucket-policy --bucket <미디어버킷> --policy '{
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Sid": "PublicReadGetObject",
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": "s3:GetObject",
+        "Resource": "arn:aws:s3:::<미디어버킷>/*"
+      }]
+    }'
+    ```
+12. **Android 이미지가 90도 회전되어 업로드** — Android 카메라로 찍은 사진은 EXIF orientation 메타데이터에 회전 정보가 저장됨. `BitmapFactory.decodeStream`으로 로드하면 EXIF가 적용 안 되어 이미지가 옆으로 눕는 현상. 해결: `ExifInterface`로 orientation 읽고 `Matrix.postRotate()`로 보정 후 리사이즈. `androidx.exifinterface:1.3.7` 의존성 추가 필요 (`libs.versions.toml` + `build.gradle.kts`)
+13. **Android debug 빌드에서 라이브 URL 전환** — `app/src/debug/java/.../EnvManagerImpl.kt`에 `Environment` enum으로 LOCAL/DEV/LIVE 정의. `private val environment = Environment.LIVE`로 변경하면 debug 빌드에서 라이브 접속. iOS의 `Constants.swift` 패턴과 동일. 또는 `build.gradle.kts`의 debug `BASE_URL`을 직접 변경해도 됨
 
 ---
 

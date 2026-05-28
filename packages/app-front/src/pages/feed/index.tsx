@@ -5,6 +5,7 @@ import { useFeed } from '@/hooks/api/useFeed';
 import { useAuthStore } from '@/stores/authStore';
 import { postApi } from '@/api/postApi';
 import { formatRelativeTime } from '@/util/dateUtil';
+import ImageCarousel from '@/components/common/ImageCarousel';
 
 // 홈 피드 페이지
 export default function FeedPage() {
@@ -135,37 +136,7 @@ export default function FeedPage() {
                     </p>
                   )}
                   {post.media?.length > 0 && (
-                    <div
-                      className={`gap-1 mb-3 rounded-[12px] overflow-hidden ${
-                        post.media.length === 1
-                          ? 'grid grid-cols-1'
-                          : 'grid grid-cols-2'
-                      }`}
-                    >
-                      {post.media.slice(0, 4).map((m: any, i: number) => (
-                        <div
-                          key={m.id}
-                          className={`relative bg-surface ${
-                            post.media.length === 1
-                              ? 'aspect-[4/3]'
-                              : 'aspect-square'
-                          }`}
-                        >
-                          <img
-                            src={m.url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                          {i === 3 && post.media.length > 4 && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <span className="text-white text-[16px] font-bold">
-                                +{post.media.length - 4}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <ImageCarousel images={post.media} />
                   )}
                 </button>
 
