@@ -31,9 +31,9 @@ export default function ImageCarousel({ images }: Props) {
         {images.map(img => (
           <div
             key={img.id}
-            className="w-full flex-shrink-0 snap-center bg-surface aspect-[4/3]"
+            className="w-full flex-shrink-0 snap-center bg-surface"
           >
-            <img src={img.url} alt="" className="w-full h-full object-cover" />
+            <img src={img.url} alt="" className="w-full h-auto" />
           </div>
         ))}
       </div>
