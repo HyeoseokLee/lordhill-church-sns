@@ -8,12 +8,16 @@ import { v4 as uuidv4 } from 'uuid';
 
 const s3Config = config.uploader.s3;
 
-const s3Client = new S3Client({
+// endpoint가 없으면 AWS 기본 엔드포인트 사용 (라이브), 있으면 LocalStack 등 커스텀
+const s3ClientConfig = {
   region: s3Config.region,
-  endpoint: s3Config.endpoint,
-  forcePathStyle: s3Config.forcePathStyle,
   credentials: s3Config.credentials,
-});
+};
+if (s3Config.endpoint) {
+  s3ClientConfig.endpoint = s3Config.endpoint;
+  s3ClientConfig.forcePathStyle = true;
+}
+const s3Client = new S3Client(s3ClientConfig);
 
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const videoExtensions = ['.mp4', '.mov'];
