@@ -273,11 +273,26 @@ export default function PostDetailPage() {
               </div>
             </div>
           ) : (
-            post.content && (
-              <p className="text-[15px] text-text leading-relaxed whitespace-pre-wrap">
-                {post.content}
-              </p>
-            )
+            <>
+              {post.content && (
+                <p className="text-[15px] text-text leading-relaxed whitespace-pre-wrap">
+                  {post.content}
+                </p>
+              )}
+              {/* 이미지 */}
+              {post.media?.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2">
+                  {post.media.map((m: any) => (
+                    <img
+                      key={m.id}
+                      src={m.url}
+                      alt=""
+                      className="w-full rounded-[12px] object-cover"
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
 
           {/* 좋아요/댓글 카운트 */}

@@ -1,7 +1,9 @@
 import { Op } from 'sequelize';
+import config from 'config';
 import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
+import { generatePresignedUrl } from '../../uploader/index.js';
 
 // 게시글의 좋아요 누른 유저 목록 조회
 const getLikedUsers = async (postId) => {
@@ -147,8 +149,28 @@ export const getPost = async (req, res) => {
   });
 };
 
+// 이미지 Presigned URL 발급
+export const presignImages = async (req, res) => {
+  const { files } = req.body;
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    throw new ErrClass(ErrInfo.BadRequest, '파일 정보가 필요합니다.');
+  }
+  if (files.length > contentLimit.imageMaxCount) {
+    throw new ErrClass(ErrInfo.LimitFileCount);
+  }
+
+  const results = await Promise.all(
+    files.map(({ filename, contentType }) =>
+      generatePresignedUrl(filename, contentType),
+    ),
+  );
+
+  res.json(results);
+};
+
+// 게시글 작성 (content + mediaKeys)
 export const createPost = async (req, res) => {
-  const { content } = req.body;
+  const { content, mediaKeys } = req.body;
 
   if (content && content.length > contentLimit.postMaxLength) {
     throw new ErrClass(ErrInfo.PostContentTooLong);
@@ -159,12 +181,17 @@ export const createPost = async (req, res) => {
     content: content || null,
   });
 
-  // 이미지 파일 처리
-  if (req.files && req.files.length > 0) {
-    const mediaRecords = req.files.map((file, index) => ({
+  // S3 key를 post_media에 저장
+  if (mediaKeys && mediaKeys.length > 0) {
+    const s3Config = config.uploader.s3;
+    const baseUrl = s3Config.endpoint
+      ? `${s3Config.endpoint}/${s3Config.bucketName}`
+      : `https://${s3Config.bucketName}.s3.${s3Config.region}.amazonaws.com`;
+
+    const mediaRecords = mediaKeys.map((key, index) => ({
       postId: post.id,
       mediaType: 'image',
-      url: file.location || file.path,
+      url: `${baseUrl}/${key}`,
       order: index,
     }));
     await models.PostMedia.bulkCreate(mediaRecords);

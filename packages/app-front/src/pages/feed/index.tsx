@@ -124,7 +124,7 @@ export default function FeedPage() {
                   </div>
                 </div>
 
-                {/* 본문 (클릭 시 상세 이동) */}
+                {/* 본문 + 이미지 (클릭 시 상세 이동) */}
                 <button
                   onClick={() => navigate(`/feed/detail/${post.id}`)}
                   className="w-full text-left"
@@ -133,6 +133,39 @@ export default function FeedPage() {
                     <p className="text-[14px] text-text leading-relaxed whitespace-pre-wrap mb-3">
                       {post.content}
                     </p>
+                  )}
+                  {post.media?.length > 0 && (
+                    <div
+                      className={`gap-1 mb-3 rounded-[12px] overflow-hidden ${
+                        post.media.length === 1
+                          ? 'grid grid-cols-1'
+                          : 'grid grid-cols-2'
+                      }`}
+                    >
+                      {post.media.slice(0, 4).map((m: any, i: number) => (
+                        <div
+                          key={m.id}
+                          className={`relative bg-surface ${
+                            post.media.length === 1
+                              ? 'aspect-[4/3]'
+                              : 'aspect-square'
+                          }`}
+                        >
+                          <img
+                            src={m.url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                          {i === 3 && post.media.length > 4 && (
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <span className="text-white text-[16px] font-bold">
+                                +{post.media.length - 4}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </button>
 

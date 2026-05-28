@@ -7,8 +7,8 @@ import {
   updatePost,
   deletePost,
   toggleLike,
+  presignImages,
 } from '../controllers/post.js';
-import { uploadImage } from '../../uploader/index.js';
 
 const router = express.Router();
 
@@ -18,8 +18,11 @@ router.get('/', asyncHandler(getFeed));
 // 포스트 상세
 router.get('/:id', asyncHandler(getPost));
 
-// 포스트 작성 (이미지 최대 10장)
-router.post('/', uploadImage.array('images', 10), asyncHandler(createPost));
+// 이미지 Presigned URL 발급
+router.post('/presign', asyncHandler(presignImages));
+
+// 포스트 작성 (content + mediaKeys)
+router.post('/', asyncHandler(createPost));
 
 // 포스트 수정
 router.put('/:id', asyncHandler(updatePost));

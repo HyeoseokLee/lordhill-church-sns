@@ -2,7 +2,8 @@ import path from 'node:path';
 import config from 'config';
 import multer from 'multer';
 import multerS3 from 'multer-s3';
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 
 const s3Config = config.uploader.s3;
@@ -64,5 +65,23 @@ export const uploadProfileImage = multer({
     files: 1,
   },
 });
+
+// Presigned URL 발급 (프론트에서 S3에 직접 업로드용)
+export const generatePresignedUrl = async (filename, contentType) => {
+  const ext = path.extname(filename).toLowerCase();
+  const key = `images/${uuidv4()}${ext}`;
+
+  const command = new PutObjectCommand({
+    Bucket: s3Config.bucketName,
+    Key: key,
+    ContentType: contentType,
+  });
+
+  const presignedUrl = await getSignedUrl(s3Client, command, {
+    expiresIn: s3Config.presignedUrl.expires,
+  });
+
+  return { presignedUrl, key };
+};
 
 export { s3Client };

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ImagePlus, X } from 'lucide-react';
 import FullHeightBox from '@/components/common/FullHeightBox';
@@ -15,19 +15,64 @@ export default function FeedWritePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 이미지 선택
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
+  // 이미지 선택 (웹 브라우저 input / 네이티브 브릿지 공통)
+  const addImages = useCallback((files: File[]) => {
+    setImages(prev => {
+      const remaining = 10 - prev.length;
+      const selected = files.slice(0, remaining);
+      setPreviews(p => [...p, ...selected.map(f => URL.createObjectURL(f))]);
+      return [...prev, ...selected];
+    });
+  }, []);
+
+  // 네이티브 브릿지: 이미지 선택 결과 수신
+  const addImagesRef = useRef(addImages);
+
+  useEffect(() => {
+    addImagesRef.current = addImages;
+  }, [addImages]);
+
+  useEffect(() => {
+    window.__onImagesPicked = pickedImages => {
+      // base64 → File 변환
+      const files = pickedImages.map(img => {
+        const byteString = atob(img.base64.split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        return new File([ab], img.filename, { type: img.contentType });
+      });
+      addImagesRef.current(files);
+    };
+    return () => {
+      delete window.__onImagesPicked;
+    };
+  }, []);
+
+  // 사진 버튼 클릭: 네이티브 → 폴백 웹 input
+  const handlePickImages = useCallback(() => {
     const remaining = 10 - images.length;
-    const selected = files.slice(0, remaining);
+    if (remaining <= 0) return;
 
-    setImages(prev => [...prev, ...selected]);
-    setPreviews(prev => [
-      ...prev,
-      ...selected.map(f => URL.createObjectURL(f)),
-    ]);
+    // iOS 네이티브
+    if (window.webkit?.messageHandlers?.pickImages) {
+      window.webkit.messageHandlers.pickImages.postMessage(remaining);
+      return;
+    }
+    // Android 네이티브
+    if (window.AndroidBridge?.pickImages) {
+      window.AndroidBridge.pickImages(remaining);
+      return;
+    }
+    // 웹 브라우저 폴백
+    fileInputRef.current?.click();
+  }, [images.length]);
 
-    // input 초기화 (같은 파일 재선택 가능)
+  // 웹 브라우저 파일 선택 (폴백)
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addImages(Array.from(e.target.files || []));
     e.target.value = '';
   };
 
@@ -38,16 +83,37 @@ export default function FeedWritePage() {
     setPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  // 게시 (텍스트 + 이미지)
+  // 게시: presign → S3 업로드 → 게시글 저장
   const handleSubmit = async () => {
     if (!content.trim() && images.length === 0) return;
     setIsSubmitting(true);
     try {
-      await postApi.createPost(content.trim(), images);
-      // 부모(피드)에게 새로고침 신호
+      let mediaKeys: string[] = [];
+
+      // 이미지가 있으면 Presigned URL로 S3 직접 업로드
+      if (images.length > 0) {
+        const filesMeta = images.map(f => ({
+          filename: f.name,
+          contentType: f.type,
+        }));
+        const { data: presigned } = await postApi.presignImages(filesMeta);
+
+        // S3에 병렬 업로드
+        await Promise.all(
+          presigned.map((item, i) =>
+            postApi.uploadToS3(item.presignedUrl, images[i]),
+          ),
+        );
+
+        mediaKeys = presigned.map(item => item.key);
+      }
+
+      // 게시글 저장
+      await postApi.createPost(content.trim(), mediaKeys);
       window.dispatchEvent(new Event('feed-refresh'));
       navigate(-1);
-    } catch {
+    } catch (err) {
+      console.error('[게시 실패]', err);
       setIsSubmitting(false);
     }
   };
@@ -110,7 +176,7 @@ export default function FeedWritePage() {
         {/* 사진 첨부 영역 */}
         <div className="mt-6 flex items-center gap-3">
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handlePickImages}
             disabled={images.length >= 10}
             className="flex items-center gap-2 px-4 py-2.5 bg-surface rounded-[12px] text-text-muted text-[13px] font-semibold hover:bg-surface-strong transition-colors duration-150 disabled:opacity-40"
           >
@@ -122,13 +188,13 @@ export default function FeedWritePage() {
           </span>
         </div>
 
-        {/* 숨겨진 파일 입력 */}
+        {/* 숨겨진 파일 입력 (웹 브라우저 폴백) */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*"
           multiple
-          onChange={handleImageSelect}
+          onChange={handleFileInput}
           className="hidden"
         />
       </div>

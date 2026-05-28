@@ -30,6 +30,8 @@
 15. 어드민 계정 생성 (아이디/비밀번호 로그인)
 16. 회원 상태 관리 (잠금/삭제/복구)
 17. 푸시 알림 (FCM)
+18. 푸시 탭 시 페이지 이동
+19. 이미지 업로드 (Presigned URL + 네이티브 리사이징)
 ```
 
 ### ⚠️ 순서 중요!
@@ -2820,6 +2822,137 @@ interface Window {
 4. **포그라운드 vs 백그라운드 판별** — iOS는 `fromPush` 플래그 + `webView.url != nil`로 판별. Android는 `onNewIntent`(포그라운드/백그라운드) vs `onCreate`(종료)로 자연스럽게 분기
 5. **`window.__navigateTo`가 아직 등록 안 된 시점에 호출 가능** — `window.__navigateTo && window.__navigateTo(path)` 패턴으로 안전 호출. 웹뷰 로드 중이면 무시됨 (종료 상태에서는 어차피 loadURL 사용)
 6. **어드민에서 path 미입력 시** — 서버가 `data: {}`로 전송, 네이티브에서 path가 없으면 이동 안 함 (앱 홈 유지)
+
+---
+
+## 19. 이미지 업로드 (Presigned URL + 네이티브 리사이징)
+
+게시글에 이미지를 첨부하는 기능. Presigned URL 방식으로 서버 부하 없이 S3에 직접 업로드하고, 네이티브에서 리사이징하여 용량을 절감한다.
+
+### 전체 흐름
+
+```
+[사진 버튼 클릭]
+1. 웹 → 네이티브 브릿지: "사진 골라줘" (최대 장수 전달)
+   - iOS: window.webkit.messageHandlers.pickImages.postMessage(maxCount)
+   - Android: window.AndroidBridge.pickImages(maxCount)
+
+2. 네이티브: 사진앨범 열기 → 사용자 선택 → 리사이즈(1920px, JPEG 80%)
+   → base64로 웹에 전달: window.__onImagesPicked([{ base64, filename, contentType }, ...])
+
+3. 웹: base64를 File로 변환 → 미리보기 표시
+
+[게시 버튼 클릭]
+4. 웹 → 서버: Presigned URL 요청
+   POST /api/upload/presign { files: [{ filename, contentType }, ...] }
+   응답: [{ presignedUrl, key }, ...]
+
+5. 웹 → S3: presignedUrl로 리사이즈된 이미지 직접 업로드 (PUT)
+   (서버를 거치지 않음 — 서버 부하 없음)
+
+6. 웹 → 서버: 게시글 저장
+   POST /api/posts { content, mediaKeys: [key1, key2, ...] }
+   서버: posts 행 생성 + post_media에 S3 key 저장
+```
+
+### To-Do 리스트
+
+#### 서버
+- [x] `POST /api/posts/presign` — Presigned URL 발급 API
+  - 요청: `{ files: [{ filename, contentType }] }`
+  - `uploader/index.js`에 `generatePresignedUrl()` 함수 추가 (`PutObjectCommand` + `getSignedUrl`)
+  - config의 `presignedUrl.expires: 600` (10분) 사용
+  - 응답: `[{ presignedUrl, key }]` (key = S3 저장 경로, 예: `images/uuid.jpg`)
+- [x] `POST /api/posts` 수정 — multer 방식에서 mediaKeys 방식으로 변경
+  - multer 미들웨어 제거, `{ content, mediaKeys: string[] }` JSON body로 수신
+  - S3 key를 전체 URL로 변환(`baseUrl + key`)하여 post_media에 저장
+
+#### 웹 프론트
+- [x] 이미지 선택 브릿지 함수 — 네이티브에 `pickImages(maxCount)` 호출
+  - iOS: `window.webkit.messageHandlers.pickImages.postMessage(remaining)`
+  - Android: `window.AndroidBridge.pickImages(remaining)`
+  - 웹 브라우저 폴백: `<input type="file">` (네이티브 없을 때 자동 분기)
+- [x] `window.__onImagesPicked` 전역 함수 등록 — 네이티브가 이미지 전달 시 호출
+  - base64 → File 변환 → 미리보기 state에 추가
+  - `addImagesRef`를 useEffect 안에서 업데이트 (react-hooks/refs 규칙 준수)
+- [x] 글쓰기 submit 흐름 변경
+  - 1) presign API → 2) S3 PUT 병렬 업로드 → 3) posts API (content + mediaKeys)
+- [x] `postApi` 수정 — `presignImages()`, `uploadToS3()`, `createPost(content, mediaKeys)`
+- [x] `window.d.ts` 타입 선언 추가 — `pickImages`, `__onImagesPicked`
+- [x] 피드 목록에 이미지 표시 UI (1장: 4:3, 2~4장: 2열 그리드, 5+: +N 오버레이)
+- [x] 상세 페이지에 이미지 표시 UI (전체 너비 세로 나열)
+
+#### iOS 네이티브
+- [x] `ImagePickerBridge.swift` (신규) — 이미지 선택 + 리사이즈 + 웹뷰 전달 통합 클래스
+- [x] `pickImages` 브릿지 핸들러 추가 (WKScriptMessageHandler) — `LordhillWebView.swift`에 등록
+- [x] PHPickerViewController로 다중 이미지 선택
+- [x] 포토 라이브러리 권한 체크 (`PHPhotoLibrary.authorizationStatus`)
+  - `notDetermined`: 시스템 권한 팝업 (전체허용/제한허용/거부)
+  - `authorized`/`limited`: PHPicker 바로 오픈
+  - `denied`/`restricted`: "설정으로 이동" 안내 Alert
+- [x] 이미지 리사이즈: 긴 변 1920px 기준 축소 + JPEG 80% 압축
+- [x] base64 인코딩 후 웹뷰에 전달: `evaluateJavaScript("window.__onImagesPicked(...)")`
+- [x] Info.plist에 `NSPhotoLibraryUsageDescription` 이미 설정 확인 완료
+
+#### Android 네이티브
+- [x] `ImagePickerBridge.kt` (신규) — URI → Bitmap → 리사이즈 → base64 → 웹뷰 전달
+- [x] `AndroidBridge.kt`에 `pickImages(maxCount)` 메서드 + BridgeListener 추가
+- [x] `MainActivity.kt`에 `PickMultipleVisualMedia(10)` 런처 + `pickImages` 구현
+- [x] 이미지 리사이즈: 긴 변 1920px 기준 축소 + JPEG 80% 압축
+- [x] base64 인코딩 후 웹뷰에 전달: `evaluateJavascript("window.__onImagesPicked(...)")`
+- [ ] **Android 동작 미확인** — 빌드 후 테스트 필요 (로그 `[ImagePicker] pickImages 호출` 확인)
+
+### 구현된 파일 목록
+
+#### 서버
+- `src/uploader/index.js` — `generatePresignedUrl()` 추가 (`PutObjectCommand` + `getSignedUrl`)
+- `src/post/controllers/post.js` — `presignImages` 컨트롤러 추가, `createPost`를 mediaKeys 방식으로 변경
+- `src/post/routes/post.js` — `POST /posts/presign` 라우트 추가, multer 미들웨어 제거
+
+#### 웹 프론트
+- `src/api/postApi.ts` — `presignImages()`, `uploadToS3()` 추가, `createPost()` JSON 방식으로 변경
+- `src/pages/feed/post/index.tsx` — 네이티브 브릿지 호출 + `__onImagesPicked` 수신 + presign 업로드 흐름
+- `src/pages/feed/index.tsx` — 피드 목록 이미지 표시 UI
+- `src/pages/feed/detail/index.tsx` — 상세 페이지 이미지 표시 UI
+- `src/types/window.d.ts` — `pickImages`, `__onImagesPicked` 타입 선언
+
+#### iOS (`lordhill-ios/`)
+- `LordhillChurch/Util/ImagePickerBridge.swift` (신규) — PHPicker + 권한 체크 + 리사이즈 + 웹뷰 전달
+- `LordhillChurch/View/LordhillWebView.swift` — `pickImages` 메시지 핸들러 등록
+
+#### Android (`lordhill-android/`)
+- `app/.../ImagePickerBridge.kt` (신규) — Bitmap 리사이즈 + base64 + 웹뷰 전달
+- `app/.../AndroidBridge.kt` — `pickImages(maxCount)` 메서드 추가
+- `app/.../MainActivity.kt` — `PickMultipleVisualMedia` 런처 + `pickImages` 구현
+
+### S3 설정
+
+- S3Client + `@aws-sdk/s3-request-presigner` 이미 설치 완료
+- 버킷: `lordhill-sns-media` (환경변수 `AWS_S3_BUCKET`)
+- config: `uploader.s3.presignedUrl.expires = 600` (10분)
+- **라이브 배포 전 S3 CORS 설정 필수:**
+  ```bash
+  aws s3api put-bucket-cors --bucket lordhill-sns-media --cors-configuration '{
+    "CORSRules": [{
+      "AllowedOrigins": ["https://www.lordhill-sns.kr"],
+      "AllowedMethods": ["PUT", "GET"],
+      "AllowedHeaders": ["*"],
+      "MaxAgeSeconds": 3600
+    }]
+  }'
+  ```
+
+### ⚠️ 시행착오
+
+1. **LocalStack 최신 버전 유료화** — `localstack/localstack:latest`가 라이선스 필요로 변경됨 (exit code 55). 로컬 S3 테스트가 불가하므로 이미지 업로드는 라이브 환경에서 테스트. 40명 규모 앱은 실제 AWS S3 직접 사용해도 비용 거의 없음
+2. **iOS CLI로 만든 Swift 파일은 Xcode에 자동 등록 안 됨** — `ImagePickerBridge.swift` 파일 생성 후 Xcode에서 수동 Add Files 필요. 안 하면 `Cannot find type 'ImagePickerBridge' in scope` 에러
+3. **iOS 포토 라이브러리 권한 체크 필수** — `PHPickerViewController`는 권한 없이도 동작하지만, `PHPhotoLibrary.authorizationStatus`로 명시적 체크 + 거부 시 설정 이동 안내 Alert이 UX상 필수. 참고: `healthcare-ios/Util/ImagePickerUtil.swift`
+4. **iOS Info.plist `NSPhotoLibraryUsageDescription` 필수** — 없으면 권한 요청 시 앱 크래시. 프로젝트에 이미 설정되어 있었음
+5. **Android `PickMultipleVisualMedia` maxItems는 생성자에서 지정** — `registerForActivityResult`는 Activity 생성 시 호출되므로 동적 maxCount 불가. `PickMultipleVisualMedia(10)`으로 고정
+6. **Android `@JavascriptInterface` 메서드는 백그라운드 스레드에서 호출** — 갤러리 런처 실행은 `runOnUiThread`에서 해야 함
+7. **웹 프론트 react-hooks/refs 규칙** — `addImagesRef.current = addImages`를 렌더 중에 하면 lint 에러. `useEffect` 안에서 업데이트해야 함
+8. **S3 CORS 미설정 시 Presigned URL PUT 실패** — 프론트에서 S3에 직접 PUT 요청 시 브라우저가 CORS로 차단. 에러가 catch에서 무시되면 "게시 버튼 깜빡임만 하고 업로드 안 됨" 현상. catch에 `console.error` 추가하여 디버깅
+9. **이미지 없이 텍스트만 게시는 정상 동작** — Presigned URL 흐름은 이미지가 있을 때만 실행. `mediaKeys`가 빈 배열이면 post_media 저장 스킵
 
 ---
 
