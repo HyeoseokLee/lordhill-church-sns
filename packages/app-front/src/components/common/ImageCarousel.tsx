@@ -1,13 +1,41 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 interface Props {
   images: { id: number; url: string }[];
 }
 
-// 이미지 캐러셀 (좌우 스와이프 + 하단 인디케이터 점)
+// 이미지 캐러셀 (좌우 스와이프 + 하단 인디케이터 점, 가장 큰 이미지 높이에 맞춤)
 export default function ImageCarousel({ images }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [maxHeight, setMaxHeight] = useState(0);
+  const [loadedCount, setLoadedCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 모든 이미지 로드 후 최대 높이 계산
+  useEffect(() => {
+    if (images.length === 0) return;
+
+    let loaded = 0;
+    let tallest = 0;
+
+    images.forEach(img => {
+      const el = new Image();
+      el.onload = () => {
+        // 컨테이너 너비(100%) 기준 비례 높이 계산
+        const containerWidth = scrollRef.current?.offsetWidth || 300;
+        const ratio = containerWidth / el.naturalWidth;
+        const scaledHeight = el.naturalHeight * ratio;
+        if (scaledHeight > tallest) tallest = scaledHeight;
+
+        loaded++;
+        if (loaded === images.length) {
+          setMaxHeight(tallest);
+          setLoadedCount(loaded);
+        }
+      };
+      el.src = img.url;
+    });
+  }, [images]);
 
   // 스크롤 위치로 현재 인덱스 계산
   const handleScroll = () => {
@@ -25,15 +53,25 @@ export default function ImageCarousel({ images }: Props) {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide rounded-[12px]"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex overflow-x-auto snap-x snap-mandatory rounded-[12px]"
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          height: maxHeight > 0 ? `${maxHeight}px` : 'auto',
+        }}
       >
         {images.map(img => (
           <div
             key={img.id}
-            className="w-full flex-shrink-0 snap-center bg-surface"
+            className="w-full flex-shrink-0 snap-center flex items-center justify-center bg-surface"
+            style={{ height: maxHeight > 0 ? `${maxHeight}px` : 'auto' }}
           >
-            <img src={img.url} alt="" className="w-full h-auto" />
+            <img
+              src={img.url}
+              alt=""
+              className={`w-full h-auto ${loadedCount < images.length ? 'opacity-0' : 'opacity-100'}`}
+              style={{ transition: 'opacity 0.2s' }}
+            />
           </div>
         ))}
       </div>
