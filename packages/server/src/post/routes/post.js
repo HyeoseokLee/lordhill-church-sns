@@ -8,6 +8,7 @@ import {
   deletePost,
   toggleLike,
   presignImages,
+  deleteMedia,
 } from '../controllers/post.js';
 
 const router = express.Router();
@@ -29,6 +30,9 @@ router.put('/:id', asyncHandler(updatePost));
 
 // 포스트 삭제 (soft delete)
 router.delete('/:id', asyncHandler(deletePost));
+
+// 개별 이미지 삭제 (post_media + S3)
+router.delete('/media/:mediaId', asyncHandler(deleteMedia));
 
 // 좋아요 토글
 router.post('/:id/like', asyncHandler(toggleLike));

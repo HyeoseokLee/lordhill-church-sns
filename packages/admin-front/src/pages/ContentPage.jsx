@@ -37,8 +37,13 @@ export default function ContentPage() {
       } else if (deleteModal.type === 'post') {
         await api.delete(`/admin/posts/${deleteModal.id}`);
         setExpandedId(null);
+      } else if (deleteModal.type === 'permanentPost') {
+        await api.delete(`/admin/posts/${deleteModal.id}/permanent`);
+        setExpandedId(null);
       } else if (deleteModal.type === 'comment') {
         await api.delete(`/admin/comments/${deleteModal.id}`);
+      } else if (deleteModal.type === 'permanentComment') {
+        await api.delete(`/admin/comments/${deleteModal.id}/permanent`);
       } else if (deleteModal.type === 'restoreComment') {
         await api.patch(`/admin/comments/${deleteModal.id}/restore`);
       }
@@ -150,25 +155,38 @@ export default function ContentPage() {
                         className="px-4 py-3"
                         onClick={e => e.stopPropagation()}
                       >
-                        {isDeleted ? (
+                        <div className="flex gap-1">
+                          {isDeleted ? (
+                            <button
+                              onClick={() =>
+                                setDeleteModal({ type: 'restore', id: post.id })
+                              }
+                              className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                            >
+                              복구
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() =>
+                                setDeleteModal({ type: 'post', id: post.id })
+                              }
+                              className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                            >
+                              삭제
+                            </button>
+                          )}
                           <button
                             onClick={() =>
-                              setDeleteModal({ type: 'restore', id: post.id })
+                              setDeleteModal({
+                                type: 'permanentPost',
+                                id: post.id,
+                              })
                             }
-                            className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                            className="px-3 py-1 bg-gray-800 text-white rounded text-xs hover:bg-black"
                           >
-                            복구
+                            영구삭제
                           </button>
-                        ) : (
-                          <button
-                            onClick={() =>
-                              setDeleteModal({ type: 'post', id: post.id })
-                            }
-                            className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                          >
-                            삭제
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
 
@@ -234,33 +252,46 @@ export default function ContentPage() {
                                           {comment.content}
                                         </p>
                                       </div>
-                                      {commentDeleted ? (
-                                        !isDeleted && (
+                                      <div className="ml-3 flex gap-1 flex-shrink-0">
+                                        {commentDeleted ? (
+                                          !isDeleted && (
+                                            <button
+                                              onClick={() =>
+                                                setDeleteModal({
+                                                  type: 'restoreComment',
+                                                  id: comment.id,
+                                                })
+                                              }
+                                              className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                                            >
+                                              복구
+                                            </button>
+                                          )
+                                        ) : (
                                           <button
                                             onClick={() =>
                                               setDeleteModal({
-                                                type: 'restoreComment',
+                                                type: 'comment',
                                                 id: comment.id,
                                               })
                                             }
-                                            className="ml-3 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 flex-shrink-0"
+                                            className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
                                           >
-                                            복구
+                                            삭제
                                           </button>
-                                        )
-                                      ) : (
+                                        )}
                                         <button
                                           onClick={() =>
                                             setDeleteModal({
-                                              type: 'comment',
+                                              type: 'permanentComment',
                                               id: comment.id,
                                             })
                                           }
-                                          className="ml-3 px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 flex-shrink-0"
+                                          className="px-2 py-1 bg-gray-800 text-white rounded text-xs hover:bg-black"
                                         >
-                                          삭제
+                                          영구삭제
                                         </button>
-                                      )}
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -305,19 +336,25 @@ export default function ContentPage() {
       <ConfirmModal
         open={!!deleteModal}
         message={
-          deleteModal?.type === 'restore'
-            ? '이 게시글을 복구하시겠습니까?\n댓글도 함께 복구됩니다.'
-            : deleteModal?.type === 'restoreComment'
-              ? '이 댓글을 복구하시겠습니까?'
-              : deleteModal?.type === 'post'
-                ? '이 게시글을 삭제하시겠습니까?\n좋아요와 댓글도 모두 삭제됩니다.'
-                : '이 댓글을 삭제하시겠습니까?'
+          {
+            restore: '이 게시글을 복구하시겠습니까?\n댓글도 함께 복구됩니다.',
+            restoreComment: '이 댓글을 복구하시겠습니까?',
+            post: '이 게시글을 삭제하시겠습니까?\n좋아요와 댓글도 모두 삭제됩니다.\n관리자가 복구할 수 있습니다.',
+            comment:
+              '이 댓글을 삭제하시겠습니까?\n관리자가 복구할 수 있습니다.',
+            permanentPost:
+              '이 게시글을 영구삭제하시겠습니까?\n모든 데이터와 이미지가 완전히 삭제되며 복구할 수 없습니다.',
+            permanentComment:
+              '이 댓글을 영구삭제하시겠습니까?\n완전히 삭제되며 복구할 수 없습니다.',
+          }[deleteModal?.type] || ''
         }
         confirmText={
-          deleteModal?.type === 'restore' ||
-          deleteModal?.type === 'restoreComment'
-            ? '복구'
-            : '삭제'
+          {
+            restore: '복구',
+            restoreComment: '복구',
+            permanentPost: '영구삭제',
+            permanentComment: '영구삭제',
+          }[deleteModal?.type] || '삭제'
         }
         confirmColor={
           deleteModal?.type === 'restore' ||

@@ -2,7 +2,11 @@ import path from 'node:path';
 import config from 'config';
 import multer from 'multer';
 import multerS3 from 'multer-s3';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectsCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -86,6 +90,28 @@ export const generatePresignedUrl = async (filename, contentType) => {
   });
 
   return { presignedUrl, key };
+};
+
+// S3에서 여러 파일 삭제 (URL 배열로부터 key 추출)
+export const deleteFromS3 = async (urls) => {
+  if (!urls || urls.length === 0) return;
+
+  const objects = urls
+    .map((url) => {
+      // URL에서 key 추출: .../images/uuid.jpg → images/uuid.jpg
+      const match = url.match(/\/(images\/.+)$/);
+      return match ? { Key: match[1] } : null;
+    })
+    .filter(Boolean);
+
+  if (objects.length === 0) return;
+
+  const command = new DeleteObjectsCommand({
+    Bucket: s3Config.bucketName,
+    Delete: { Objects: objects },
+  });
+
+  await s3Client.send(command);
 };
 
 export { s3Client };

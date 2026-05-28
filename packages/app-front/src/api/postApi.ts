@@ -27,9 +27,13 @@ export const postApi = {
   createPost: (content: string, mediaKeys?: string[]) =>
     axiosInstance.post('/posts', { content, mediaKeys }),
 
-  // 게시글 수정
-  updatePost: (id: string, content: string) =>
-    axiosInstance.put(`/posts/${id}`, { content }),
+  // 게시글 수정 (content + 새 이미지)
+  updatePost: (id: string, content: string, newMediaKeys?: string[]) =>
+    axiosInstance.put(`/posts/${id}`, { content, newMediaKeys }),
+
+  // 개별 이미지 삭제 (post_media + S3)
+  deleteMedia: (mediaId: string) =>
+    axiosInstance.delete(`/posts/media/${mediaId}`),
 
   deletePost: (id: string) => axiosInstance.delete(`/posts/${id}`),
 

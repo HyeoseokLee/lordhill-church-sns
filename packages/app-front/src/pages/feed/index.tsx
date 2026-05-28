@@ -155,12 +155,17 @@ export default function FeedPage() {
                     />
                     <span className="text-[12px]">{post.likeCount || 0}</span>
                   </button>
-                  <div className="flex items-center gap-1">
+                  <button
+                    onClick={() =>
+                      navigate(`/feed/detail/${post.id}?focus=comment`)
+                    }
+                    className="flex items-center gap-1"
+                  >
                     <MessageSquare size={16} strokeWidth={1.5} />
                     <span className="text-[12px]">
                       {post.commentCount || 0}
                     </span>
-                  </div>
+                  </button>
                 </div>
               </article>
             ))}

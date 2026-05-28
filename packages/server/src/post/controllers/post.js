@@ -3,7 +3,7 @@ import config from 'config';
 import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
-import { generatePresignedUrl } from '../../uploader/index.js';
+import { generatePresignedUrl, deleteFromS3 } from '../../uploader/index.js';
 
 // 게시글의 좋아요 누른 유저 목록 조회
 const getLikedUsers = async (postId) => {
@@ -211,6 +211,7 @@ export const createPost = async (req, res) => {
   res.status(201).json(result);
 };
 
+// 게시글 수정 (content + 새 이미지 추가)
 export const updatePost = async (req, res) => {
   const post = await models.Post.findByPk(req.params.id);
   if (!post) {
@@ -220,14 +221,34 @@ export const updatePost = async (req, res) => {
     throw new ErrClass(ErrInfo.Forbidden);
   }
 
-  const { content } = req.body;
+  const { content, newMediaKeys } = req.body;
   if (content && content.length > contentLimit.postMaxLength) {
     throw new ErrClass(ErrInfo.PostContentTooLong);
   }
 
   await post.update({ content });
 
-  // 수정된 게시글을 user 포함하여 반환
+  // 새 이미지 추가
+  if (newMediaKeys && newMediaKeys.length > 0) {
+    const s3Config = config.uploader.s3;
+    const baseUrl = s3Config.endpoint
+      ? `${s3Config.endpoint}/${s3Config.bucketName}`
+      : `https://${s3Config.bucketName}.s3.${s3Config.region}.amazonaws.com`;
+
+    // 기존 이미지 개수로 order 이어서 부여
+    const existingCount = await models.PostMedia.count({
+      where: { postId: post.id },
+    });
+
+    const mediaRecords = newMediaKeys.map((key, index) => ({
+      postId: post.id,
+      mediaType: 'image',
+      url: `${baseUrl}/${key}`,
+      order: existingCount + index,
+    }));
+    await models.PostMedia.bulkCreate(mediaRecords);
+  }
+
   const result = await models.Post.findByPk(post.id, {
     include: [
       {
@@ -239,6 +260,30 @@ export const updatePost = async (req, res) => {
     ],
   });
   res.json(result);
+};
+
+// 개별 이미지 삭제 (post_media + S3)
+export const deleteMedia = async (req, res) => {
+  const media = await models.PostMedia.findByPk(req.params.mediaId);
+  if (!media) {
+    throw new ErrClass(ErrInfo.NotFound);
+  }
+
+  // 게시글 작성자 확인
+  const post = await models.Post.findByPk(media.postId);
+  if (!post || post.userId !== req.user.id) {
+    throw new ErrClass(ErrInfo.Forbidden);
+  }
+
+  // S3 삭제
+  try {
+    await deleteFromS3([media.url]);
+  } catch {
+    // S3 삭제 실패해도 DB는 삭제 진행
+  }
+
+  await media.destroy();
+  res.json({ message: 'ok' });
 };
 
 export const deletePost = async (req, res) => {

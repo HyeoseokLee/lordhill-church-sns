@@ -1,6 +1,8 @@
 import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { userStatus, auditAction } from '../../define.js';
+import { deleteFromS3 } from '../../uploader/index.js';
+import logger from '../../logger.js';
 
 const logAudit = async (adminUserId, action, target, metadata) => {
   await models.AdminAuditLog.create({ adminUserId, action, target, metadata });
@@ -179,6 +181,59 @@ export const restoreComment = async (req, res) => {
     userId: comment.userId,
     postId: comment.postId,
   });
+
+  res.json({ message: 'ok' });
+};
+
+// 게시글 영구삭제 (하드 딜리트 + S3 이미지 삭제)
+export const permanentDeletePost = async (req, res) => {
+  const post = await models.Post.findByPk(req.params.id, { paranoid: false });
+  if (!post) {
+    throw new ErrClass(ErrInfo.NotFoundPost);
+  }
+
+  // S3 이미지 삭제
+  const media = await models.PostMedia.findAll({ where: { postId: post.id } });
+  if (media.length > 0) {
+    const urls = media.map((m) => m.url);
+    try {
+      await deleteFromS3(urls);
+      logger.info('s3-images-deleted', { postId: post.id, count: urls.length });
+    } catch (err) {
+      logger.error('s3-images-delete-failed', { error: err.message });
+    }
+  }
+
+  // DB 하드 딜리트 (paranoid 무시)
+  await models.Comment.destroy({ where: { postId: post.id }, force: true });
+  await models.Like.destroy({ where: { postId: post.id } });
+  await models.PostMedia.destroy({ where: { postId: post.id } });
+  await post.destroy({ force: true });
+
+  await logAudit(req.user.id, 'permanent_delete_post', `post:${post.id}`, {
+    userId: post.userId,
+    mediaCount: media.length,
+  });
+
+  res.json({ message: 'ok' });
+};
+
+// 댓글 영구삭제 (하드 딜리트)
+export const permanentDeleteComment = async (req, res) => {
+  const comment = await models.Comment.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!comment) {
+    throw new ErrClass(ErrInfo.NotFoundComment);
+  }
+
+  await comment.destroy({ force: true });
+  await logAudit(
+    req.user.id,
+    'permanent_delete_comment',
+    `comment:${comment.id}`,
+    { userId: comment.userId, postId: comment.postId },
+  );
 
   res.json({ message: 'ok' });
 };

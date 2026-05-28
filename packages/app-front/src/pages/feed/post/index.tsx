@@ -16,14 +16,19 @@ export default function FeedWritePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 이미지 선택 (웹 브라우저 input / 네이티브 브릿지 공통)
-  const addImages = useCallback((files: File[]) => {
-    setImages(prev => {
-      const remaining = 10 - prev.length;
+  const addImages = useCallback(
+    (files: File[]) => {
+      const remaining = 10 - images.length;
       const selected = files.slice(0, remaining);
-      setPreviews(p => [...p, ...selected.map(f => URL.createObjectURL(f))]);
-      return [...prev, ...selected];
-    });
-  }, []);
+      if (selected.length === 0) return;
+      setImages(prev => [...prev, ...selected]);
+      setPreviews(prev => [
+        ...prev,
+        ...selected.map(f => URL.createObjectURL(f)),
+      ]);
+    },
+    [images.length],
+  );
 
   // 네이티브 브릿지: 이미지 선택 결과 수신
   const addImagesRef = useRef(addImages);
