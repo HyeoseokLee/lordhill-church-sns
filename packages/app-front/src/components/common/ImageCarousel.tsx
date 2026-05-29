@@ -64,8 +64,10 @@ export default function ImageCarousel({ images }: Props) {
           <div
             key={img.id}
             className="w-full flex-shrink-0 snap-start flex items-center justify-center bg-black"
-            style={{ scrollSnapStop: 'always' }}
-            style={{ height: maxHeight > 0 ? `${maxHeight}px` : 'auto' }}
+            style={{
+              scrollSnapStop: 'always',
+              height: maxHeight > 0 ? `${maxHeight}px` : 'auto',
+            }}
           >
             <img
               src={img.url}
