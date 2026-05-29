@@ -120,6 +120,49 @@ export default function PostDetailPage() {
     [newImages.length, post?.media?.length],
   );
 
+  // 수정 모드 — 네이티브 브릿지 연결
+  const editAddImagesRef = useRef(handleEditAddImages);
+  useEffect(() => {
+    editAddImagesRef.current = handleEditAddImages;
+  }, [handleEditAddImages]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    // 수정 모드 진입 시 __onImagesPicked를 수정용으로 덮어쓰기
+    window.__onImagesPicked = pickedImages => {
+      const files = pickedImages.map(img => {
+        const byteString = atob(img.base64.split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        return new File([ab], img.filename, { type: img.contentType });
+      });
+      editAddImagesRef.current(files);
+    };
+    return () => {
+      delete window.__onImagesPicked;
+    };
+  }, [isEditing]);
+
+  // 수정 모드 — 사진 추가 버튼 (네이티브 → 폴백 웹 input)
+  const handleEditPickImages = useCallback(() => {
+    const existingCount = post?.media?.length || 0;
+    const remaining = 10 - existingCount - newImages.length;
+    if (remaining <= 0) return;
+
+    if (window.webkit?.messageHandlers?.pickImages) {
+      window.webkit.messageHandlers.pickImages.postMessage(remaining);
+      return;
+    }
+    if (window.AndroidBridge?.pickImages) {
+      window.AndroidBridge.pickImages(remaining);
+      return;
+    }
+    editFileInputRef.current?.click();
+  }, [post?.media?.length, newImages.length]);
+
   // 수정 모드 — 새 이미지 제거 (미리보기만, 아직 업로드 안 됨)
   const handleRemoveNewImage = (index: number) => {
     URL.revokeObjectURL(newPreviews[index]);
@@ -372,7 +415,7 @@ export default function PostDetailPage() {
               </div>
               {/* 이미지 추가 버튼 */}
               <button
-                onClick={() => editFileInputRef.current?.click()}
+                onClick={handleEditPickImages}
                 disabled={(post.media?.length || 0) + newImages.length >= 10}
                 className="mt-3 flex items-center gap-2 px-4 py-2 bg-surface rounded-[12px] text-text-muted text-[13px] font-semibold hover:bg-surface-strong transition-colors duration-150 disabled:opacity-40"
               >
