@@ -17,7 +17,8 @@ import MyWithOutlet from '@/pages/my/MyWithOutlet';
 // 자식 페이지
 import PostDetailPage from '@/pages/feed/detail/index';
 import FeedWritePage from '@/pages/feed/post/index';
-import RecycleWritePage from '@/pages/recycle/write/index';
+import RecyclePostPage from '@/pages/recycle/post/index';
+import RecycleDetailPage from '@/pages/recycle/detail/index';
 import PrayerWritePage from '@/pages/prayer/write/index';
 import ProfilePage from '@/pages/my/profile/index';
 
@@ -56,7 +57,10 @@ const router = createBrowserRouter([
       {
         path: 'recycle',
         element: <RecycleWithOutlet />,
-        children: [{ path: 'write', element: <RecycleWritePage /> }],
+        children: [
+          { path: 'post', element: <RecyclePostPage /> },
+          { path: 'detail/:recycleId', element: <RecycleDetailPage /> },
+        ],
       },
       // 기도 탭
       {

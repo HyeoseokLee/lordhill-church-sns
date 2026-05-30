@@ -108,6 +108,10 @@ nginx (HTTPS, certbot) → EC2:3001 (Express) → RDS MySQL
 - `api` A → `15.164.129.119`
 - ACM 인증서 검증용 CNAME 레코드
 
+## 보류 과제
+
+- [ ] **로그인 후 뒤로가기 시 로그인 화면으로 이동** — OAuth 로그인 흐름에서 서버가 `/auth/callback?token=xxx`로 리다이렉트할 때 브라우저 히스토리에 로그인 페이지가 남음. OAuthCallbackPage에서 `navigate('/feed', { replace: true })`로 수정했으나, 네이티브 WebView에서 브라우저 히스토리 스택이 완전히 제거되지 않을 수 있음. 네이티브 측에서 로그인 완료 후 히스토리 클리어가 필요할 수 있음
+
 ## 시행착오 & 핵심 교훈
 
 1. **S3 버킷 네임스페이스**: 계정 리전 네임스페이스 선택 시 이름이 길어짐. `aws s3 ls`로 실제 이름 확인 필수

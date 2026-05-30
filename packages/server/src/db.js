@@ -8,6 +8,9 @@ import Comment from './comment/models/Comment.js';
 import AdminAuditLog from './admin/models/AdminAuditLog.js';
 import FcmToken from './push/models/FcmToken.js';
 import PushLog from './push/models/PushLog.js';
+import Recycle from './recycle/models/Recycle.js';
+import RecycleMedia from './recycle/models/RecycleMedia.js';
+import RecycleComment from './recycle/models/RecycleComment.js';
 
 const dbconfig = config.sequelize;
 
@@ -48,6 +51,9 @@ db.Comment = Comment(sequelize);
 db.AdminAuditLog = AdminAuditLog(sequelize);
 db.FcmToken = FcmToken(sequelize);
 db.PushLog = PushLog(sequelize);
+db.Recycle = Recycle(sequelize);
+db.RecycleMedia = RecycleMedia(sequelize);
+db.RecycleComment = RecycleComment(sequelize);
 
 // Association 설정
 Object.keys(db).forEach((modelName) => {

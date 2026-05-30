@@ -34,14 +34,16 @@ export default function FeedWithOutlet() {
       >
         <FeedPage />
       </div>
-      {/* 글쓰기 플로팅 버튼 (transform 래퍼 바깥이라 fixed 정상 동작) */}
+      {/* 글쓰기 플로팅 버튼 (max-w-[480px] 컨테이너 내 우측 하단) */}
       {!hasOutlet && (
-        <button
-          onClick={() => navigate('/feed/post')}
-          className="fixed bottom-[70px] right-5 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors duration-150 active:scale-[0.95] z-40"
-        >
-          <Plus size={28} strokeWidth={2} />
-        </button>
+        <div className="fixed bottom-[70px] left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 pointer-events-none">
+          <button
+            onClick={() => navigate('/feed/post')}
+            className="absolute bottom-0 right-5 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors duration-150 active:scale-[0.95] pointer-events-auto"
+          >
+            <Plus size={28} strokeWidth={2} />
+          </button>
+        </div>
       )}
       <BottomNavigation />
       {/* 자식 페이지 오버레이 */}
