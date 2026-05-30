@@ -18,7 +18,7 @@ module.exports = {
   },
 
   JWT: {
-    EXPIRE_TIME: '1h',
+    EXPIRE_TIME: '30d',
     EXPIRE_REFRESH_TIME: '30d',
     JWT_SECRET:
       process.env.JWT_SECRET || 'lordhill-jwt-secret-change-me-in-production',

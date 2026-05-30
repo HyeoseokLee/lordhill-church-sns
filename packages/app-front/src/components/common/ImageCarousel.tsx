@@ -48,12 +48,12 @@ export default function ImageCarousel({ images }: Props) {
   if (images.length === 0) return null;
 
   return (
-    <div className="mb-3">
-      {/* 이미지 슬라이드 영역 */}
+    <div className="mb-3 -mx-5">
+      {/* 이미지 슬라이드 영역 (부모 패딩을 벗어나 뷰포트 꽉 채움) */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory rounded-[12px]"
+        className="flex overflow-x-auto snap-x snap-mandatory"
         style={{
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',

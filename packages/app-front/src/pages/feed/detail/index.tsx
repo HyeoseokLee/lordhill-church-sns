@@ -333,15 +333,24 @@ export default function PostDetailPage() {
                 </div>
               )
             ) : (
-              <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0" />
+              <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 animate-pulse" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-bold text-text truncate">
-                {post ? post.user?.nickname || '익명' : '\u00A0'}
-              </p>
-              <p className="text-[12px] text-text-muted">
-                {post ? formatRelativeTime(post.createdAt) : '\u00A0'}
-              </p>
+              {post ? (
+                <>
+                  <p className="text-[14px] font-bold text-text truncate">
+                    {post.user?.nickname || '익명'}
+                  </p>
+                  <p className="text-[12px] text-text-muted">
+                    {formatRelativeTime(post.createdAt)}
+                  </p>
+                </>
+              ) : (
+                <div className="animate-pulse">
+                  <div className="h-3.5 w-16 bg-surface-strong rounded mb-2" />
+                  <div className="h-3 w-12 bg-surface rounded" />
+                </div>
+              )}
             </div>
             {post && isMyPost && !isEditing && (
               <div className="flex items-center gap-1">
@@ -363,7 +372,10 @@ export default function PostDetailPage() {
 
           {/* 본문 — 로딩 중 빈 공간 / 수정 모드 / 읽기 모드 */}
           {!post ? (
-            <div className="min-h-[80px]" />
+            <div className="animate-pulse space-y-2 py-2">
+              <div className="h-3.5 w-full bg-surface-strong rounded" />
+              <div className="h-3.5 w-3/4 bg-surface rounded" />
+            </div>
           ) : isEditing ? (
             <div>
               <textarea
