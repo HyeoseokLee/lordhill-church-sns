@@ -34,7 +34,7 @@ export default function OAuthCallbackPage() {
           if (res.data.provider) {
             localStorage.setItem('lastProvider', res.data.provider);
           }
-          navigate('/', { replace: true });
+          navigate('/feed', { replace: true });
         })
         .catch(() => {
           navigate('/login', { replace: true });
