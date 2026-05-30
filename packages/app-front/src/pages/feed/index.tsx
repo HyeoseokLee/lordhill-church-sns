@@ -108,7 +108,7 @@ export default function FeedPage() {
                           </div>
                         )}
                         {isMe && (
-                          <span className="absolute -bottom-2 -right-3 bg-white text-accent text-[11px] font-semibold italic px-[3px] py-[1px] rounded-full leading-none border border-accent">
+                          <span className="absolute -bottom-[6px] -right-[11px] bg-white text-accent text-[11px] font-semibold italic px-[3px] py-[1px] rounded-full leading-none border border-accent">
                             me
                           </span>
                         )}
