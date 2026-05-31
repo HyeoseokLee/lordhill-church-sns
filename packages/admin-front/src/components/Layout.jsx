@@ -33,6 +33,9 @@ export default function Layout({ children }) {
           <NavLink to="/content" className={linkClass}>
             게시글 관리
           </NavLink>
+          <NavLink to="/recycle" className={linkClass}>
+            공유글 관리
+          </NavLink>
           <NavLink to="/push" className={linkClass}>
             푸시 관리
           </NavLink>

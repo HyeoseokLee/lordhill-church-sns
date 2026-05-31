@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MessageSquare,
@@ -8,6 +8,7 @@ import {
   Check,
   X,
   Trash2,
+  ImagePlus,
 } from 'lucide-react';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
@@ -44,6 +45,9 @@ export default function RecycleDetailPage() {
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [newImages, setNewImages] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // 댓글 상태
   const [commentText, setCommentText] = useState('');
@@ -75,18 +79,119 @@ export default function RecycleDetailPage() {
   const handleEditStart = () => {
     setEditTitle(item?.title || '');
     setEditContent(item?.content || '');
+    setNewImages([]);
+    setNewPreviews([]);
     setIsEditing(true);
   };
   const handleEditCancel = () => {
     setIsEditing(false);
+    newPreviews.forEach(url => URL.revokeObjectURL(url));
+    setNewImages([]);
+    setNewPreviews([]);
   };
+
+  // 수정 모드 — 기존 이미지 삭제 (즉시 DB + S3)
+  const handleDeleteExistingMedia = async (mediaId: number) => {
+    try {
+      await recycleApi.deleteMedia(String(mediaId));
+      await mutateItem();
+    } catch {
+      /* */
+    }
+  };
+
+  // 수정 모드 — 새 이미지 추가
+  const handleEditAddImages = useCallback(
+    (files: File[]) => {
+      const existingCount = item?.media?.length || 0;
+      const remaining = 10 - existingCount - newImages.length;
+      const selected = files.slice(0, remaining);
+      if (selected.length === 0) return;
+      setNewImages(prev => [...prev, ...selected]);
+      setNewPreviews(prev => [
+        ...prev,
+        ...selected.map(f => URL.createObjectURL(f)),
+      ]);
+    },
+    [newImages.length, item?.media?.length],
+  );
+
+  // 수정 모드 — 새 이미지 제거
+  const handleRemoveNewImage = (index: number) => {
+    URL.revokeObjectURL(newPreviews[index]);
+    setNewImages(prev => prev.filter((_, i) => i !== index));
+    setNewPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 수정 모드 — 네이티브 브릿지 연결
+  const editAddImagesRef = useRef(handleEditAddImages);
+  useEffect(() => {
+    editAddImagesRef.current = handleEditAddImages;
+  }, [handleEditAddImages]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    window.__onImagesPicked = pickedImages => {
+      const files = pickedImages.map(img => {
+        const byteString = atob(img.base64.split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        return new File([ab], img.filename, { type: img.contentType });
+      });
+      editAddImagesRef.current(files);
+    };
+    return () => {
+      delete window.__onImagesPicked;
+    };
+  }, [isEditing]);
+
+  // 수정 모드 — 사진 추가 버튼 (네이티브 → 웹 폴백)
+  const handleEditPickImages = useCallback(() => {
+    const existingCount = item?.media?.length || 0;
+    const remaining = 10 - existingCount - newImages.length;
+    if (remaining <= 0) return;
+    if (window.webkit?.messageHandlers?.pickImages) {
+      window.webkit.messageHandlers.pickImages.postMessage(remaining);
+      return;
+    }
+    if (window.AndroidBridge?.pickImages) {
+      window.AndroidBridge.pickImages(remaining);
+      return;
+    }
+    editFileInputRef.current?.click();
+  }, [item?.media?.length, newImages.length]);
+
   const handleEditSave = async () => {
     if (!recycleId || !editTitle.trim()) return;
     setIsSaving(true);
     try {
-      await recycleApi.update(recycleId, editTitle.trim(), editContent.trim());
+      let newMediaKeys: string[] = [];
+      if (newImages.length > 0) {
+        const filesMeta = newImages.map(f => ({
+          filename: f.name,
+          contentType: f.type,
+        }));
+        const { data: presigned } = await recycleApi.presignImages(filesMeta);
+        await Promise.all(
+          presigned.map((p: any, i: number) =>
+            recycleApi.uploadToS3(p.presignedUrl, newImages[i]),
+          ),
+        );
+        newMediaKeys = presigned.map((p: any) => p.key);
+      }
+      await recycleApi.update(
+        recycleId,
+        editTitle.trim(),
+        editContent.trim(),
+        newMediaKeys,
+      );
       await mutateItem();
       setIsEditing(false);
+      setNewImages([]);
+      setNewPreviews([]);
       window.dispatchEvent(new Event('recycle-refresh'));
     } catch {
       /* */
@@ -264,6 +369,65 @@ export default function RecycleDetailPage() {
                 onChange={e => setEditContent(e.target.value)}
                 maxLength={contentLimit.postMaxLength}
                 className="w-full min-h-[120px] bg-surface rounded-[12px] p-3 text-[15px] text-text resize-none outline-none mt-3"
+              />
+              {/* 기존 이미지 + 새 이미지 미리보기 */}
+              <div className="flex gap-2 flex-wrap mt-3">
+                {item.media?.map((m: any) => (
+                  <div
+                    key={m.id}
+                    className="relative w-20 h-20 rounded-[8px] overflow-hidden"
+                  >
+                    <img
+                      src={m.url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => handleDeleteExistingMedia(m.id)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center"
+                    >
+                      <X size={12} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+                {newPreviews.map((src, i) => (
+                  <div
+                    key={src}
+                    className="relative w-20 h-20 rounded-[8px] overflow-hidden border-2 border-accent"
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={() => handleRemoveNewImage(i)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center"
+                    >
+                      <X size={12} className="text-white" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {/* 이미지 추가 버튼 */}
+              <button
+                onClick={handleEditPickImages}
+                disabled={(item.media?.length || 0) + newImages.length >= 10}
+                className="mt-3 flex items-center gap-2 px-4 py-2 bg-surface rounded-[12px] text-text-muted text-[13px] font-semibold hover:bg-surface-strong transition-colors duration-150 disabled:opacity-40"
+              >
+                <ImagePlus size={16} strokeWidth={1.5} />
+                사진 추가
+              </button>
+              <input
+                ref={editFileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={e => {
+                  handleEditAddImages(Array.from(e.target.files || []));
+                  e.target.value = '';
+                }}
+                className="hidden"
               />
               <div className="flex justify-end gap-2 mt-2">
                 <button

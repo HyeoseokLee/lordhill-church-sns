@@ -252,6 +252,11 @@ export const getPosts = async (req, res) => {
         as: 'user',
         attributes: ['id', 'nickname', 'profileImageUrl'],
       },
+      {
+        model: models.PostMedia,
+        as: 'media',
+        attributes: ['id', 'url', 'order'],
+      },
     ],
     paranoid: false,
     order: [['createdAt', 'DESC']],
@@ -320,6 +325,192 @@ export const getPosts = async (req, res) => {
     page: parseInt(page, 10),
     totalPages: Math.ceil(count / pageSize),
   });
+};
+
+// 어드민 공유글 목록 (페이지네이션, 삭제 포함)
+export const getRecycles = async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+  const pageSize = Math.min(parseInt(limit, 10), 50);
+  const offset = (parseInt(page, 10) - 1) * pageSize;
+
+  const { rows, count } = await models.Recycle.findAndCountAll({
+    include: [
+      {
+        model: models.User,
+        as: 'user',
+        attributes: ['id', 'nickname', 'profileImageUrl'],
+      },
+      {
+        model: models.RecycleMedia,
+        as: 'media',
+        attributes: ['id', 'url', 'order'],
+      },
+    ],
+    paranoid: false,
+    order: [['createdAt', 'DESC']],
+    limit: pageSize,
+    offset,
+  });
+
+  const ids = rows.map((r) => r.id);
+  const commentCounts = await models.RecycleComment.findAll({
+    attributes: [
+      'recycleId',
+      [models.sequelize.fn('COUNT', models.sequelize.col('id')), 'count'],
+    ],
+    where: { recycleId: ids },
+    paranoid: false,
+    group: ['recycleId'],
+    raw: true,
+  });
+  const commentMap = Object.fromEntries(
+    commentCounts.map((c) => [c.recycleId, parseInt(c.count, 10)]),
+  );
+
+  // 댓글 목록
+  const comments = await models.RecycleComment.findAll({
+    where: { recycleId: ids },
+    paranoid: false,
+    include: [
+      { model: models.User, as: 'user', attributes: ['id', 'nickname'] },
+    ],
+    order: [['createdAt', 'ASC']],
+  });
+  const commentListMap = {};
+  for (const c of comments) {
+    if (!commentListMap[c.recycleId]) commentListMap[c.recycleId] = [];
+    commentListMap[c.recycleId].push(c);
+  }
+
+  const items = rows.map((item) => ({
+    ...item.toJSON(),
+    commentCount: commentMap[item.id] || 0,
+    comments: commentListMap[item.id] || [],
+  }));
+
+  res.json({
+    items,
+    total: count,
+    page: parseInt(page, 10),
+    totalPages: Math.ceil(count / pageSize),
+  });
+};
+
+// 공유글 삭제 (소프트 딜리트)
+export const deleteRecycleByAdmin = async (req, res) => {
+  const item = await models.Recycle.findByPk(req.params.id);
+  if (!item) {
+    throw new ErrClass(ErrInfo.NotFound);
+  }
+  await models.RecycleComment.destroy({ where: { recycleId: item.id } });
+  await item.destroy();
+  await logAudit(req.user.id, 'delete_recycle', `recycle:${item.id}`, {
+    userId: item.userId,
+  });
+  res.json({ message: 'ok' });
+};
+
+// 공유글 복구
+export const restoreRecycle = async (req, res) => {
+  const item = await models.Recycle.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!item) {
+    throw new ErrClass(ErrInfo.NotFound);
+  }
+  await item.restore();
+  await models.RecycleComment.restore({ where: { recycleId: item.id } });
+  await logAudit(req.user.id, 'restore_recycle', `recycle:${item.id}`, {
+    userId: item.userId,
+  });
+  res.json({ message: 'ok' });
+};
+
+// 공유글 영구삭제 (하드 딜리트 + S3)
+export const permanentDeleteRecycle = async (req, res) => {
+  const item = await models.Recycle.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!item) {
+    throw new ErrClass(ErrInfo.NotFound);
+  }
+  const media = await models.RecycleMedia.findAll({
+    where: { recycleId: item.id },
+  });
+  if (media.length > 0) {
+    try {
+      await deleteFromS3(media.map((m) => m.url));
+    } catch (err) {
+      logger.error('s3-recycle-images-delete-failed', {
+        error: err.message,
+      });
+    }
+  }
+  await models.RecycleComment.destroy({
+    where: { recycleId: item.id },
+    force: true,
+  });
+  await models.RecycleMedia.destroy({ where: { recycleId: item.id } });
+  await item.destroy({ force: true });
+  await logAudit(
+    req.user.id,
+    'permanent_delete_recycle',
+    `recycle:${item.id}`,
+    { userId: item.userId },
+  );
+  res.json({ message: 'ok' });
+};
+
+// 공유글 댓글 삭제 (소프트)
+export const deleteRecycleComment = async (req, res) => {
+  const comment = await models.RecycleComment.findByPk(req.params.id);
+  if (!comment) {
+    throw new ErrClass(ErrInfo.NotFoundComment);
+  }
+  await comment.destroy();
+  await logAudit(
+    req.user.id,
+    'delete_recycle_comment',
+    `recycle_comment:${comment.id}`,
+    { recycleId: comment.recycleId },
+  );
+  res.json({ message: 'ok' });
+};
+
+// 공유글 댓글 복구
+export const restoreRecycleComment = async (req, res) => {
+  const comment = await models.RecycleComment.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!comment) {
+    throw new ErrClass(ErrInfo.NotFoundComment);
+  }
+  await comment.restore();
+  await logAudit(
+    req.user.id,
+    'restore_recycle_comment',
+    `recycle_comment:${comment.id}`,
+    { recycleId: comment.recycleId },
+  );
+  res.json({ message: 'ok' });
+};
+
+// 공유글 댓글 영구삭제
+export const permanentDeleteRecycleComment = async (req, res) => {
+  const comment = await models.RecycleComment.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!comment) {
+    throw new ErrClass(ErrInfo.NotFoundComment);
+  }
+  await comment.destroy({ force: true });
+  await logAudit(
+    req.user.id,
+    'permanent_delete_recycle_comment',
+    `recycle_comment:${comment.id}`,
+    { recycleId: comment.recycleId },
+  );
+  res.json({ message: 'ok' });
 };
 
 export const getDashboard = async (_req, res) => {

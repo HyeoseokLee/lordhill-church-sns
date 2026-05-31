@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
 import ContentPage from './pages/ContentPage';
 import PushPage from './pages/PushPage';
+import RecyclePage from './pages/RecyclePage';
 
 function AdminRoute({ children }) {
   const [state, setState] = useState({ loading: true, isAdmin: false });
@@ -72,6 +73,14 @@ export default function App() {
           element={
             <AdminRoute>
               <PushPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/recycle"
+          element={
+            <AdminRoute>
+              <RecyclePage />
             </AdminRoute>
           }
         />

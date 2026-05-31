@@ -161,12 +161,10 @@ export default function RecyclePage() {
                     <img
                       src={getThumb(item)}
                       alt=""
-                      className={`w-full h-auto rounded-t-[10px] object-cover ${isMe ? 'ring-2 ring-accent' : ''}`}
+                      className="w-full h-auto rounded-t-[10px] object-cover"
                     />
                   ) : (
-                    <div
-                      className={`w-full aspect-square rounded-t-[10px] bg-surface-strong flex items-center justify-center ${isMe ? 'ring-2 ring-accent' : ''}`}
-                    >
+                    <div className="w-full aspect-square rounded-t-[10px] bg-surface-strong flex items-center justify-center">
                       <User
                         size={32}
                         strokeWidth={1}

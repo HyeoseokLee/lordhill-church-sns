@@ -14,6 +14,13 @@ import {
   deleteCommentByAdmin,
   restoreComment,
   permanentDeleteComment,
+  getRecycles,
+  deleteRecycleByAdmin,
+  restoreRecycle,
+  permanentDeleteRecycle,
+  deleteRecycleComment,
+  restoreRecycleComment,
+  permanentDeleteRecycleComment,
   getDashboard,
 } from '../controllers/admin.js';
 import { sendPush, getPushLogs } from '../controllers/push.js';
@@ -61,6 +68,21 @@ router.patch('/comments/:id/restore', asyncHandler(restoreComment));
 
 // 댓글 영구삭제 (하드 딜리트)
 router.delete('/comments/:id/permanent', asyncHandler(permanentDeleteComment));
+
+// 공유글 목록
+router.get('/recycles', asyncHandler(getRecycles));
+router.delete('/recycles/:id', asyncHandler(deleteRecycleByAdmin));
+router.patch('/recycles/:id/restore', asyncHandler(restoreRecycle));
+router.delete('/recycles/:id/permanent', asyncHandler(permanentDeleteRecycle));
+router.delete('/recycle-comments/:id', asyncHandler(deleteRecycleComment));
+router.patch(
+  '/recycle-comments/:id/restore',
+  asyncHandler(restoreRecycleComment),
+);
+router.delete(
+  '/recycle-comments/:id/permanent',
+  asyncHandler(permanentDeleteRecycleComment),
+);
 
 // 푸시 알림 전송
 router.post('/push/send', asyncHandler(sendPush));
