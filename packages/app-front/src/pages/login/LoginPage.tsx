@@ -131,9 +131,6 @@ export default function LoginPage() {
               className="w-full h-full object-cover"
             />
           </div>
-          <p className="mt-2 text-[15px] font-medium text-text-muted">
-            주안의교회
-          </p>
         </div>
 
         {/* 소셜 로그인 버튼 */}
@@ -195,14 +192,11 @@ export default function LoginPage() {
           <h3 className="text-[17px] font-bold text-text mb-3">
             다른 계정으로 로그인
           </h3>
-          <p className="text-[14px] text-text-muted">
-            이미 <strong className="text-text">{lastProviderName}</strong>으로
-            가입한 계정이 있습니다.
+          <p className="text-[14px] text-[#171717]">
+            이미 {lastProviderName}으로 가입한 계정이 있습니다.
           </p>
-          <p className="text-[14px] text-text-muted mt-2">
-            <strong className="text-text">{pendingProvider?.name}</strong>으로
-            로그인하면 <strong className="text-text">새로운 계정</strong>이
-            생성됩니다.
+          <p className="text-[14px] text-[#171717] mt-2">
+            {pendingProvider?.name}으로 로그인하면 새로운 계정이 생성됩니다.
           </p>
           <div className="mt-5 flex gap-3">
             <button

@@ -41,6 +41,11 @@ export default (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      status: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
       deletedAt: {
         type: DataTypes.DATE,
         allowNull: true,

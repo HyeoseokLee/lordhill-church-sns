@@ -82,6 +82,9 @@ export default function RecyclePage() {
                 댓글
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">
+                공유
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
                 상태
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">
@@ -92,13 +95,13 @@ export default function RecyclePage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
+                <td colSpan={7} className="text-center py-8 text-gray-400">
                   불러오는 중...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
+                <td colSpan={7} className="text-center py-8 text-gray-400">
                   공유글이 없습니다.
                 </td>
               </tr>
@@ -131,6 +134,17 @@ export default function RecyclePage() {
                         className={`px-4 py-3 ${isDeleted ? 'text-gray-300' : 'text-gray-500'}`}
                       >
                         {item.commentCount || 0}
+                      </td>
+                      <td className="px-4 py-3">
+                        {item.status === 1 ? (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded text-xs font-medium">
+                            공유완료
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
+                            공유전
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {isDeleted ? (
@@ -184,7 +198,7 @@ export default function RecyclePage() {
 
                     {expandedId === item.id && (
                       <tr key={`detail-${item.id}`}>
-                        <td colSpan={6} className="bg-gray-50 px-6 py-4">
+                        <td colSpan={7} className="bg-gray-50 px-6 py-4">
                           <div className="mb-4">
                             <p className="text-xs font-medium text-gray-400 mb-1">
                               제목

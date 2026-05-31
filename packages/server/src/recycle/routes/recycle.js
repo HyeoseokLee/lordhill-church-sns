@@ -6,6 +6,7 @@ import {
   presignImages,
   createRecycle,
   updateRecycle,
+  updateStatus,
   deleteRecycle,
   deleteMedia,
   getComments,
@@ -30,6 +31,9 @@ router.post('/', asyncHandler(createRecycle));
 
 // 수정
 router.put('/:id', asyncHandler(updateRecycle));
+
+// 공유 상태 변경
+router.patch('/:id/status', asyncHandler(updateStatus));
 
 // 삭제 (소프트 딜리트)
 router.delete('/:id', asyncHandler(deleteRecycle));

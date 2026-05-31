@@ -9,7 +9,10 @@ import {
   X,
   Trash2,
   ImagePlus,
+  ChevronDown,
+  Circle,
 } from 'lucide-react';
+import Drawer from '@mui/material/Drawer';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -56,6 +59,9 @@ export default function RecycleDetailPage() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+
+  // 상태 변경 드로어
+  const [statusDrawerOpen, setStatusDrawerOpen] = useState(false);
 
   // 삭제 모달
   const [deleteModal, setDeleteModal] = useState<{
@@ -200,6 +206,21 @@ export default function RecycleDetailPage() {
     }
   };
 
+  // 상태 변경
+  const handleStatusChange = async (newStatus: number) => {
+    if (!recycleId) return;
+    setStatusDrawerOpen(false);
+    try {
+      await recycleApi.updateStatus(recycleId, newStatus);
+      await mutateItem();
+      window.dispatchEvent(new Event('recycle-refresh'));
+    } catch {
+      /* */
+    }
+  };
+
+  const isShared = item?.status === 1;
+
   // 삭제
   const handleDeleteConfirm = async () => {
     if (!deleteModal) return;
@@ -291,22 +312,88 @@ export default function RecycleDetailPage() {
 
       <div className="scrollInner" ref={scrollRef}>
         {/* 이미지 캐러셀 */}
-        {item?.media?.length > 0 && <ImageCarousel images={item.media} />}
+        {item?.media?.length > 0 && (
+          <div className="relative">
+            <div className={isShared ? 'grayscale' : ''}>
+              <ImageCarousel images={item.media} />
+            </div>
+            {isShared && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-white text-[28px] font-bold tracking-wider opacity-80 drop-shadow-lg">
+                  Shared
+                </span>
+              </div>
+            )}
+            {/* 상태 버튼 (작성자만) */}
+            {isMine && (
+              <button
+                onClick={() => setStatusDrawerOpen(true)}
+                className={`absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border ${
+                  isShared
+                    ? 'bg-white/90 border-gray-300 text-gray-400'
+                    : 'bg-white/90 border-accent text-accent'
+                }`}
+              >
+                <Circle
+                  size={6}
+                  fill={isShared ? '#9CA3AF' : '#40C057'}
+                  strokeWidth={0}
+                />
+                {isShared ? '공유완료' : '공유전'}
+                <ChevronDown size={12} strokeWidth={2} />
+              </button>
+            )}
+          </div>
+        )}
+        {/* 이미지 없을 때도 상태 버튼 표시 */}
+        {item && (!item.media || item.media.length === 0) && isMine && (
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setStatusDrawerOpen(true)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border ${
+                isShared
+                  ? 'bg-white border-gray-300 text-gray-400'
+                  : 'bg-white border-accent text-accent'
+              }`}
+            >
+              <Circle
+                size={6}
+                fill={isShared ? '#9CA3AF' : '#40C057'}
+                strokeWidth={0}
+              />
+              {isShared ? '공유완료' : '공유전'}
+              <ChevronDown size={12} strokeWidth={2} />
+            </button>
+          </div>
+        )}
 
         {/* 작성자 + 수정/삭제 */}
         <div className="flex items-center gap-3 mb-3">
           {item ? (
-            item.user?.profileImageUrl ? (
-              <img
-                src={item.user.profileImageUrl}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-surface-strong flex items-center justify-center flex-shrink-0">
-                <User size={20} strokeWidth={1.5} className="text-text-muted" />
-              </div>
-            )
+            <div className="relative flex-shrink-0">
+              {item.user?.profileImageUrl ? (
+                <img
+                  src={item.user.profileImageUrl}
+                  alt=""
+                  className={`w-10 h-10 rounded-full object-cover ${isMine ? 'ring-2 ring-accent ring-offset-1' : ''}`}
+                />
+              ) : (
+                <div
+                  className={`w-10 h-10 rounded-full bg-surface-strong flex items-center justify-center ${isMine ? 'ring-2 ring-accent ring-offset-1' : ''}`}
+                >
+                  <User
+                    size={20}
+                    strokeWidth={1.5}
+                    className="text-text-muted"
+                  />
+                </div>
+              )}
+              {isMine && (
+                <span className="absolute -bottom-[6px] -right-[11px] bg-white text-accent text-[11px] font-semibold italic px-[3px] py-[1px] rounded-full leading-none border border-accent">
+                  me
+                </span>
+              )}
+            </div>
           ) : (
             <div className="w-10 h-10 rounded-full bg-surface flex-shrink-0 animate-pulse" />
           )}
@@ -619,6 +706,53 @@ export default function RecycleDetailPage() {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteModal(null)}
       />
+
+      {/* 상태 변경 바텀 드로어 */}
+      <Drawer
+        anchor="bottom"
+        open={statusDrawerOpen}
+        onClose={() => setStatusDrawerOpen(false)}
+        slotProps={{
+          paper: {
+            sx: {
+              borderTopLeftRadius: '16px',
+              borderTopRightRadius: '16px',
+              maxWidth: '480px',
+              margin: '0 auto',
+            },
+          },
+        }}
+      >
+        <div className="px-5 pt-5 pb-8">
+          <p className="text-[15px] font-bold text-text mb-4">상태 변경</p>
+          <button
+            onClick={() => handleStatusChange(0)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-[12px] mb-2 ${
+              !isShared ? 'bg-accent/10' : 'hover:bg-surface'
+            }`}
+          >
+            <Circle size={8} fill="#40C057" strokeWidth={0} />
+            <span
+              className={`text-[14px] ${!isShared ? 'font-bold text-accent' : 'text-text'}`}
+            >
+              공유전
+            </span>
+          </button>
+          <button
+            onClick={() => handleStatusChange(1)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-[12px] ${
+              isShared ? 'bg-gray-100' : 'hover:bg-surface'
+            }`}
+          >
+            <Circle size={8} fill="#9CA3AF" strokeWidth={0} />
+            <span
+              className={`text-[14px] ${isShared ? 'font-bold text-gray-500' : 'text-text'}`}
+            >
+              공유완료
+            </span>
+          </button>
+        </div>
+      </Drawer>
     </FullHeightBox>
   );
 }

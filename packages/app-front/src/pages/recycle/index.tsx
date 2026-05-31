@@ -93,18 +93,26 @@ export default function RecyclePage() {
                     currentUser &&
                     String(item.user?.id) === String(currentUser.id);
                   const ring = isMe ? 'ring-2 ring-accent ring-offset-1' : '';
+                  const shared = item.status === 1;
                   return (
                     <div className="relative flex-shrink-0">
                       {getThumb(item) ? (
                         <img
                           src={getThumb(item)}
                           alt=""
-                          className={`w-16 h-16 rounded-[8px] object-cover ${ring}`}
+                          className={`w-16 h-16 rounded-[8px] object-cover ${ring} ${shared ? 'grayscale' : ''}`}
                         />
                       ) : (
                         <div
                           className={`w-16 h-16 rounded-[8px] bg-surface-strong ${ring}`}
                         />
+                      )}
+                      {shared && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-white text-[9px] font-bold drop-shadow">
+                            Shared
+                          </span>
+                        </div>
                       )}
                       {isMe && (
                         <span className="absolute -bottom-[6px] -right-[11px] bg-white text-accent text-[11px] font-semibold italic px-[3px] py-[1px] rounded-full leading-none border border-accent">
@@ -144,6 +152,7 @@ export default function RecyclePage() {
             {items.map((item: any) => {
               const isMe =
                 currentUser && String(item.user?.id) === String(currentUser.id);
+              const shared = item.status === 1;
               return (
                 <button
                   key={item.id}
@@ -156,12 +165,20 @@ export default function RecyclePage() {
                       me
                     </span>
                   )}
+                  {/* Shared 오버레이 */}
+                  {shared && getThumb(item) && (
+                    <div className="absolute top-0 left-0 right-0 bottom-8 flex items-center justify-center z-[5] pointer-events-none">
+                      <span className="text-white text-[16px] font-bold drop-shadow-lg opacity-80">
+                        Shared
+                      </span>
+                    </div>
+                  )}
                   {/* 이미지 (원본 비율) */}
                   {getThumb(item) ? (
                     <img
                       src={getThumb(item)}
                       alt=""
-                      className="w-full h-auto rounded-t-[10px] object-cover"
+                      className={`w-full h-auto rounded-t-[10px] object-cover ${shared ? 'grayscale' : ''}`}
                     />
                   ) : (
                     <div className="w-full aspect-square rounded-t-[10px] bg-surface-strong flex items-center justify-center">

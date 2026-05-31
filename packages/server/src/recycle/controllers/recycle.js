@@ -202,6 +202,25 @@ export const updateRecycle = async (req, res) => {
   res.json(result);
 };
 
+// 공유 상태 변경 (작성자만)
+export const updateStatus = async (req, res) => {
+  const item = await models.Recycle.findByPk(req.params.id);
+  if (!item) {
+    throw new ErrClass(ErrInfo.NotFound);
+  }
+  if (item.userId !== req.user.id) {
+    throw new ErrClass(ErrInfo.Forbidden);
+  }
+
+  const { status } = req.body;
+  if (status !== 0 && status !== 1) {
+    throw new ErrClass(ErrInfo.BadRequest, '유효하지 않은 상태값입니다.');
+  }
+
+  await item.update({ status });
+  res.json({ status: item.status });
+};
+
 // 삭제 (소프트 딜리트 + 댓글)
 export const deleteRecycle = async (req, res) => {
   const item = await models.Recycle.findByPk(req.params.id);
