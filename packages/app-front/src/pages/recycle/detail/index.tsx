@@ -328,7 +328,7 @@ export default function RecycleDetailPage() {
             {isMine && (
               <button
                 onClick={() => setStatusDrawerOpen(true)}
-                className={`absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border ${
+                className={`absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
                   isShared
                     ? 'bg-white/90 border-gray-300 text-gray-400'
                     : 'bg-white/90 border-accent text-accent'
@@ -350,7 +350,7 @@ export default function RecycleDetailPage() {
           <div className="flex justify-end mb-2">
             <button
               onClick={() => setStatusDrawerOpen(true)}
-              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
                 isShared
                   ? 'bg-white border-gray-300 text-gray-400'
                   : 'bg-white border-accent text-accent'
@@ -723,7 +723,7 @@ export default function RecycleDetailPage() {
           },
         }}
       >
-        <div className="px-5 pt-5 pb-8">
+        <div className="px-5 pt-5 pb-4">
           <p className="text-[15px] font-bold text-text mb-4">상태 변경</p>
           <button
             onClick={() => handleStatusChange(0)}
