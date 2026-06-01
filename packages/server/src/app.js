@@ -15,6 +15,7 @@ import commentRouter from './comment/routes/comment.js';
 import adminRouter from './admin/routes/admin.js';
 import adminAuthRouter from './admin/routes/auth.js';
 import fcmTokenRouter from './push/routes/fcmToken.js';
+import pushRouter from './push/routes/push.js';
 import recycleRouter from './recycle/routes/recycle.js';
 
 const app = express();
@@ -55,6 +56,9 @@ apiRouter.use('/posts', onlyLoginUser, onlyApprovedUser, postsRouter);
 
 // 돌고래/재활용 (승인된 사용자만)
 apiRouter.use('/recycles', onlyLoginUser, onlyApprovedUser, recycleRouter);
+
+// 알림 (승인된 사용자)
+apiRouter.use('/pushs', onlyLoginUser, onlyApprovedUser, pushRouter);
 
 // 푸시 토큰 (로그인한 사용자)
 apiRouter.use('/users', onlyLoginUser, fcmTokenRouter);

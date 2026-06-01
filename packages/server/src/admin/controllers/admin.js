@@ -345,6 +345,11 @@ export const getRecycles = async (req, res) => {
         as: 'media',
         attributes: ['id', 'url', 'order'],
       },
+      {
+        model: models.User,
+        as: 'toUser',
+        attributes: ['id', 'nickname'],
+      },
     ],
     paranoid: false,
     order: [['createdAt', 'DESC']],

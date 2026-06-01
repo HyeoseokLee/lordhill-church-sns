@@ -19,6 +19,7 @@ import PostDetailPage from '@/pages/feed/detail/index';
 import FeedWritePage from '@/pages/feed/post/index';
 import RecyclePostPage from '@/pages/recycle/post/index';
 import RecycleDetailPage from '@/pages/recycle/detail/index';
+import NotificationsPage from '@/pages/feed/notifications/index';
 import PrayerWritePage from '@/pages/prayer/write/index';
 import ProfilePage from '@/pages/my/profile/index';
 
@@ -51,6 +52,7 @@ const router = createBrowserRouter([
         children: [
           { path: 'post', element: <FeedWritePage /> },
           { path: 'detail/:postId', element: <PostDetailPage /> },
+          { path: 'notifications', element: <NotificationsPage /> },
         ],
       },
       // 돌고래(재활용) 탭

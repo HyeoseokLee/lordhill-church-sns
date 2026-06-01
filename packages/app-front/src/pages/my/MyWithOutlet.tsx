@@ -8,12 +8,13 @@ export default function MyWithOutlet() {
     hasOutlet,
     displayOutlet,
     isExiting,
+    isEntering,
     isSettled,
     showOverlay,
     transitionMs,
   } = useOutletTransition();
 
-  const parentShifted = hasOutlet && !isSettled;
+  const parentShifted = hasOutlet && !isEntering && !isSettled;
 
   return (
     <>
@@ -39,7 +40,10 @@ export default function MyWithOutlet() {
             bottom: 0,
             zIndex: 1200,
             backgroundColor: '#FFFFFF',
-            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
+            transform: isEntering ? 'translateX(100%)' : undefined,
+            animation: !isEntering
+              ? `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`
+              : undefined,
           }}
         >
           {displayOutlet}

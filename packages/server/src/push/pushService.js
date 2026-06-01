@@ -1,9 +1,22 @@
 import admin from '../firebase.js';
 import models from '../db.js';
 import logger from '../logger.js';
+import { userStatus } from '../define.js';
 
-// 특정 유저에게 푸시 전송
-export const sendPushToUser = async (userId, { title, body, data }) => {
+// 특정 유저에게 푸시 전송 + pushs 테이블 저장
+export const sendPushToUser = async (
+  userId,
+  { title, body, data, senderType = 'system' },
+) => {
+  // pushs 테이블에 알림 저장
+  await models.Push.create({
+    userId,
+    senderType,
+    title,
+    body,
+    path: data?.path || null,
+  });
+
   const tokens = await models.FcmToken.findAll({
     where: { userId },
     attributes: ['token'],
@@ -18,11 +31,52 @@ export const sendPushToUser = async (userId, { title, body, data }) => {
   return sendPushToTokens(tokenStrings, { title, body, data });
 };
 
-// 여러 토큰에 푸시 전송
+// 전체 유저에게 푸시 전송 + pushs 테이블 저장 (excludeUserId 제외)
+export const sendPushToAll = async (
+  { title, body, data, senderType = 'system' },
+  excludeUserId = null,
+) => {
+  // 승인된 전체 유저 조회
+  const where = { status: userStatus.approved };
+  if (excludeUserId) {
+    where.id = { [models.Sequelize.Op.ne]: excludeUserId };
+  }
+  const users = await models.User.findAll({
+    where,
+    attributes: ['id'],
+  });
+
+  if (users.length === 0) return { success: 0, failure: 0 };
+
+  // pushs 테이블에 유저별 알림 저장
+  const pushRecords = users.map((u) => ({
+    userId: u.id,
+    senderType,
+    title,
+    body,
+    path: data?.path || null,
+  }));
+  await models.Push.bulkCreate(pushRecords);
+
+  // FCM 토큰 조회
+  const userIds = users.map((u) => u.id);
+  const tokens = await models.FcmToken.findAll({
+    where: { userId: userIds },
+    attributes: ['token'],
+  });
+
+  if (tokens.length === 0) return { success: 0, failure: 0 };
+
+  return sendPushToTokens(
+    tokens.map((t) => t.token),
+    { title, body, data },
+  );
+};
+
+// 여러 토큰에 푸시 전송 (FCM 발송만, DB 저장 안 함)
 export const sendPushToTokens = async (tokens, { title, body, data }) => {
   if (tokens.length === 0) return { success: 0, failure: 0 };
 
-  // FCM 메시지: 공통 notification/data + 플랫폼별 apns/android 설정
   const message = {
     notification: { title, body },
     data: data || {},

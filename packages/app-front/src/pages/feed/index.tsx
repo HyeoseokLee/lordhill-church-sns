@@ -5,12 +5,14 @@ import { useFeed } from '@/hooks/api/useFeed';
 import { useAuthStore } from '@/stores/authStore';
 import { postApi } from '@/api/postApi';
 import { formatRelativeTime } from '@/util/dateUtil';
+import { useUnreadCount } from '@/hooks/api/usePushs';
 import ImageCarousel from '@/components/common/ImageCarousel';
 
 // 홈 피드 페이지
 export default function FeedPage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore(s => s.user);
+  const { count: unreadCount } = useUnreadCount();
   const { posts, hasMore, isLoading, isLoadingMore, loadMore, mutate } =
     useFeed();
   const observerRef = useRef<HTMLDivElement>(null);
@@ -53,8 +55,16 @@ export default function FeedPage() {
         <h1 className="text-[22px] font-extrabold tracking-tight text-text">
           손안의 교회
         </h1>
-        <button className="w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150">
+        <button
+          onClick={() => navigate('/feed/notifications')}
+          className="relative w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
+        >
           <Bell size={22} strokeWidth={1.5} />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-error text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
         </button>
       </header>
 

@@ -199,13 +199,20 @@ export default function RecyclePage() {
                     {expandedId === item.id && (
                       <tr key={`detail-${item.id}`}>
                         <td colSpan={7} className="bg-gray-50 px-6 py-4">
-                          <div className="mb-4">
-                            <p className="text-xs font-medium text-gray-400 mb-1">
-                              제목
-                            </p>
-                            <p className="text-sm font-bold text-gray-700">
-                              {item.title}
-                            </p>
+                          <div className="mb-4 flex items-start justify-between">
+                            <div>
+                              <p className="text-xs font-medium text-gray-400 mb-1">
+                                제목
+                              </p>
+                              <p className="text-sm font-bold text-gray-700">
+                                {item.title}
+                              </p>
+                            </div>
+                            {item.toUser && (
+                              <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-medium flex-shrink-0">
+                                {item.toUser.nickname}에게 공유됨
+                              </span>
+                            )}
                           </div>
                           <div className="mb-4">
                             <p className="text-xs font-medium text-gray-400 mb-1">
