@@ -9,6 +9,10 @@ export default (sequelize) => {
         foreignKey: 'userId',
         as: 'user',
       });
+      this.belongsTo(models.User, {
+        foreignKey: 'toUserId',
+        as: 'toUser',
+      });
       this.hasMany(models.RecycleMedia, {
         foreignKey: 'recycleId',
         as: 'media',
@@ -45,6 +49,12 @@ export default (sequelize) => {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
+      },
+      toUserId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'to_user_id',
+        references: { model: 'users', key: 'id' },
       },
       deletedAt: {
         type: DataTypes.DATE,

@@ -16,11 +16,15 @@ export default function FeedPage() {
   const observerRef = useRef<HTMLDivElement>(null);
 
   // 자식 페이지(글쓰기)에서 신호를 받으면 피드 새로고침
+  const mutateRef = useRef(mutate);
   useEffect(() => {
-    const handler = () => mutate();
+    mutateRef.current = mutate;
+  }, [mutate]);
+  useEffect(() => {
+    const handler = () => mutateRef.current();
     window.addEventListener('feed-refresh', handler);
     return () => window.removeEventListener('feed-refresh', handler);
-  }, [mutate]);
+  }, []);
 
   // 무한스크롤 — IntersectionObserver
   const handleObserver = useCallback(

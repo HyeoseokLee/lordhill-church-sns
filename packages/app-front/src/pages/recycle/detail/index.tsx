@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  MessageSquare,
   Send,
   User,
   Pencil,
@@ -9,10 +8,9 @@ import {
   X,
   Trash2,
   ImagePlus,
-  ChevronDown,
   Circle,
 } from 'lucide-react';
-import Drawer from '@mui/material/Drawer';
+import Dialog from '@mui/material/Dialog';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import ConfirmModal from '@/components/common/ConfirmModal';
@@ -60,8 +58,9 @@ export default function RecycleDetailPage() {
   const [editCommentText, setEditCommentText] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
 
-  // 상태 변경 드로어
-  const [statusDrawerOpen, setStatusDrawerOpen] = useState(false);
+  // 공유 모달
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedToUserId, setSelectedToUserId] = useState<number | null>(null);
 
   // 삭제 모달
   const [deleteModal, setDeleteModal] = useState<{
@@ -206,12 +205,25 @@ export default function RecycleDetailPage() {
     }
   };
 
-  // 상태 변경
-  const handleStatusChange = async (newStatus: number) => {
-    if (!recycleId) return;
-    setStatusDrawerOpen(false);
+  // 공유 완료
+  const handleShareComplete = async () => {
+    if (!recycleId || !selectedToUserId) return;
+    setShareModalOpen(false);
     try {
-      await recycleApi.updateStatus(recycleId, newStatus);
+      await recycleApi.shareComplete(recycleId, selectedToUserId);
+      await mutateItem();
+      window.dispatchEvent(new Event('recycle-refresh'));
+    } catch {
+      /* */
+    }
+  };
+
+  // 공유 취소
+  const handleShareCancel = async () => {
+    if (!recycleId) return;
+    setShareModalOpen(false);
+    try {
+      await recycleApi.shareCancel(recycleId);
       await mutateItem();
       window.dispatchEvent(new Event('recycle-refresh'));
     } catch {
@@ -220,6 +232,18 @@ export default function RecycleDetailPage() {
   };
 
   const isShared = item?.status === 1;
+
+  // 댓글 단 유저 목록 (중복 제거, 본인 제외)
+  const commentUsers = comments.reduce((acc: any[], c: any) => {
+    if (
+      c.user &&
+      String(c.user.id) !== String(currentUser?.id) &&
+      !acc.find((u: any) => u.id === c.user.id)
+    ) {
+      acc.push(c.user);
+    }
+    return acc;
+  }, []);
 
   // 삭제
   const handleDeleteConfirm = async () => {
@@ -318,38 +342,36 @@ export default function RecycleDetailPage() {
               <ImageCarousel images={item.media} />
             </div>
             {isShared && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-white text-[20px] font-bold opacity-90 drop-shadow-lg">
+                  {item?.toUser?.nickname || ''}님에게
+                </span>
                 <span className="text-white text-[28px] font-bold tracking-wider opacity-80 drop-shadow-lg">
-                  Shared
+                  공유완료!
                 </span>
               </div>
             )}
-            {/* 상태 버튼 (작성자만) */}
-            {isMine && (
-              <button
-                onClick={() => setStatusDrawerOpen(true)}
-                className={`absolute top-[20px] right-0 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
-                  isShared
-                    ? 'bg-white/90 border-gray-300 text-gray-400'
-                    : 'bg-white/90 border-accent text-accent'
-                }`}
-              >
-                <Circle
-                  size={6}
-                  fill={isShared ? '#9CA3AF' : '#40C057'}
-                  strokeWidth={0}
-                />
-                {isShared ? '공유완료' : '공유전'}
-                <ChevronDown size={12} strokeWidth={2} />
-              </button>
-            )}
+            {/* 상태 라벨 */}
+            <div
+              className={`absolute top-[20px] right-0 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
+                isShared
+                  ? 'bg-white/90 border-gray-300 text-gray-400'
+                  : 'bg-white/90 border-accent text-accent'
+              }`}
+            >
+              <Circle
+                size={6}
+                fill={isShared ? '#9CA3AF' : '#40C057'}
+                strokeWidth={0}
+              />
+              {isShared ? '공유완료' : '공유전'}
+            </div>
           </div>
         )}
-        {/* 이미지 없을 때도 상태 버튼 표시 */}
-        {item && (!item.media || item.media.length === 0) && isMine && (
+        {/* 이미지 없을 때도 상태 라벨 표시 */}
+        {item && (!item.media || item.media.length === 0) && (
           <div className="flex justify-end mb-2">
-            <button
-              onClick={() => setStatusDrawerOpen(true)}
+            <div
               className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
                 isShared
                   ? 'bg-white border-gray-300 text-gray-400'
@@ -362,8 +384,7 @@ export default function RecycleDetailPage() {
                 strokeWidth={0}
               />
               {isShared ? '공유완료' : '공유전'}
-              <ChevronDown size={12} strokeWidth={2} />
-            </button>
+            </div>
           </div>
         )}
 
@@ -545,10 +566,19 @@ export default function RecycleDetailPage() {
                   {item.content}
                 </p>
               )}
-              <div className="flex items-center gap-1 mt-3 text-text-muted">
-                <MessageSquare size={16} strokeWidth={1.5} />
-                <span className="text-[13px]">{item.commentCount || 0}</span>
-              </div>
+              {/* 공유하기 / 공유취소 버튼 (작성자만) */}
+              {isMine && (
+                <button
+                  onClick={() => setShareModalOpen(true)}
+                  className={`w-full mt-4 py-3 text-[14px] font-bold rounded-[12px] transition-colors duration-150 active:scale-[0.98] ${
+                    isShared
+                      ? 'bg-white border border-accent text-accent hover:bg-accent-light'
+                      : 'bg-accent text-white hover:bg-accent-dark'
+                  }`}
+                >
+                  {isShared ? '공유취소' : '공유하기'}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -707,52 +737,103 @@ export default function RecycleDetailPage() {
         onCancel={() => setDeleteModal(null)}
       />
 
-      {/* 상태 변경 바텀 드로어 */}
-      <Drawer
-        anchor="bottom"
-        open={statusDrawerOpen}
-        onClose={() => setStatusDrawerOpen(false)}
+      {/* 공유하기 / 공유취소 모달 */}
+      <Dialog
+        open={shareModalOpen}
+        onClose={() => {
+          setShareModalOpen(false);
+          setSelectedToUserId(null);
+        }}
         slotProps={{
           paper: {
             sx: {
-              borderTopLeftRadius: '16px',
-              borderTopRightRadius: '16px',
-              maxWidth: '480px',
-              margin: '0 auto',
+              borderRadius: '16px',
+              padding: '24px',
+              minWidth: '300px',
+              maxWidth: '340px',
             },
           },
         }}
       >
-        <div className="px-5 pt-5 pb-4">
-          <p className="text-[15px] font-bold text-text mb-4">상태 변경</p>
-          <button
-            onClick={() => handleStatusChange(0)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-[12px] mb-2 ${
-              !isShared ? 'bg-accent/10' : 'hover:bg-surface'
-            }`}
-          >
-            <Circle size={8} fill="#40C057" strokeWidth={0} />
-            <span
-              className={`text-[14px] ${!isShared ? 'font-bold text-accent' : 'text-text'}`}
-            >
-              공유전
-            </span>
-          </button>
-          <button
-            onClick={() => handleStatusChange(1)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-[12px] ${
-              isShared ? 'bg-gray-100' : 'hover:bg-surface'
-            }`}
-          >
-            <Circle size={8} fill="#9CA3AF" strokeWidth={0} />
-            <span
-              className={`text-[14px] ${isShared ? 'font-bold text-gray-500' : 'text-text'}`}
-            >
-              공유완료
-            </span>
-          </button>
-        </div>
-      </Drawer>
+        {!isShared ? (
+          /* 공유하기 모달 */
+          <div>
+            <p className="text-[16px] font-bold text-text mb-4">공유하기</p>
+            {commentUsers.length === 0 ? (
+              <p className="text-[13px] text-text-muted mb-4">
+                댓글을 남긴 사용자가 없습니다.
+              </p>
+            ) : (
+              <div className="mb-4">
+                <p className="text-[13px] text-text-muted mb-2">
+                  공유받을 사람을 선택하세요
+                </p>
+                <select
+                  value={selectedToUserId || ''}
+                  onChange={e =>
+                    setSelectedToUserId(Number(e.target.value) || null)
+                  }
+                  className="w-full px-3 py-2.5 bg-surface rounded-[10px] text-[14px] text-text outline-none"
+                >
+                  <option value="">선택하세요</option>
+                  {commentUsers.map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nickname}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShareModalOpen(false);
+                  setSelectedToUserId(null);
+                }}
+                className="flex-1 py-2.5 text-[14px] font-semibold text-text-muted bg-surface rounded-[10px]"
+              >
+                닫기
+              </button>
+              <button
+                onClick={handleShareComplete}
+                disabled={!selectedToUserId}
+                className="flex-1 py-2.5 text-[14px] font-semibold text-white bg-accent rounded-[10px] disabled:opacity-40"
+              >
+                공유완료
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* 공유취소 모달 */
+          <div>
+            <p className="text-[16px] font-bold text-text mb-3">공유취소</p>
+            <p className="text-[14px] text-text leading-relaxed">
+              공유를 취소합니다.
+              {item?.toUser?.nickname && (
+                <>
+                  {' '}
+                  <span className="font-semibold">{item.toUser.nickname}</span>
+                  님에게 안내 푸시가 전달됩니다.
+                </>
+              )}
+            </p>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setShareModalOpen(false)}
+                className="flex-1 py-2.5 text-[14px] font-semibold text-text-muted bg-surface rounded-[10px]"
+              >
+                닫기
+              </button>
+              <button
+                onClick={handleShareCancel}
+                className="flex-1 py-2.5 text-[14px] font-semibold text-white bg-error rounded-[10px]"
+              >
+                공유취소
+              </button>
+            </div>
+          </div>
+        )}
+      </Dialog>
     </FullHeightBox>
   );
 }

@@ -12,7 +12,7 @@ export function useRecycles() {
   };
 
   const { data, error, isLoading, isValidating, size, setSize, mutate } =
-    useSWRInfinite(getKey, fetcher);
+    useSWRInfinite(getKey, fetcher, { revalidateAll: true });
 
   const items = data ? data.flatMap(page => page.items) : [];
   const hasMore = data ? data[data.length - 1]?.hasMore : false;

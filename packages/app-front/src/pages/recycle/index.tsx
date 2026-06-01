@@ -15,11 +15,15 @@ export default function RecyclePage() {
   const observerRef = useRef<HTMLDivElement>(null);
 
   // 자식 페이지에서 새로고침 신호
+  const mutateRef = useRef(mutate);
   useEffect(() => {
-    const handler = () => mutate();
+    mutateRef.current = mutate;
+  }, [mutate]);
+  useEffect(() => {
+    const handler = () => mutateRef.current();
     window.addEventListener('recycle-refresh', handler);
     return () => window.removeEventListener('recycle-refresh', handler);
-  }, [mutate]);
+  }, []);
 
   // 무한스크롤
   const handleObserver = useCallback(
@@ -124,9 +128,21 @@ export default function RecyclePage() {
                 })()}
                 {/* 텍스트 */}
                 <div className="flex-1 min-w-0 py-0.5">
-                  <p className="text-[14px] font-bold text-text truncate">
-                    {item.title}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[14px] font-bold text-text truncate flex-1">
+                      {item.title}
+                    </p>
+                    {item.commentCount > 0 && (
+                      <span className="text-[11px] text-text-muted flex-shrink-0">
+                        <MessageSquare
+                          size={11}
+                          strokeWidth={1.5}
+                          className="inline mr-0.5"
+                        />
+                        {item.commentCount}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[13px] text-text-muted truncate mt-0.5">
                     {item.content || ''}
                   </p>
@@ -134,13 +150,6 @@ export default function RecyclePage() {
                     <span>{item.user?.nickname || '익명'}</span>
                     <span>·</span>
                     <span>{formatRelativeTime(item.createdAt)}</span>
-                    {item.commentCount > 0 && (
-                      <>
-                        <span>·</span>
-                        <MessageSquare size={11} strokeWidth={1.5} />
-                        <span>{item.commentCount}</span>
-                      </>
-                    )}
                   </div>
                 </div>
               </button>
@@ -191,9 +200,21 @@ export default function RecyclePage() {
                   )}
                   {/* 텍스트 */}
                   <div className="px-2 py-2 bg-surface rounded-b-[10px]">
-                    <p className="text-[13px] font-bold text-text truncate">
-                      {item.title}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[13px] font-bold text-text truncate flex-1">
+                        {item.title}
+                      </p>
+                      {item.commentCount > 0 && (
+                        <span className="text-[10px] text-text-muted flex-shrink-0">
+                          <MessageSquare
+                            size={10}
+                            strokeWidth={1.5}
+                            className="inline mr-0.5"
+                          />
+                          {item.commentCount}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-text-muted truncate mt-0.5">
                       {item.content || ''}
                     </p>

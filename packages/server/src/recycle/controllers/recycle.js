@@ -4,7 +4,7 @@ import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
 import { generatePresignedUrl, deleteFromS3 } from '../../uploader/index.js';
-import { sendPushToTokens } from '../../push/pushService.js';
+import { sendPushToTokens, sendPushToUser } from '../../push/pushService.js';
 import logger from '../../logger.js';
 
 // 목록 (커서 페이지네이션)
@@ -72,6 +72,11 @@ export const getRecycle = async (req, res) => {
         model: models.User,
         as: 'user',
         attributes: ['id', 'nickname', 'profileImageUrl'],
+      },
+      {
+        model: models.User,
+        as: 'toUser',
+        attributes: ['id', 'nickname'],
       },
       {
         model: models.RecycleMedia,
@@ -222,8 +227,8 @@ export const updateRecycle = async (req, res) => {
   res.json(result);
 };
 
-// 공유 상태 변경 (작성자만)
-export const updateStatus = async (req, res) => {
+// 공유 완료 (작성자만, 공유받는 사람 지정 + 푸시)
+export const shareComplete = async (req, res) => {
   const item = await models.Recycle.findByPk(req.params.id);
   if (!item) {
     throw new ErrClass(ErrInfo.NotFound);
@@ -232,13 +237,65 @@ export const updateStatus = async (req, res) => {
     throw new ErrClass(ErrInfo.Forbidden);
   }
 
-  const { status } = req.body;
-  if (status !== 0 && status !== 1) {
-    throw new ErrClass(ErrInfo.BadRequest, '유효하지 않은 상태값입니다.');
+  const { toUserId } = req.body;
+  if (!toUserId) {
+    throw new ErrClass(ErrInfo.BadRequest, '공유받는 사람을 선택해주세요.');
   }
 
-  await item.update({ status });
-  res.json({ status: item.status });
+  await item.update({ status: 1, toUserId });
+
+  // 공유받는 사람에게 푸시
+  sendPushToUser(toUserId, {
+    title: '돌고래 공유',
+    body: `'${item.title}'을 공유받았어요! 확인해 보세요`,
+    data: { path: `/recycle/detail/${item.id}` },
+  }).catch((err) =>
+    logger.error('recycle-share-push-failed', { error: err.message }),
+  );
+
+  const result = await models.Recycle.findByPk(item.id, {
+    include: [
+      {
+        model: models.User,
+        as: 'user',
+        attributes: ['id', 'nickname', 'profileImageUrl'],
+      },
+      {
+        model: models.User,
+        as: 'toUser',
+        attributes: ['id', 'nickname'],
+      },
+      { model: models.RecycleMedia, as: 'media' },
+    ],
+  });
+  res.json(result);
+};
+
+// 공유 취소 (작성자만, 공유받은 사람에게 취소 푸시)
+export const shareCancel = async (req, res) => {
+  const item = await models.Recycle.findByPk(req.params.id);
+  if (!item) {
+    throw new ErrClass(ErrInfo.NotFound);
+  }
+  if (item.userId !== req.user.id) {
+    throw new ErrClass(ErrInfo.Forbidden);
+  }
+
+  const prevToUserId = item.toUserId;
+  await item.update({ status: 0, toUserId: null });
+
+  // 기존 공유받은 사람에게 취소 푸시
+  if (prevToUserId) {
+    sendPushToUser(prevToUserId, {
+      title: '돌고래 공유취소',
+      body: `'${item.title}'의 공유가 취소되었어요!`,
+      data: { path: `/recycle/detail/${item.id}` },
+    }).catch((err) =>
+      logger.error('recycle-share-cancel-push-failed', { error: err.message }),
+    );
+  }
+
+  res.json({ status: 0, toUserId: null });
 };
 
 // 삭제 (소프트 딜리트 + 댓글)

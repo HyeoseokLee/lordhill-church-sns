@@ -29,9 +29,13 @@ export const recycleApi = {
     newMediaKeys?: string[],
   ) => axiosInstance.put(`/recycles/${id}`, { title, content, newMediaKeys }),
 
-  // 공유 상태 변경 (0: 공유전, 1: 공유완료)
-  updateStatus: (id: string, status: number) =>
-    axiosInstance.patch(`/recycles/${id}/status`, { status }),
+  // 공유 완료 (toUserId 지정)
+  shareComplete: (id: string, toUserId: number) =>
+    axiosInstance.patch(`/recycles/${id}/share`, { toUserId }),
+
+  // 공유 취소
+  shareCancel: (id: string) =>
+    axiosInstance.patch(`/recycles/${id}/share/cancel`),
 
   // 삭제
   delete: (id: string) => axiosInstance.delete(`/recycles/${id}`),
