@@ -4,6 +4,8 @@ import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
 import { generatePresignedUrl, deleteFromS3 } from '../../uploader/index.js';
+import { sendPushToTokens } from '../../push/pushService.js';
+import logger from '../../logger.js';
 
 // 목록 (커서 페이지네이션)
 export const getRecycles = async (req, res) => {
@@ -149,6 +151,24 @@ export const createRecycle = async (req, res) => {
       { model: models.RecycleMedia, as: 'media' },
     ],
   });
+
+  // 작성자 외 전체 유저에게 푸시 발송
+  const tokens = await models.FcmToken.findAll({
+    where: { userId: { [Op.ne]: req.user.id } },
+    attributes: ['token'],
+  });
+  if (tokens.length > 0) {
+    sendPushToTokens(
+      tokens.map((t) => t.token),
+      {
+        title: '돌고래',
+        body: `'${title.trim()}' 돌고래가 새로 올라왔어요!`,
+        data: { path: `/recycle/detail/${item.id}` },
+      },
+    ).catch((err) =>
+      logger.error('recycle-push-failed', { error: err.message }),
+    );
+  }
 
   res.status(201).json(result);
 };

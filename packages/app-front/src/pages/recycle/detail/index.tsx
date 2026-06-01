@@ -328,7 +328,7 @@ export default function RecycleDetailPage() {
             {isMine && (
               <button
                 onClick={() => setStatusDrawerOpen(true)}
-                className={`absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
+                className={`absolute top-[20px] right-0 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
                   isShared
                     ? 'bg-white/90 border-gray-300 text-gray-400'
                     : 'bg-white/90 border-accent text-accent'
