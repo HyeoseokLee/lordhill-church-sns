@@ -397,6 +397,23 @@ export const createComment = async (req, res) => {
     ],
   });
 
+  // 본인 글에 본인이 댓글 단 게 아닐 때 작성자에게 푸시
+  if (item.userId !== req.user.id) {
+    const commenter = await models.User.findByPk(req.user.id, {
+      attributes: ['nickname'],
+    });
+    const author = await models.User.findByPk(item.userId, {
+      attributes: ['nickname'],
+    });
+    sendPushToUser(item.userId, {
+      title: '공유하기',
+      body: `${author.nickname}님의 돌고래 공유에 ${commenter.nickname}님이 댓글을 달았어요`,
+      data: { path: `/recycle/detail/${recycleId}` },
+    }).catch((err) =>
+      logger.error('recycle-comment-push-failed', { error: err.message }),
+    );
+  }
+
   res.status(201).json(result);
 };
 
