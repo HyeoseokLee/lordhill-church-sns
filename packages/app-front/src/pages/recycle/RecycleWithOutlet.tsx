@@ -56,7 +56,8 @@ export default function RecycleWithOutlet() {
             zIndex: 1200,
             backgroundColor: '#FFFFFF',
 
-            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out ${isExiting ? 0 : enterDelayMs}ms both`,
+            transform: isExiting ? undefined : 'translateX(100%)',
+            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out ${isExiting ? 0 : enterDelayMs}ms forwards`,
           }}
         >
           {displayOutlet}
