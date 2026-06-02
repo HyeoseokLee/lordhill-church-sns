@@ -896,15 +896,32 @@ pages/
 **트랜지션 흐름:**
 ```
 [진입] 자식 페이지로 이동
-1. 부모 콘텐츠가 translateX(-30%)로 살짝 왼쪽 밀림 (0.3s ease-out)
-2. 자식 페이지가 오른쪽에서 슬라이드 인 (slideInFromRight, 0.3s)
+0. 버튼 클릭 → delayNavigate로 150ms 딜레이 후 실제 navigate 실행 (네이티브 앱 느낌)
+1. 부모 콘텐츠가 translateX(-30%)로 살짝 왼쪽 밀림 (250ms ease-out)
+2. 자식 페이지가 오른쪽에서 슬라이드 인 (slideInFromRight, 250ms)
 3. 슬라이드 완료 후 부모가 transition:none으로 몰래 원위치 (오버레이 뒤라 안 보임)
 
 [퇴장] 뒤로가기
 1. 부모는 이미 원위치 — 흔들림 없음 (iOS 엣지 제스처 호환)
-2. 자식 페이지가 오른쪽으로 슬라이드 아웃 (slideOutToRight, 0.3s)
+2. 자식 페이지가 오른쪽으로 슬라이드 아웃 (slideOutToRight, 250ms)
 3. 애니메이션 완료 후 오버레이 언마운트
 ```
+
+**페이지 이동 딜레이 (`util/navigateUtil.ts`):**
+
+자식 페이지로 이동하는 모든 곳에서 `navigate()` 대신 `delayNavigate()`를 사용한다. 버튼 클릭 후 150ms 지연 후 실제 라우트 이동이 발생하여, iOS 네이티브 앱처럼 살짝 인터벌을 두고 화면 전환이 시작된다.
+
+```tsx
+import { delayNavigate } from '@/util/navigateUtil';
+
+// ❌ 바로 이동 (네이티브 느낌 없음)
+onClick={() => navigate('/feed/detail/123')}
+
+// ✅ 150ms 딜레이 후 이동 (네이티브 느낌)
+onClick={() => delayNavigate(navigate, '/feed/detail/123')}
+```
+
+**주의:** `delayNavigate`는 자식 페이지 **진입** 시에만 사용. 뒤로가기(`navigate(-1)`)나 `replace: true` 이동에는 사용하지 않음.
 
 **CSS 애니메이션 (index.css):**
 ```css

@@ -8,11 +8,9 @@ export default function PrayerWithOutlet() {
     hasOutlet,
     displayOutlet,
     isExiting,
-
     isSettled,
     showOverlay,
     transitionMs,
-    enterDelayMs,
   } = useOutletTransition();
 
   const parentShifted = hasOutlet && !isSettled;
@@ -25,7 +23,7 @@ export default function PrayerWithOutlet() {
           transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
           transition: isSettled
             ? 'none'
-            : `transform ${transitionMs}ms ease-out ${parentShifted ? enterDelayMs : 0}ms`,
+            : `transform ${transitionMs}ms ease-out`,
         }}
       >
         <PrayerPage />
@@ -41,9 +39,7 @@ export default function PrayerWithOutlet() {
             bottom: 0,
             zIndex: 1200,
             backgroundColor: '#FFFFFF',
-
-            transform: isExiting ? undefined : 'translateX(100%)',
-            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out ${isExiting ? 0 : enterDelayMs}ms forwards`,
+            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
           }}
         >
           {displayOutlet}

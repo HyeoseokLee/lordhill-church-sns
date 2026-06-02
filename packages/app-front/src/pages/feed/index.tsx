@@ -5,6 +5,7 @@ import { useFeed } from '@/hooks/api/useFeed';
 import { useAuthStore } from '@/stores/authStore';
 import { postApi } from '@/api/postApi';
 import { formatRelativeTime } from '@/util/dateUtil';
+import { delayNavigate } from '@/util/navigateUtil';
 import { useUnreadCount } from '@/hooks/api/usePushs';
 import ImageCarousel from '@/components/common/ImageCarousel';
 
@@ -56,7 +57,7 @@ export default function FeedPage() {
           손안의 교회
         </h1>
         <button
-          onClick={() => navigate('/feed/notifications')}
+          onClick={() => delayNavigate(navigate, '/feed/notifications')}
           className="relative w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
         >
           <Bell size={22} strokeWidth={1.5} />
@@ -141,7 +142,9 @@ export default function FeedPage() {
 
                 {/* 본문 + 이미지 (클릭 시 상세 이동) */}
                 <button
-                  onClick={() => navigate(`/feed/detail/${post.id}`)}
+                  onClick={() =>
+                    delayNavigate(navigate, `/feed/detail/${post.id}`)
+                  }
                   className="w-full text-left"
                 >
                   {post.content && (
@@ -171,7 +174,10 @@ export default function FeedPage() {
                   </button>
                   <button
                     onClick={() =>
-                      navigate(`/feed/detail/${post.id}?focus=comment`)
+                      delayNavigate(
+                        navigate,
+                        `/feed/detail/${post.id}?focus=comment`,
+                      )
                     }
                     className="flex items-center gap-1"
                   >

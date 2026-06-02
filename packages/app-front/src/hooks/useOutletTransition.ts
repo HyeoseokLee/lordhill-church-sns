@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useOutlet } from 'react-router-dom';
 
 const TRANSITION_MS = 250;
-const ENTER_DELAY_MS = 100;
 
 // 네이티브 푸시 트랜지션을 위한 outlet 상태 관리 훅
 export default function useOutletTransition() {
@@ -20,10 +19,10 @@ export default function useOutletTransition() {
       setDisplayOutlet(outlet);
       setIsExiting(false);
       setIsSettled(false);
-      // 슬라이드 인 완료(딜레이 + 애니메이션) 후 부모를 몰래 원위치
+      // 슬라이드 인 완료 후 부모를 몰래 원위치
       const settleTimer = setTimeout(() => {
         setIsSettled(true);
-      }, ENTER_DELAY_MS + TRANSITION_MS);
+      }, TRANSITION_MS);
       prevOutletRef.current = outlet;
       return () => clearTimeout(settleTimer);
     } else if (prevOutletRef.current) {
@@ -48,6 +47,5 @@ export default function useOutletTransition() {
     hasOutlet: !!outlet,
     showOverlay: !!outlet || isExiting,
     transitionMs: TRANSITION_MS,
-    enterDelayMs: ENTER_DELAY_MS,
   };
 }

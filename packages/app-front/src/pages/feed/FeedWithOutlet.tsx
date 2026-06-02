@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import useOutletTransition from '@/hooks/useOutletTransition';
+import { delayNavigate } from '@/util/navigateUtil';
 import FeedPage from './index';
 import BottomNavigation from '@/components/common/BottomNavigation';
 
@@ -14,7 +15,6 @@ export default function FeedWithOutlet() {
     isSettled,
     showOverlay,
     transitionMs,
-    enterDelayMs,
   } = useOutletTransition();
 
   const parentShifted = hasOutlet && !isSettled;
@@ -28,7 +28,7 @@ export default function FeedWithOutlet() {
           transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
           transition: isSettled
             ? 'none'
-            : `transform ${transitionMs}ms ease-out ${parentShifted ? enterDelayMs : 0}ms`,
+            : `transform ${transitionMs}ms ease-out`,
         }}
       >
         <FeedPage />
@@ -37,7 +37,7 @@ export default function FeedWithOutlet() {
       {!hasOutlet && (
         <div className="fixed bottom-[70px] left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 pointer-events-none">
           <button
-            onClick={() => navigate('/feed/post')}
+            onClick={() => delayNavigate(navigate, '/feed/post')}
             className="absolute bottom-0 right-5 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors duration-150 active:scale-[0.95] pointer-events-auto"
           >
             <Plus size={28} strokeWidth={2} />
@@ -56,8 +56,7 @@ export default function FeedWithOutlet() {
             bottom: 0,
             zIndex: 1200,
             backgroundColor: '#FFFFFF',
-            transform: isExiting ? undefined : 'translateX(100%)',
-            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out ${isExiting ? 0 : enterDelayMs}ms forwards`,
+            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
           }}
         >
           {displayOutlet}

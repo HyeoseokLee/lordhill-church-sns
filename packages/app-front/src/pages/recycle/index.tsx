@@ -4,6 +4,7 @@ import { List, LayoutGrid, MessageSquare, User } from 'lucide-react';
 import { useRecycles } from '@/hooks/api/useRecycles';
 import { useAuthStore } from '@/stores/authStore';
 import { formatRelativeTime } from '@/util/dateUtil';
+import { delayNavigate } from '@/util/navigateUtil';
 
 // 돌고래(재활용/나눔) 메인 페이지
 export default function RecyclePage() {
@@ -88,7 +89,9 @@ export default function RecyclePage() {
             {items.map((item: any) => (
               <button
                 key={item.id}
-                onClick={() => navigate(`/recycle/detail/${item.id}`)}
+                onClick={() =>
+                  delayNavigate(navigate, `/recycle/detail/${item.id}`)
+                }
                 className="w-full flex gap-3 py-3 border-b border-surface text-left"
               >
                 {/* 썸네일 */}
@@ -165,7 +168,9 @@ export default function RecyclePage() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => navigate(`/recycle/detail/${item.id}`)}
+                  onClick={() =>
+                    delayNavigate(navigate, `/recycle/detail/${item.id}`)
+                  }
                   className="w-full mb-2 break-inside-avoid text-left relative"
                 >
                   {/* me 뱃지 */}
