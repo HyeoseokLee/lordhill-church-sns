@@ -2663,6 +2663,80 @@ fun clearFcmToken(context: Context)
 - `App.jsx`에 `/push` → `PushPage` 라우트 추가 (AdminRoute 감싸기)
 - `Layout.jsx` 사이드바에 "푸시 관리" 메뉴 링크 추가
 
+### 17-6. 알림 시스템 (pushs 테이블 통합)
+
+푸시와 앱 내 알림을 `pushs` 테이블 하나로 통합 관리한다. 기존 `push_logs` 테이블은 더 이상 사용하지 않음.
+
+#### 테이블 구조
+
+```
+pushs
+- id (PK)
+- user_id (FK → users, 받는 사람)
+- sender_type (ENUM: 'system' | 'admin' | 'user')
+- title (VARCHAR 200)
+- body (TEXT)
+- path (VARCHAR 500, nullable — 탭 시 이동 경로)
+- is_read (BOOLEAN, default false)
+- created_at
+```
+
+인덱스: `[user_id, is_read]` (유저별 안 읽은 알림 조회 최적화)
+
+#### 저장 시점
+
+모든 푸시 발송 시 `pushs`에 자동 저장. `pushService.js`의 헬퍼 함수가 FCM 전송 + DB 저장을 동시 처리:
+
+| 헬퍼 | 용도 | DB 저장 |
+|------|------|---------|
+| `sendPushToUser(userId, opts)` | 특정 유저 1명 | 1건 insert |
+| `sendPushToAll(opts, excludeUserId)` | 전체 approved 유저 | 유저 수만큼 bulkCreate |
+| `sendPushToTokens(tokens, opts)` | FCM 발송만 (내부용) | DB 저장 안 함 |
+
+`senderType` 구분:
+- `system`: 댓글 알림, 돌고래 새 글 등 자동 발송
+- `admin`: 어드민이 수동 발송
+- `user`: 향후 유저 간 직접 알림용 (미사용)
+
+#### 사용자 알림 API
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/pushs` | 내 알림 목록 (페이지네이션) |
+| GET | `/api/pushs/unread-count` | 안 읽은 알림 개수 |
+| PATCH | `/api/pushs/:id/read` | 알림 읽음 처리 |
+| PATCH | `/api/pushs/read-all` | 전체 읽음 처리 |
+
+#### 어드민 푸시 이력
+
+기존 `push_logs` 대신 `pushs WHERE senderType='admin'`으로 조회. 어드민 `sendPush`에서 `senderType: 'admin'`으로 저장.
+
+#### 앱 프론트 알림 페이지
+
+- 경로: `/feed/notifications` (피드의 자식 페이지)
+- 진입: 피드 헤더 Bell 아이콘 클릭
+- Bell 아이콘에 안 읽은 개수 빨간 뱃지 표시 (30초마다 자동 갱신)
+- 알림 목록: 제목, 내용 2줄, 시간, 안 읽은 건은 초록 점 + 연한 배경
+- 알림 탭 → 읽음 처리 + path가 있으면 해당 페이지로 이동
+- 우상단 전체 읽음 버튼
+
+#### 파일 구조
+
+```
+서버:
+- src/push/models/Push.js          — Push 모델
+- src/push/controllers/push.js     — 사용자 알림 API (getMyPushs, getUnreadCount, markAsRead, markAllAsRead)
+- src/push/routes/push.js          — /api/pushs 라우트
+- src/push/pushService.js          — sendPushToUser (DB 저장 추가), sendPushToAll (신규)
+- src/admin/controllers/push.js    — 어드민 푸시 (PushLog → Push 전환)
+
+프론트:
+- src/api/pushApi.ts               — 알림 API 모듈
+- src/hooks/api/usePushs.ts        — usePushs (목록), useUnreadCount (안 읽은 수, 30초 갱신)
+- src/pages/feed/notifications/    — 알림 페이지
+- src/pages/feed/index.tsx         — Bell 아이콘에 unreadCount 뱃지 + 알림 페이지 이동
+```
+
 ### ⚠️ 시행착오 (전체)
 
 1. **FCM 토큰 등록 타이밍이 핵심** — 앱 시작 시 FCM 토큰은 발급되지만 JWT가 없어 서버 등록 불가. 로그인 완료 시 웹→네이티브 브릿지로 JWT를 전달하고, 그 시점에 FCM 등록을 재시도해야 함

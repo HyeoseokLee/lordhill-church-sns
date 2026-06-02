@@ -11,15 +11,13 @@ export default function FeedWithOutlet() {
     hasOutlet,
     displayOutlet,
     isExiting,
-    isEntering,
     isSettled,
     showOverlay,
     transitionMs,
+    enterDelayMs,
   } = useOutletTransition();
 
-  // 진입 중: 살짝 왼쪽 → settled 후: 몰래 원위치 (오버레이 뒤라 안 보임)
-  // 퇴장 시: 이미 원위치라 흔들림 없음
-  const parentShifted = hasOutlet && !isEntering && !isSettled;
+  const parentShifted = hasOutlet && !isSettled;
 
   return (
     <>
@@ -30,7 +28,7 @@ export default function FeedWithOutlet() {
           transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
           transition: isSettled
             ? 'none'
-            : `transform ${transitionMs}ms ease-out`,
+            : `transform ${transitionMs}ms ease-out ${parentShifted ? enterDelayMs : 0}ms`,
         }}
       >
         <FeedPage />
@@ -58,10 +56,7 @@ export default function FeedWithOutlet() {
             bottom: 0,
             zIndex: 1200,
             backgroundColor: '#FFFFFF',
-            transform: isEntering ? 'translateX(100%)' : undefined,
-            animation: !isEntering
-              ? `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`
-              : undefined,
+            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out ${isExiting ? 0 : enterDelayMs}ms both`,
           }}
         >
           {displayOutlet}
