@@ -599,6 +599,130 @@ scp -i <키>.pem ec2-user@<EC2-IP>:~/dump.sql ~/dump.sql
 8. **`fly ssh console`에서 `cd`나 환경변수 설정 안 됨** — `fly ssh console -C "cd /app && ..."` 불가. `fly ssh console -C "printenv KEY"`로 개별 확인. shell 경유 시 `sh -c '...'` 사용
 9. **Oracle Cloud 가입 실패 (포기 사유)** — 한국에서 가입 시 "계정을 생성하는 중 오류 발생" 빈번. 원인: 카드 DCC 설정, 반복 시도로 IP/카드 블랙리스트, 주소 불일치 등. 8회 이상 시도 + Oracle 지원 문의해도 해결 불가하여 Fly.io로 전환
 
+#### 6-1-6. 커스텀 도메인 + SSL
+
+Fly.io는 SSL 인증서를 자동 발급 (Let's Encrypt). nginx/certbot 불필요.
+
+**A. Fly.io에 도메인 추가**
+```bash
+fly certs add api.<도메인>
+```
+
+**B. DNS 설정 옵션 확인**
+```bash
+fly certs setup api.<도메인>
+```
+→ A/AAAA, CNAME, TXT 등 여러 옵션이 표시됨
+
+**C. 가비아 DNS 설정**
+
+가비아에 AAAA 타입이 없으므로 **CNAME + TXT** 방식 사용:
+
+| 타입 | 호스트 | 값 |
+|------|--------|-----|
+| CNAME | `api` | `<코드>.lordhill-sns-api.fly.dev.` |
+| TXT | `_fly-ownership.api` | `app-<코드>` |
+
+⚠️ 기존 `api` A 레코드가 있으면 **삭제 후** CNAME 생성 (A와 CNAME 공존 불가)
+
+**D. 인증서 확인**
+```bash
+fly certs check api.<도메인>
+# Status = Issued, Certificate Authority = Let's Encrypt 나오면 성공
+```
+
+#### 6-1-7. CI/CD (GitHub Actions → Fly.io)
+
+SSH 배포 대신 `fly deploy`로 배포. nginx, PM2, git pull 불필요.
+
+**A. deploy-server.yml**
+```yaml
+name: Deploy Server
+on:
+  push:
+    branches: [main]
+    paths: ['packages/server/**']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm install --workspace=packages/server
+      - name: Lint
+        run: cd packages/server && npm run lint
+      - name: Prettier check
+        run: cd packages/server && npm run prettier
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        working-directory: packages/server
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+```
+
+**B. Fly.io deploy token 생성 + GitHub Secret 등록**
+```bash
+# 토큰 생성
+fly tokens create deploy -x 999999h
+
+# GitHub Secret에 등록
+gh secret set FLY_API_TOKEN
+# → 토큰 붙여넣기 → Enter → Ctrl+D
+```
+
+**C. 기존 AWS용 GitHub Secrets 정리**
+
+| Secret | 변경 |
+|--------|------|
+| EC2_HOST | 삭제 가능 |
+| EC2_SSH_KEY | 삭제 가능 |
+| FLY_API_TOKEN | 신규 추가 |
+| AWS_ACCESS_KEY_ID | 유지 (S3/CloudFront 배포용) |
+| AWS_SECRET_ACCESS_KEY | 유지 |
+| CLOUDFRONT_DISTRIBUTION_ID | 유지 |
+
+#### 6-1-8. Firebase 푸시 설정
+
+Fly.io는 파일 시스템이 ephemeral이라 `firebase-service-account.json` 직접 배치 불가.
+환경변수로 JSON 전체를 전달:
+
+```bash
+# packages/server 디렉토리에서
+fly secrets set FIREBASE_SERVICE_ACCOUNT="$(cat firebase-service-account.json)"
+```
+
+코드에서는 환경변수 우선, 없으면 파일에서 읽기 (firebase.js에 이미 반영):
+```js
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+  : JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+```
+
+#### 6-1-9. AWS EC2/RDS 정리
+
+Fly.io + TiDB로 완전 이전 후, 검증이 끝나면 AWS 서버/DB 리소스를 삭제.
+⚠️ **S3 버킷, CloudFront는 삭제하지 않음** (프론트 배포 + 이미지 저장 계속 사용)
+
+```
+삭제 대상:
+1. EC2 인스턴스 종료 (중지 → 종료)
+2. RDS 인스턴스 삭제 (최종 스냅샷 생성 권장)
+3. 불필요한 Security Group 삭제
+4. Elastic IP 해제 (있으면)
+
+유지 대상:
+- S3 버킷 (프론트 + 이미지)
+- CloudFront 배포 (프론트 CDN)
+- ACM 인증서
+- 가비아 DNS의 www, admin CNAME (CloudFront 유지)
+```
+
 ---
 
 ### 옵션 2: 비즈니스 인프라 (AWS EC2 + RDS)
