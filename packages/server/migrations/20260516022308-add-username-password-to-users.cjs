@@ -1,10 +1,13 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
-    // username 컬럼 추가
+    // username 컬럼 추가 (TiDB: addColumn + unique 동시 불가 → 분리)
     await queryInterface.addColumn('users', 'username', {
       type: Sequelize.STRING(50),
       allowNull: true,
+    });
+    await queryInterface.addIndex('users', ['username'], {
       unique: true,
+      name: 'users_username_unique',
     });
 
     // password 컬럼 추가

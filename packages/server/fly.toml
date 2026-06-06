@@ -1,0 +1,25 @@
+# fly.toml app configuration file generated for lordhill-sns-api on 2026-06-06T14:37:51+09:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'lordhill-sns-api'
+primary_region = 'nrt'
+
+[build]
+
+[env]
+  NODE_CONFIG_DIR = './config'
+  NODE_ENV = 'production'
+  PORT = '3001'
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

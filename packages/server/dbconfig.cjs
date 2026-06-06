@@ -9,6 +9,11 @@ const config = {
   dialect: 'mysql',
   dialectOptions: {
     charset: 'utf8mb4_general_ci',
+    // TiDB Cloud Serverless는 SSL 필수 (공식 샘플 기준)
+    ssl:
+      process.env.DB_SSL === 'true'
+        ? { minVersion: 'TLSv1.2', rejectUnauthorized: true }
+        : null,
   },
 };
 

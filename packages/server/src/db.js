@@ -13,7 +13,8 @@ import Recycle from './recycle/models/Recycle.js';
 import RecycleMedia from './recycle/models/RecycleMedia.js';
 import RecycleComment from './recycle/models/RecycleComment.js';
 
-const dbconfig = config.sequelize;
+// config 패키지는 immutable 객체를 반환 — Sequelize가 내부 수정 시 hanging 발생
+const dbconfig = JSON.parse(JSON.stringify(config.sequelize));
 
 const db = {};
 

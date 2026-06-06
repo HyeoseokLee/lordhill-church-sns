@@ -12,7 +12,10 @@ const serviceAccountPath = resolve(
 );
 
 try {
-  const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+  // Fly.io: 환경변수로 전달된 JSON 우선, 없으면 파일에서 읽기
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+    : JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });

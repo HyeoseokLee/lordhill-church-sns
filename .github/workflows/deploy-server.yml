@@ -1,4 +1,4 @@
-# EC2에 Express 서버를 배포하는 워크플로우
+# Fly.io에 Express 서버를 배포하는 워크플로우
 name: Deploy Server
 
 # main 브랜치에 서버 코드가 푸시되면 실행
@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'packages/server/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -34,35 +35,13 @@ jobs:
       - name: Prettier check
         run: cd packages/server && npm run prettier
 
-      # 5. SSH 키 파일 준비
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/key.pem
-          chmod 400 ~/.ssh/key.pem
+      # 5. Fly.io CLI 설치
+      - name: Setup flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
 
-      # 6. EC2에 접속해서 코드 배포 + 서버 재시작
-      - name: Deploy to EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/key.pem ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
-            # 처음이면 git clone, 이후에는 git pull
-            if [ ! -d ~/app ]; then
-              git clone https://github.com/${{ github.repository }}.git ~/app
-            else
-              cd ~/app && git pull origin main
-            fi
-
-            # 서버 의존성 설치
-            cd ~/app
-            npm install --workspace=packages/server --production
-
-            # DB 마이그레이션 + 시더 (새 테이블/컬럼 변경 + 초기 데이터 자동 반영)
-            cd ~/app/packages/server
-            npx sequelize-cli db:migrate
-            npx sequelize-cli db:seed:all
-
-            # PM2로 서버 실행 (기존 프로세스 삭제 후 새로 시작 — 중복 방지)
-            pm2 delete lordhill-server 2>/dev/null || true
-            cd ~/app/packages/server && pm2 start npm --name lordhill-server -- run start
-            pm2 save
-          EOF
+      # 6. Fly.io에 배포
+      - name: Deploy to Fly.io
+        run: flyctl deploy --remote-only
+        working-directory: packages/server
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

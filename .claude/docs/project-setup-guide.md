@@ -286,7 +286,322 @@ volumes:
 
 ---
 
-## 6. AWS 인프라 세팅
+## 6. 인프라 세팅
+
+서버와 DB를 호스팅하는 인프라. 두 가지 옵션 중 택 1.
+프론트 배포(S3 + CloudFront)와 이미지 저장(S3)은 어느 옵션이든 AWS를 사용한다.
+
+- **옵션 1: 저가 인프라** — Fly.io (서버) + TiDB Cloud (DB). 월 ~$5. 영구 사용 가능
+- **옵션 2: 비즈니스 인프라** — AWS EC2 (서버) + RDS (DB). 프리 티어 12개월 무료, 이후 월 ~$47
+
+---
+
+### 옵션 1: 저가 인프라 (Fly.io + TiDB Cloud)
+
+Fly.io에 Express 서버를 Docker 컨테이너로 배포하고, TiDB Cloud Serverless를 MySQL 호환 DB로 사용.
+nginx, certbot, PM2 불필요 — Fly.io가 SSL, 프로세스 관리, 배포를 모두 처리.
+
+**아키텍처:**
+```
+사용자 → CloudFront → api.<도메인> → Fly.io (Docker 컨테이너, Express)
+                                       ↓
+                                    TiDB Cloud Serverless (MySQL 호환, SSL)
+
+이미지 업로드: Fly.io → AWS S3 (기존 그대로)
+```
+
+**비용:**
+| 항목 | 월 비용 |
+|------|---------|
+| Fly.io VM (shared-cpu-1x, 512MB) | ~$3.30 |
+| Fly.io 전용 IPv4 | $2.00 |
+| TiDB Cloud Serverless (5GB) | $0 |
+| **합계** | **~$5.30** |
+
+#### 6-1-1. TiDB Cloud 가입 + 클러스터 생성
+
+**A. 가입**
+1. https://tidbcloud.com 접속
+2. GitHub 또는 Google 계정으로 가입 (카드 등록 불필요)
+3. 가입 시 질문들:
+   - Database: **MySQL** 선택
+   - Programming language: **JavaScript** 선택
+   - Company: 아무거나 (개인이면 본인 이름)
+
+**B. 클러스터(DB) 생성**
+1. **Create Resource** 클릭
+2. Plan: **Starter** (무료)
+3. Instance Name: `<프로젝트명>` (예: `lordhill-sns`)
+4. Cloud Provider: **AWS**
+5. Region: **ap-northeast-1 (Tokyo)** — 한국과 가장 가까운 리전
+6. Capacity (Monthly Spending Limit): **$0** 그대로
+7. **Create** 클릭
+
+**C. DB 생성**
+- 클러스터 대시보드 → SQL Editor에서 실행:
+```sql
+CREATE DATABASE <db명>;
+```
+
+**D. Connection 정보 확인**
+- 클러스터 클릭 → **Connect** 버튼
+- Host, Port(4000), User, Password 메모
+- ⚠️ **비밀번호는 이 시점에 따로 저장!** 나중에 안 보임. 분실 시 Reset 필요
+
+#### 6-1-2. Fly.io 가입 + CLI 설치
+
+**A. CLI 설치**
+```bash
+brew install flyctl
+```
+
+**B. 가입**
+- https://fly.io 에서 회원가입 (Google 로그인 가능)
+- **신용카드 등록 필수** — 등록 안 하면 5분 후 머신 자동 종료됨
+  - 카드 등록: `fly billing add` 또는 https://fly.io/trial
+
+**C. CLI 로그인**
+```bash
+fly auth login
+```
+
+#### 6-1-3. 코드 변경 (서버)
+
+**A. Dockerfile 생성 (`packages/server/Dockerfile`)**
+```dockerfile
+FROM node:20-slim
+
+WORKDIR /app
+
+# package.json 복사 + 의존성 설치
+COPY package.json ./
+RUN npm install --omit=dev
+
+# 소스 복사
+COPY . .
+
+EXPOSE 3001
+ENV NODE_CONFIG_DIR=./config
+CMD ["node", "src/index.js"]
+```
+
+**B. fly.toml 생성 (`packages/server/fly.toml`)**
+```toml
+app = '<앱이름>'
+primary_region = 'nrt'  # Tokyo
+
+[build]
+
+[env]
+  NODE_CONFIG_DIR = './config'
+  NODE_ENV = 'production'
+  PORT = '3001'
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1  # 최소 1대 유지 (cold start 방지)
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
+```
+
+**C. config/default.cjs — TiDB SSL 지원 추가**
+
+`dialectOptions` 안에 SSL 설정 추가. TiDB Cloud Serverless는 SSL 필수.
+
+```js
+dialectOptions: {
+  charset: 'utf8mb4_general_ci',
+  // TiDB Cloud Serverless는 SSL 필수 (공식 샘플 기준)
+  ssl:
+    process.env.DB_SSL === 'true'
+      ? { minVersion: 'TLSv1.2', rejectUnauthorized: true }
+      : null,
+},
+```
+
+⚠️ **공식 TiDB 샘플 (tidb-samples/tidb-nodejs-sequelize-quickstart) 기준:**
+- `rejectUnauthorized: true` 사용 (Node.js 내장 Mozilla CA가 TiDB Cloud를 신뢰)
+- SSL 비활성화 시 `null` 반환 (`undefined`가 아님!)
+- `ssl: true` (boolean) 사용 불가 — "SSL profile must be an object" 에러
+
+**D. config/default.cjs — DB 포트 정수 변환**
+
+환경변수는 문자열이므로 parseInt 필수:
+```js
+port: parseInt(process.env.DB_PORT, 10) || 3307,
+```
+
+**E. dbconfig.cjs — 동일하게 SSL 추가**
+```js
+dialectOptions: {
+  charset: 'utf8mb4_general_ci',
+  ssl:
+    process.env.DB_SSL === 'true'
+      ? { minVersion: 'TLSv1.2', rejectUnauthorized: true }
+      : null,
+},
+```
+
+**F. db.js — config 객체 deep clone**
+
+⚠️ **핵심 시행착오:** `config` 패키지는 **immutable(읽기 전용) 객체**를 반환한다. Sequelize가 내부적으로 config 객체를 수정하려고 할 때, frozen 객체라서 **에러 없이 무한 대기(hanging)**된다.
+
+```js
+// ❌ 이렇게 하면 Sequelize가 hanging
+const dbconfig = config.sequelize;
+
+// ✅ deep clone으로 mutable 객체 전달
+const dbconfig = JSON.parse(JSON.stringify(config.sequelize));
+```
+
+**G. firebase.js — 환경변수 fallback 추가**
+
+Fly.io는 파일 시스템이 ephemeral이라 `firebase-service-account.json` 직접 배치 불가.
+환경변수 `FIREBASE_SERVICE_ACCOUNT`로 JSON을 전달하는 fallback 추가:
+
+```js
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+  : JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+```
+
+#### 6-1-4. Fly.io 앱 생성 + 배포
+
+**A. 앱 생성**
+```bash
+cd packages/server
+fly launch --no-deploy
+```
+- 기존 fly.toml 설정 사용할지 물으면 **Yes**
+- Tigris 약관 동의 물으면 **No** (사용 안 함)
+
+**B. 환경변수 설정**
+```bash
+fly secrets set \
+  DB_HOST="<TiDB Host>" \
+  DB_PORT="4000" \
+  DB_USERNAME="<TiDB User>" \
+  DB_PASSWORD='<TiDB 비밀번호>' \
+  DB_DATABASE="<db명>" \
+  DB_SSL="true" \
+  JWT_SECRET="<기존과 동일>" \
+  JWT_REFRESH_SECRET="<기존과 동일>" \
+  GOOGLE_CLIENT_ID="<기존>" \
+  GOOGLE_CLIENT_SECRET="<기존>" \
+  GOOGLE_CALLBACK_URL="https://api.<도메인>/api/auth/google/callback" \
+  KAKAO_CLIENT_ID="<기존>" \
+  KAKAO_CLIENT_SECRET="<기존>" \
+  KAKAO_CALLBACK_URL="https://api.<도메인>/api/auth/kakao/callback" \
+  NAVER_CLIENT_ID="<기존>" \
+  NAVER_CLIENT_SECRET="<기존>" \
+  NAVER_CALLBACK_URL="https://api.<도메인>/api/auth/naver/callback" \
+  AWS_ACCESS_KEY_ID="<기존>" \
+  AWS_SECRET_ACCESS_KEY="<기존>" \
+  AWS_REGION="ap-northeast-2" \
+  AWS_S3_BUCKET="<이미지 버킷명>" \
+  CLIENT_URL="https://www.<도메인>" \
+  ADMIN_URL="https://admin.<도메인>"
+```
+
+⚠️ **비밀번호에 특수문자가 있으면 작은따옴표로 감싸기:** `DB_PASSWORD='abc!@#'`
+
+Firebase 푸시를 사용하면:
+```bash
+fly secrets set FIREBASE_SERVICE_ACCOUNT='<firebase-service-account.json 전체 내용>'
+```
+
+**C. 배포**
+```bash
+fly deploy
+```
+
+**D. 머신 2대 생성 시 1대로 줄이기**
+```bash
+fly status  # 머신 목록 확인
+fly machine destroy <불필요한 머신 ID>
+```
+
+**E. 배포 확인**
+```bash
+# 로그 확인
+fly logs
+
+# 상태 확인
+fly status
+
+# 브라우저에서 확인
+# https://<앱이름>.fly.dev/api/auth/me → {"message":"unauthorized","code":3} 나오면 성공
+```
+
+#### 6-1-5. DB 마이그레이션 + 데이터 이전 (기존 RDS → TiDB)
+
+기존 AWS RDS에 데이터가 있는 경우, 테이블 생성(마이그레이션) 후 데이터를 이전한다.
+
+**A. Fly.io에서 마이그레이션 + 시더 실행**
+```bash
+fly ssh console
+# 접속 후:
+npx sequelize-cli db:migrate
+npx sequelize-cli db:seed:all
+exit
+```
+
+**B. RDS에서 데이터 덤프 (EC2 경유)**
+```bash
+ssh -i <키>.pem ec2-user@<EC2-IP> "mysqldump -h <RDS엔드포인트> -u admin -p'<RDS암호>' <db명> --no-create-info --complete-insert > ~/dump.sql && echo DONE"
+```
+- `--no-create-info`: 테이블 생성문 제외 (마이그레이션으로 이미 생성)
+- `--complete-insert`: 전체 컬럼명 포함 (TiDB 호환)
+
+**C. 로컬로 가져오기**
+```bash
+scp -i <키>.pem ec2-user@<EC2-IP>:~/dump.sql ~/dump.sql
+```
+
+**D. TiDB 기존 데이터 정리 + 복원**
+
+덤프 파일에 SequelizeMeta(마이그레이션 기록)와 users(시더 데이터)가 포함되어 충돌하므로 먼저 삭제:
+```bash
+# 로컬 mysql 클라이언트 설치: brew install mysql-client
+/opt/homebrew/opt/mysql-client/bin/mysql -h <TiDB-Host> -P 4000 -u <TiDB-User> -p'<TiDB암호>' --ssl-mode=REQUIRED <db명> -e "DELETE FROM users;"
+/opt/homebrew/opt/mysql-client/bin/mysql -h <TiDB-Host> -P 4000 -u <TiDB-User> -p'<TiDB암호>' --ssl-mode=REQUIRED <db명> -e "DELETE FROM SequelizeMeta;"
+/opt/homebrew/opt/mysql-client/bin/mysql -h <TiDB-Host> -P 4000 -u <TiDB-User> -p'<TiDB암호>' --ssl-mode=REQUIRED <db명> < ~/dump.sql
+```
+
+### ⚠️ 시행착오 (마이그레이션)
+
+1. **TiDB는 `addColumn` + `UNIQUE` 동시 불가** — MySQL에서는 `addColumn({ unique: true })`가 동작하지만, TiDB는 "unsupported add column constraint UNIQUE KEY" 에러. 해결: 컬럼 추가 후 `addIndex`로 분리
+2. **TiDB는 `addColumn` + `references`(외래키) 동시 불가** — "Key column doesn't exist in table" 에러. 해결: 컬럼 추가 후 `addIndex`로 분리 (외래키 제약은 생략)
+3. **덤프 파일에 SequelizeMeta 포함** — `--no-create-info`만으로는 SequelizeMeta 데이터가 포함됨. 마이그레이션으로 이미 기록이 있으므로 복원 시 "Duplicate entry" 에러. 복원 전 `DELETE FROM SequelizeMeta` 필요
+4. **TiDB 로컬 접속 시 `--ssl-mode=VERIFY_IDENTITY` 불가** — CA 인증서 필요 에러. `--ssl-mode=REQUIRED`로 사용
+5. **로컬에 mysql 클라이언트 없음** — `brew install mysql-client` 설치 후 `/opt/homebrew/opt/mysql-client/bin/mysql`로 실행
+
+---
+
+#### ⚠️ 시행착오 (Fly.io + TiDB)
+
+1. **Fly.io 신용카드 미등록 시 5분 후 머신 자동 종료** — "Trial machine stopping. To run for longer than 5m0s, add a credit card" 경고. `fly billing add`로 카드 등록 필수. 종량제이므로 사용한 만큼만 과금
+2. **TiDB Cloud 비밀번호 분실** — 생성 시 한 번만 표시됨. 분실 시 대시보드 → Connect → **Reset Password**로 재설정
+3. **`ssl: true` (boolean) 사용 불가** — Sequelize/mysql2에서 "SSL profile must be an object, instead it's a boolean" 에러. 반드시 객체(`{ minVersion: 'TLSv1.2', rejectUnauthorized: true }`)를 사용
+4. **`ssl: {}` 빈 객체도 hanging 발생** — 유효한 SSL 옵션 없이 빈 객체를 전달하면 연결이 무한 대기. 반드시 `minVersion`과 `rejectUnauthorized`를 명시
+5. **`config` 패키지 immutable 객체 문제 (가장 삽질한 부분)** — `config.sequelize`가 반환하는 객체는 frozen. Sequelize가 내부적으로 수정하려다 조용히 실패하여 `authenticate()`가 무한 대기. **`JSON.parse(JSON.stringify(config.sequelize))`로 deep clone 필수.** 이 문제는 에러 메시지 없이 hanging만 발생해서 디버깅이 매우 어려움
+6. **DB 연결 hanging 디버깅 방법** — 에러 없이 무한 대기 시 단계별로 격리 테스트:
+   - TCP 연결: `fly ssh console -C "node -e ...net.connect..."` → CONNECTED 확인
+   - mysql2 직접: `fly ssh console -C "node -e ...mysql2/promise..."` → SUCCESS 확인
+   - Sequelize 직접: `fly ssh console -C "node -e ...Sequelize..."` → DB_CONNECTED 확인
+   - 전체 앱: `fly ssh console` → `node src/index.js` → 실제 에러 확인
+7. **`fly deploy` WARNING "app is not listening"은 무시 가능한 경우 있음** — DB 연결에 시간이 걸리면 Fly.io 헬스체크 시점에 서버가 아직 안 뜸. 실제로는 몇 초 후 정상 시작됨. `fly ssh console`에서 `node src/index.js` → EADDRINUSE 에러가 나면 이미 정상 실행 중이라는 뜻
+8. **`fly ssh console`에서 `cd`나 환경변수 설정 안 됨** — `fly ssh console -C "cd /app && ..."` 불가. `fly ssh console -C "printenv KEY"`로 개별 확인. shell 경유 시 `sh -c '...'` 사용
+9. **Oracle Cloud 가입 실패 (포기 사유)** — 한국에서 가입 시 "계정을 생성하는 중 오류 발생" 빈번. 원인: 카드 DCC 설정, 반복 시도로 IP/카드 블랙리스트, 주소 불일치 등. 8회 이상 시도 + Oracle 지원 문의해도 해결 불가하여 Fly.io로 전환
+
+---
+
+### 옵션 2: 비즈니스 인프라 (AWS EC2 + RDS)
 
 ### 사전 준비
 ```bash
