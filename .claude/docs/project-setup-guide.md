@@ -1437,10 +1437,104 @@ export default function ChildPage() {
 }
 ```
 
+### 중첩 WithOutlet 패턴 (자식이 자체 자식을 가지는 경우)
+
+자식 페이지가 다시 자신의 자식 페이지를 가져야 하는 경우, 해당 자식도 **WithOutlet 래퍼**로 만든다. 모든 계층에서 슬라이드 인/아웃이 동작한다.
+
+**예: 알림 페이지** — 피드의 자식이면서 자체적으로 상세 페이지(게시글, 돌고래 등)를 자식으로 가짐.
+
+```
+feed (FeedWithOutlet)
+├── post (글쓰기)
+├── detail/:postId (피드에서 직접)
+└── notifications (NotificationsWithOutlet) ← 자체 WithOutlet을 가진 자식
+    ├── feed/:postId (알림→게시글 상세)
+    └── recycle/:recycleId (알림→돌고래 상세)
+```
+
+**트랜지션 흐름:**
+```
+피드 → 알림: 슬라이드 인 (feed의 자식)
+알림 → 상세: 슬라이드 인 (notifications의 자식)
+상세 → 알림: 슬라이드 아웃 (notifications의 자식 퇴장)
+알림 → 피드: 슬라이드 아웃 (feed의 자식 퇴장)
+```
+
+**라우터 구성:**
+```tsx
+{
+  path: 'feed',
+  element: <FeedWithOutlet />,
+  children: [
+    { path: 'post', element: <FeedWritePage /> },
+    { path: 'detail/:postId', element: <PostDetailPage /> },
+    {
+      path: 'notifications',
+      element: <NotificationsWithOutlet />,  // 자체 WithOutlet
+      children: [
+        { path: 'feed/:postId', element: <PostDetailPage /> },
+        { path: 'recycle/:recycleId', element: <RecycleDetailPage /> },
+      ],
+    },
+  ],
+}
+```
+
+**NotificationsWithOutlet 래퍼 (BottomNavigation 없음 — 부모 FeedWithOutlet이 관리):**
+```tsx
+import useOutletTransition from '@/hooks/useOutletTransition';
+import NotificationsPage from './index';
+
+export default function NotificationsWithOutlet() {
+  const { hasOutlet, displayOutlet, isExiting, isSettled, showOverlay, skipAnimation, transitionMs } =
+    useOutletTransition();
+
+  const parentShifted = hasOutlet && !isSettled;
+
+  return (
+    <>
+      <div
+        className="w-full flex-1 flex flex-col overflow-hidden"
+        style={{
+          transform: parentShifted ? 'translateX(-30%)' : 'translateX(0)',
+          transition: isSettled ? 'none' : `transform ${transitionMs}ms ease-out`,
+        }}
+      >
+        <NotificationsPage />
+      </div>
+      {showOverlay && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 1300, backgroundColor: '#FFFFFF',
+          animation: skipAnimation ? 'none'
+            : `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
+        }}>
+          {displayOutlet}
+        </div>
+      )}
+    </>
+  );
+}
+```
+
+**핵심 포인트:**
+- 중첩 WithOutlet의 오버레이 `zIndex`는 부모보다 높아야 함 (부모 1200 → 자식 1300)
+- 중첩 WithOutlet에는 BottomNavigation을 넣지 않음 — 최상위 WithOutlet(FeedWithOutlet 등)이 관리
+- 알림처럼 다양한 부모의 상세 페이지로 이동하는 경우, 절대경로를 상대경로로 변환:
+  ```tsx
+  // /feed/detail/123 → feed/123 (알림의 자식 라우트)
+  const feedMatch = item.path.match(/^\/feed\/detail\/(.+)$/);
+  if (feedMatch) {
+    delayNavigate(navigate, `feed/${feedMatch[1]}`);
+  }
+  ```
+- `useOutletTransition`의 `skipAnimation`: 자식→자식 전환(같은 레벨의 outlet이 교체될 때) 시 애니메이션 스킵. 중첩 구조에서는 각 계층이 독립적인 부모→자식 관계이므로 이 문제가 발생하지 않음
+
 ### ⚠️ 시행착오 (페이지 트랜지션)
 - **부모 translateX 복구 타이밍** — 자식 진입 시 부모를 왼쪽으로 밀었다가 퇴장 시 원위치하면, iOS 엣지 제스처 뒤로가기 시 부모가 왼쪽갔다 오른쪽으로 흔들림. 해결: 슬라이드 인 완료 후 `transition: none`으로 즉시 원위치 (오버레이 뒤라 안 보임)
 - **exit 애니메이션** — `{outlet && ...}`로 렌더링하면 outlet이 null이 되는 즉시 언마운트되어 퇴장 애니메이션 불가. `useOutletTransition` 훅이 이전 outlet을 `displayOutlet`으로 유지하며 타이머로 애니메이션 후 언마운트
 - **React Router index 라우트에 element 없으면 흰 화면** — `{ index: true }` (element 미지정)는 빈 Outlet을 렌더링. WithOutlet이 직접 메인 페이지를 렌더링하므로 index route 불필요, children에 자식 페이지만 등록
+- **자식→자식 전환 시 부모 흔들림** — 같은 WithOutlet 아래에서 자식이 다른 자식으로 교체되면(알림→상세→알림), outlet 변경을 새 진입으로 인식하여 부모가 translateX(-30%) 후 복구됨. 해결: `useOutletTransition`에서 이전 outlet도 truthy이면 `skipAnimation=true`로 설정. **더 나은 해결**: 해당 자식을 자체 WithOutlet으로 만들어 중첩 구조로 변경하면 각 전환이 독립적인 부모→자식 관계가 되어 문제 없음
 
 ### 독립 페이지 (MainLayout 밖)의 전체 높이 처리
 

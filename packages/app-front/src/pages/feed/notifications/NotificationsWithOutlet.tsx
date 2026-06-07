@@ -1,9 +1,8 @@
 import useOutletTransition from '@/hooks/useOutletTransition';
-import PrayerPage from './index';
-import BottomNavigation from '@/components/common/BottomNavigation';
+import NotificationsPage from './index';
 
-// 기도 탭 WithOutlet 래퍼 (네이티브 푸시 트랜지션)
-export default function PrayerWithOutlet() {
+// 알림 페이지 WithOutlet 래퍼 (알림→상세 슬라이드 트랜지션)
+export default function NotificationsWithOutlet() {
   const {
     hasOutlet,
     displayOutlet,
@@ -27,9 +26,8 @@ export default function PrayerWithOutlet() {
             : `transform ${transitionMs}ms ease-out`,
         }}
       >
-        <PrayerPage />
+        <NotificationsPage />
       </div>
-      <BottomNavigation />
       {showOverlay && (
         <div
           style={{
@@ -38,7 +36,7 @@ export default function PrayerWithOutlet() {
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: 1200,
+            zIndex: 1300,
             backgroundColor: '#FFFFFF',
             animation: skipAnimation
               ? 'none'

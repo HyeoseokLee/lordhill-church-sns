@@ -10,6 +10,7 @@ export default function MyWithOutlet() {
     isExiting,
     isSettled,
     showOverlay,
+    skipAnimation,
     transitionMs,
   } = useOutletTransition();
 
@@ -39,7 +40,9 @@ export default function MyWithOutlet() {
             bottom: 0,
             zIndex: 1200,
             backgroundColor: '#FFFFFF',
-            animation: `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
+            animation: skipAnimation
+              ? 'none'
+              : `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
           }}
         >
           {displayOutlet}

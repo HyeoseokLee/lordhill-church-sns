@@ -6,6 +6,7 @@ import SubPageHeader from '@/components/common/SubPageHeader';
 import { usePushs, useUnreadCount } from '@/hooks/api/usePushs';
 import { pushApi } from '@/api/pushApi';
 import { formatRelativeTime } from '@/util/dateUtil';
+import { delayNavigate } from '@/util/navigateUtil';
 
 // 알림 페이지
 export default function NotificationsPage() {
@@ -14,7 +15,7 @@ export default function NotificationsPage() {
   const { items, totalPages, isLoading, mutate } = usePushs(page);
   const { mutate: mutateUnread } = useUnreadCount();
 
-  // 알림 탭 → 읽음 처리 + 해당 경로로 이동
+  // 알림 탭 → 읽음 처리 + 해당 경로로 이동 (자식 라우트로 슬라이드 전환)
   const handleTap = async (item: any) => {
     if (!item.isRead) {
       await pushApi.markAsRead(String(item.id));
@@ -22,7 +23,17 @@ export default function NotificationsPage() {
       mutateUnread();
     }
     if (item.path) {
-      navigate(item.path);
+      // 절대경로를 알림의 자식 라우트 상대경로로 변환 (슬라이드 전환)
+      // /feed/detail/123 → feed/123, /recycle/detail/456 → recycle/456
+      const feedMatch = item.path.match(/^\/feed\/detail\/(.+)$/);
+      const recycleMatch = item.path.match(/^\/recycle\/detail\/(.+)$/);
+      if (feedMatch) {
+        delayNavigate(navigate, `feed/${feedMatch[1]}`);
+      } else if (recycleMatch) {
+        delayNavigate(navigate, `recycle/${recycleMatch[1]}`);
+      } else {
+        navigate(item.path);
+      }
     }
   };
 
