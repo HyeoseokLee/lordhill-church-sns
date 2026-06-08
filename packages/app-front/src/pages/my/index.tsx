@@ -240,7 +240,7 @@ export default function MyPage() {
         <div className="py-2">
           <button
             onClick={handleLogout}
-            className="w-full py-3.5 px-1 text-left text-[15px] text-error font-medium"
+            className="w-full py-3.5 px-1 text-center text-[15px] text-error font-medium"
           >
             로그아웃
           </button>
