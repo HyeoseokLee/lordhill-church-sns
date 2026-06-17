@@ -17,6 +17,8 @@ import adminAuthRouter from './admin/routes/auth.js';
 import fcmTokenRouter from './push/routes/fcmToken.js';
 import pushRouter from './push/routes/push.js';
 import recycleRouter from './recycle/routes/recycle.js';
+import counterpartyRouter from './counterparty/routes/counterparty.js';
+import transactionCategoryRouter from './transaction-category/routes/transactionCategory.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -66,6 +68,8 @@ apiRouter.use('/users', onlyLoginUser, fcmTokenRouter);
 // 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
 apiRouter.use('/admin', adminAuthRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, adminRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdmin, counterpartyRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionCategoryRouter);
 
 // 댓글 (승인된 사용자만 — use('/')는 모든 경로에 매칭되므로 반드시 마지막에 배치)
 apiRouter.use('/', onlyLoginUser, onlyApprovedUser, commentRouter);

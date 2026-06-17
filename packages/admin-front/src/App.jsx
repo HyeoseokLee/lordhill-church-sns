@@ -8,6 +8,8 @@ import UsersPage from './pages/UsersPage';
 import ContentPage from './pages/ContentPage';
 import PushPage from './pages/PushPage';
 import RecyclePage from './pages/RecyclePage';
+import OfferingPage from './pages/OfferingPage';
+import OfferingRegisterPage from './pages/OfferingRegisterPage';
 
 function AdminRoute({ children }) {
   const [state, setState] = useState({ loading: true, isAdmin: false });
@@ -81,6 +83,22 @@ export default function App() {
           element={
             <AdminRoute>
               <RecyclePage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/offering"
+          element={
+            <AdminRoute>
+              <OfferingPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/offering/register"
+          element={
+            <AdminRoute>
+              <OfferingRegisterPage />
             </AdminRoute>
           }
         />
