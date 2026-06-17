@@ -10,7 +10,10 @@ import { delayNavigate } from '@/util/navigateUtil';
 export default function RecyclePage() {
   const navigate = useNavigate();
   const currentUser = useAuthStore(s => s.user);
-  const [viewMode, setViewMode] = useState<'list' | 'card'>('card');
+  const [viewMode, setViewMode] = useState<'list' | 'card'>(() => {
+    const saved = localStorage.getItem('recycle-view-mode');
+    return saved === 'list' ? 'list' : 'card';
+  });
   const { items, hasMore, isLoading, isLoadingMore, loadMore, mutate } =
     useRecycles();
   const observerRef = useRef<HTMLDivElement>(null);
@@ -57,7 +60,13 @@ export default function RecyclePage() {
           돌고래
         </h1>
         <button
-          onClick={() => setViewMode(v => (v === 'list' ? 'card' : 'list'))}
+          onClick={() =>
+            setViewMode(v => {
+              const next = v === 'list' ? 'card' : 'list';
+              localStorage.setItem('recycle-view-mode', next);
+              return next;
+            })
+          }
           className="w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
         >
           {viewMode === 'list' ? (
@@ -71,9 +80,40 @@ export default function RecyclePage() {
       {/* 스크롤 영역 */}
       <div className="scrollInner">
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-[14px] text-text-muted">불러오는 중...</p>
-          </div>
+          viewMode === 'list' ? (
+            /* 리스트 뷰 스켈레톤 */
+            <div className="flex flex-col">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div
+                  key={i}
+                  className="flex gap-3 py-3 border-b border-surface animate-pulse"
+                >
+                  <div className="w-16 h-16 rounded-[8px] bg-surface-strong flex-shrink-0" />
+                  <div className="flex-1 py-0.5">
+                    <div className="h-3.5 w-3/5 bg-surface-strong rounded mb-2" />
+                    <div className="h-3 w-4/5 bg-surface rounded mb-2" />
+                    <div className="h-2.5 w-1/3 bg-surface rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* 카드 뷰 스켈레톤 */
+            <div className="columns-2 gap-2">
+              {[140, 200, 170, 120, 190, 150].map((h, i) => (
+                <div key={i} className="mb-2 break-inside-avoid animate-pulse">
+                  <div
+                    className="w-full rounded-t-[10px] bg-surface-strong"
+                    style={{ height: h }}
+                  />
+                  <div className="px-2 py-2 bg-surface rounded-b-[10px]">
+                    <div className="h-3.5 w-3/4 bg-surface-strong rounded mb-1.5" />
+                    <div className="h-2.5 w-1/2 bg-surface-strong rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-[15px] font-semibold text-text-muted mb-1">

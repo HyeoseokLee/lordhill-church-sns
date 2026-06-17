@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSWRConfig } from 'swr';
 import { Bell, MessageCircle, Heart, MessageSquare, User } from 'lucide-react';
 import { useFeed } from '@/hooks/api/useFeed';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,6 +13,7 @@ import ImageCarousel from '@/components/common/ImageCarousel';
 // 홈 피드 페이지
 export default function FeedPage() {
   const navigate = useNavigate();
+  const { mutate: swrMutate } = useSWRConfig();
   const currentUser = useAuthStore(s => s.user);
   const { count: unreadCount } = useUnreadCount();
   const { posts, hasMore, isLoading, isLoadingMore, loadMore, mutate } =
@@ -142,9 +144,10 @@ export default function FeedPage() {
 
                 {/* 본문 + 이미지 (클릭 시 상세 이동) */}
                 <button
-                  onClick={() =>
-                    delayNavigate(navigate, `/feed/detail/${post.id}`)
-                  }
+                  onClick={() => {
+                    swrMutate(`/posts/${post.id}`, post, false);
+                    delayNavigate(navigate, `/feed/detail/${post.id}`);
+                  }}
                   className="w-full text-left"
                 >
                   {post.content && (
@@ -173,12 +176,13 @@ export default function FeedPage() {
                     <span className="text-[12px]">{post.likeCount || 0}</span>
                   </button>
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      swrMutate(`/posts/${post.id}`, post, false);
                       delayNavigate(
                         navigate,
                         `/feed/detail/${post.id}?focus=comment`,
-                      )
-                    }
+                      );
+                    }}
                     className="flex items-center gap-1"
                   >
                     <MessageSquare size={16} strokeWidth={1.5} />
