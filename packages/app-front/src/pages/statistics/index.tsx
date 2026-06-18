@@ -1,0 +1,436 @@
+import { useState, useMemo } from 'react';
+import Chart from 'react-apexcharts';
+import useOfferingStats from '@/hooks/api/useOfferingStats';
+
+const MONTH_LABELS = [
+  '1월',
+  '2월',
+  '3월',
+  '4월',
+  '5월',
+  '6월',
+  '7월',
+  '8월',
+  '9월',
+  '10월',
+  '11월',
+  '12월',
+];
+
+// 숫자를 만원 단위 표시
+function formatWon(n: number) {
+  if (n >= 10000) return `${Math.round(n / 10000)}만`;
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}천`;
+  return n.toLocaleString();
+}
+
+// 숫자를 원 단위 콤마 포맷
+function formatFull(n: number) {
+  return n.toLocaleString('ko-KR') + '원';
+}
+
+// 차트 색상 팔레트
+const COLORS = [
+  '#40C057',
+  '#339AF0',
+  '#F06595',
+  '#FCC419',
+  '#845EF7',
+  '#FF922B',
+  '#20C997',
+  '#E64980',
+];
+
+// 통계 메인 페이지
+export default function StatisticsPage() {
+  const [year] = useState(2026);
+  const [type, setType] = useState<'income' | 'expense'>('income');
+  const [selectedMonth, setSelectedMonth] = useState(0); // 0 = 전체보기
+  const { data, isLoading } = useOfferingStats(year);
+
+  // 데이터가 있는 월만 필터
+  const activeMonths = useMemo(() => {
+    if (!data) return [];
+    return data.monthly.filter(m => m.income.total > 0 || m.expense.total > 0);
+  }, [data]);
+
+  // 전체보기 — 월별 추이 선 그래프 데이터
+  const trendSeries = useMemo(() => {
+    if (!data) return [];
+    const incomeData = data.monthly.map(m => m.income.total);
+    const expenseData = data.monthly.map(m => m.expense.total);
+    return type === 'income'
+      ? [{ name: '입금', data: incomeData }]
+      : [{ name: '출금', data: expenseData }];
+  }, [data, type]);
+
+  // 월별보기 — 카테고리별 도넛 차트 데이터
+  const monthData = useMemo(() => {
+    if (!data || selectedMonth === 0) return null;
+    const m = data.monthly[selectedMonth - 1];
+    return type === 'income' ? m.income : m.expense;
+  }, [data, selectedMonth, type]);
+
+  // 전체보기 — 카테고리별 총합 테이블
+  const totalByCategory = useMemo(() => {
+    if (!data) return [];
+    const map = new Map<string, number>();
+    for (const m of data.monthly) {
+      const items =
+        type === 'income' ? m.income.categories : m.expense.categories;
+      for (const c of items) {
+        map.set(c.categoryName, (map.get(c.categoryName) || 0) + c.total);
+      }
+    }
+    return [...map.entries()]
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [data, type]);
+
+  const grandTotal = useMemo(() => {
+    if (!data) return 0;
+    return data.monthly.reduce(
+      (sum, m) => sum + (type === 'income' ? m.income.total : m.expense.total),
+      0,
+    );
+  }, [data, type]);
+
+  return (
+    <>
+      {/* 상단 헤더 */}
+      <header className="w-full py-4 px-5">
+        <h1 className="text-[22px] font-extrabold tracking-tight text-text">
+          통계
+        </h1>
+      </header>
+
+      <div className="scrollInner">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <p className="text-[13px] text-text-muted">불러오는 중...</p>
+          </div>
+        ) : !data ? (
+          <div className="flex items-center justify-center py-20">
+            <p className="text-[13px] text-text-muted">
+              데이터를 불러올 수 없습니다.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* 입금/출금 토글 */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setType('income')}
+                className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
+                  type === 'income'
+                    ? 'bg-accent text-white'
+                    : 'bg-surface text-text-muted'
+                }`}
+              >
+                입금내역
+              </button>
+              <button
+                onClick={() => setType('expense')}
+                className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
+                  type === 'expense'
+                    ? 'bg-accent text-white'
+                    : 'bg-surface text-text-muted'
+                }`}
+              >
+                출금내역
+              </button>
+            </div>
+
+            {/* 월 선택 탭 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-3 scrollbar-hide">
+              <button
+                onClick={() => setSelectedMonth(0)}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${
+                  selectedMonth === 0
+                    ? 'bg-text text-white'
+                    : 'bg-surface text-text-muted'
+                }`}
+              >
+                전체
+              </button>
+              {MONTH_LABELS.map((label, idx) => {
+                const m = data.monthly[idx];
+                const hasData = m.income.total > 0 || m.expense.total > 0;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedMonth(idx + 1)}
+                    disabled={!hasData}
+                    className={`shrink-0 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${
+                      selectedMonth === idx + 1
+                        ? 'bg-text text-white'
+                        : hasData
+                          ? 'bg-surface text-text-muted'
+                          : 'bg-surface text-gray-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 전체보기 */}
+            {selectedMonth === 0 && (
+              <>
+                {/* 총합 */}
+                <div className="bg-surface rounded-2xl p-4 mb-4">
+                  <p className="text-[12px] text-text-muted mb-1">
+                    {year}년 {type === 'income' ? '총 입금' : '총 출금'}
+                  </p>
+                  <p className="text-[24px] font-extrabold text-text">
+                    {formatFull(grandTotal)}
+                  </p>
+                </div>
+
+                {/* 월별 추이 선 그래프 */}
+                {activeMonths.length > 0 && (
+                  <div className="bg-white rounded-2xl mb-4">
+                    <Chart
+                      type="area"
+                      height={220}
+                      series={trendSeries}
+                      options={{
+                        chart: {
+                          toolbar: { show: false },
+                          zoom: { enabled: false },
+                          fontFamily: 'Pretendard Variable',
+                        },
+                        colors: [type === 'income' ? '#40C057' : '#F06595'],
+                        stroke: { curve: 'smooth', width: 2.5 },
+                        fill: {
+                          type: 'gradient',
+                          gradient: {
+                            shadeIntensity: 1,
+                            opacityFrom: 0.3,
+                            opacityTo: 0.05,
+                          },
+                        },
+                        xaxis: {
+                          categories: MONTH_LABELS,
+                          labels: {
+                            style: { fontSize: '10px', colors: '#868E96' },
+                          },
+                          axisBorder: { show: false },
+                          axisTicks: { show: false },
+                        },
+                        yaxis: {
+                          labels: {
+                            formatter: (v: number) => formatWon(v),
+                            style: { fontSize: '10px', colors: '#868E96' },
+                          },
+                        },
+                        grid: {
+                          borderColor: '#F1F3F5',
+                          strokeDashArray: 3,
+                        },
+                        dataLabels: { enabled: false },
+                        tooltip: {
+                          y: {
+                            formatter: (v: number) => formatFull(v),
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 카테고리별 총합 테이블 */}
+                {totalByCategory.length > 0 && (
+                  <div className="bg-surface rounded-2xl overflow-hidden mb-6">
+                    <div className="px-4 py-3 border-b border-white/50">
+                      <p className="text-[13px] font-semibold text-text">
+                        카테고리별 {type === 'income' ? '입금' : '출금'}
+                      </p>
+                    </div>
+                    {totalByCategory.map((c, idx) => (
+                      <div
+                        key={c.name}
+                        className={`flex items-center justify-between px-4 py-3 ${
+                          idx < totalByCategory.length - 1
+                            ? 'border-b border-white/50'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{
+                              backgroundColor: COLORS[idx % COLORS.length],
+                            }}
+                          />
+                          <span className="text-[13px] text-text">
+                            {c.name}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[13px] font-semibold text-text">
+                            {formatFull(c.total)}
+                          </span>
+                          <span className="text-[11px] text-text-muted ml-1.5">
+                            {grandTotal > 0
+                              ? `${Math.round((c.total / grandTotal) * 100)}%`
+                              : '0%'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* 월별보기 */}
+            {selectedMonth > 0 && monthData && (
+              <>
+                {/* 월 총합 */}
+                <div className="bg-surface rounded-2xl p-4 mb-4">
+                  <p className="text-[12px] text-text-muted mb-1">
+                    {selectedMonth}월{' '}
+                    {type === 'income' ? '총 입금' : '총 출금'}
+                  </p>
+                  <p className="text-[24px] font-extrabold text-text">
+                    {formatFull(monthData.total)}
+                  </p>
+                </div>
+
+                {/* 도넛 차트 */}
+                {monthData.categories.length > 0 && (
+                  <div className="bg-white rounded-2xl p-2 mb-4">
+                    <Chart
+                      type="donut"
+                      height={260}
+                      series={monthData.categories.map(c => c.total)}
+                      options={{
+                        chart: {
+                          fontFamily: 'Pretendard Variable',
+                        },
+                        labels: monthData.categories.map(c => c.categoryName),
+                        colors: COLORS.slice(0, monthData.categories.length),
+                        legend: {
+                          position: 'bottom',
+                          fontSize: '12px',
+                          labels: { colors: '#212529' },
+                        },
+                        dataLabels: {
+                          enabled: true,
+                          formatter: (_v: number, opts: any) => {
+                            const val = opts.w.globals.series[opts.seriesIndex];
+                            return formatWon(val);
+                          },
+                          style: {
+                            fontSize: '11px',
+                            fontWeight: 600,
+                          },
+                        },
+                        plotOptions: {
+                          pie: {
+                            donut: {
+                              size: '55%',
+                              labels: {
+                                show: true,
+                                total: {
+                                  show: true,
+                                  label: '합계',
+                                  formatter: (w: any) => {
+                                    const total = w.globals.seriesTotals.reduce(
+                                      (a: number, b: number) => a + b,
+                                      0,
+                                    );
+                                    return formatFull(total);
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                        tooltip: {
+                          y: {
+                            formatter: (v: number) => formatFull(v),
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 카테고리별 상세 테이블 */}
+                {monthData.categories.length > 0 && (
+                  <div className="bg-surface rounded-2xl overflow-hidden mb-6">
+                    <div className="px-4 py-3 border-b border-white/50">
+                      <p className="text-[13px] font-semibold text-text">
+                        {selectedMonth}월 카테고리별 내역
+                      </p>
+                    </div>
+                    {monthData.categories
+                      .sort((a, b) => b.total - a.total)
+                      .map((c, idx) => (
+                        <div
+                          key={c.categoryId ?? idx}
+                          className={`flex items-center justify-between px-4 py-3 ${
+                            idx < monthData.categories.length - 1
+                              ? 'border-b border-white/50'
+                              : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2.5 h-2.5 rounded-full"
+                              style={{
+                                backgroundColor: COLORS[idx % COLORS.length],
+                              }}
+                            />
+                            <span className="text-[13px] text-text">
+                              {c.categoryName}
+                            </span>
+                            <span className="text-[11px] text-text-muted">
+                              {c.count}건
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[13px] font-semibold text-text">
+                              {formatFull(c.total)}
+                            </span>
+                            <span className="text-[11px] text-text-muted ml-1.5">
+                              {monthData.total > 0
+                                ? `${Math.round((c.total / monthData.total) * 100)}%`
+                                : '0%'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
+                {/* 데이터 없음 */}
+                {monthData.categories.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <p className="text-[13px] text-text-muted">
+                      {selectedMonth}월 {type === 'income' ? '입금' : '출금'}{' '}
+                      내역이 없습니다.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* 전체보기 데이터 없음 */}
+            {selectedMonth === 0 && grandTotal === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-[13px] text-text-muted">
+                  {year}년 {type === 'income' ? '입금' : '출금'} 내역이
+                  없습니다.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+}

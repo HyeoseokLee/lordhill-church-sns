@@ -13,6 +13,7 @@ import NotFoundPage from '@/pages/error/NotFoundPage';
 import FeedWithOutlet from '@/pages/feed/FeedWithOutlet';
 import RecycleWithOutlet from '@/pages/recycle/RecycleWithOutlet';
 import PrayerWithOutlet from '@/pages/prayer/PrayerWithOutlet';
+import StatisticsWithOutlet from '@/pages/statistics/StatisticsWithOutlet';
 import MyWithOutlet from '@/pages/my/MyWithOutlet';
 // 자식 페이지
 import PostDetailPage from '@/pages/feed/detail/index';
@@ -76,6 +77,11 @@ const router = createBrowserRouter([
         path: 'prayer',
         element: <PrayerWithOutlet />,
         children: [{ path: 'write', element: <PrayerWritePage /> }],
+      },
+      // 통계 탭
+      {
+        path: 'statistics',
+        element: <StatisticsWithOutlet />,
       },
       // 마이페이지 탭
       {

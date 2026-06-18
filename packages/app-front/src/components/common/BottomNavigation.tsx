@@ -1,6 +1,7 @@
 import { HandHeart } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import IcDolphin from '@/assets/icons/ic_dolphin.svg?react';
+import IcStatistics from '@/assets/icons/ic_statistics.svg?react';
 
 // 홈 아이콘 (currentColor 사용)
 function IconHome({ size = 20 }: { size?: number; strokeWidth?: number }) {
@@ -30,36 +31,42 @@ function IconMy({ size = 20 }: { size?: number; strokeWidth?: number }) {
   );
 }
 
-// 돌고래 아이콘 (ic_dolphin.svg, currentColor 사용, 120% 크기 + 선 굵게)
+// 돌고래 아이콘 (ic_dolphin.svg, fill 기반 + 약간의 stroke로 두께 보정)
 function IconDolphin({ size = 20 }: { size?: number; strokeWidth?: number }) {
-  const scaledSize = Math.round(size * 1.2);
+  const scaledSize = Math.round(size * 1.32);
   return (
     <IcDolphin
       width={scaledSize}
       height={scaledSize}
       stroke="currentColor"
-      strokeWidth={8}
+      strokeWidth={6}
     />
   );
 }
 
-// 기도 아이콘 (HandHeart, 120% 크기)
-function IconPrayer({
+// 기도 아이콘 (HandHeart, 선 굵기 고정 — active 시 굵어지지 않도록)
+function IconPrayer({ size = 20 }: { size?: number; strokeWidth?: number }) {
+  return <HandHeart size={Math.round(size * 1.32)} strokeWidth={1.5} />;
+}
+
+// 통계 아이콘 (ic_statistics.svg, stroke 기반)
+function IconStatistics({
   size = 20,
-  strokeWidth,
 }: {
   size?: number;
   strokeWidth?: number;
 }) {
-  return <HandHeart size={Math.round(size * 1.2)} strokeWidth={strokeWidth} />;
+  const scaledSize = Math.round(size * 1.2);
+  return <IcStatistics width={scaledSize} height={scaledSize} />;
 }
 
-// 하단 네비게이션 아이템 (홈, 돌고래/재활용, 기도, 마이페이지)
+// 하단 네비게이션 아이템 (홈, 돌고래/재활용, 기도, 통계, 마이페이지)
 const navItems = [
-  { path: '/feed', icon: IconHome },
-  { path: '/recycle', icon: IconDolphin },
-  { path: '/prayer', icon: IconPrayer },
-  { path: '/my', icon: IconMy },
+  { path: '/feed', icon: IconHome, label: '홈' },
+  { path: '/recycle', icon: IconDolphin, label: '돌고래' },
+  { path: '/prayer', icon: IconPrayer, label: '기도' },
+  { path: '/statistics', icon: IconStatistics, label: '통계' },
+  { path: '/my', icon: IconMy, label: '마이' },
 ];
 
 // 메인 탭 페이지 전용 하단 네비게이션 (각 WithOutlet에서 렌더링)
@@ -68,7 +75,8 @@ export default function BottomNavigation() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-[480px] -translate-x-1/2 bg-bg h-[56px]">
+    <nav className="fixed bottom-0 left-1/2 z-50 w-full max-w-[480px] -translate-x-1/2 bg-bg pt-2 pb-1">
+      {/* 아이콘 행 */}
       <div className="flex justify-around">
         {navItems.map(({ path, icon: Icon }) => {
           const isActive = location.pathname.startsWith(path);
@@ -76,11 +84,28 @@ export default function BottomNavigation() {
             <button
               key={path}
               onClick={() => navigate(path)}
-              className={`flex flex-col items-center justify-center gap-0.5 w-14 h-14 transition-colors duration-150 ${
+              className={`flex items-center justify-center w-14 h-7 transition-colors duration-150 ${
                 isActive ? 'text-accent' : 'text-text'
               }`}
             >
               <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
+            </button>
+          );
+        })}
+      </div>
+      {/* 라벨 행 */}
+      <div className="flex justify-around mt-[-2px]">
+        {navItems.map(({ path, label }) => {
+          const isActive = location.pathname.startsWith(path);
+          return (
+            <button
+              key={path}
+              onClick={() => navigate(path)}
+              className={`w-14 text-center text-[10px] font-medium transition-colors duration-150 ${
+                isActive ? 'text-accent' : 'text-text-muted'
+              }`}
+            >
+              {label}
             </button>
           );
         })}

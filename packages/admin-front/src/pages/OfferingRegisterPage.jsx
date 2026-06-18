@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 
 // CSV 금액 문자열을 숫자로 변환 ("8,000,000" → 8000000)
@@ -42,7 +47,10 @@ function parseCsvLine(line) {
 
 // CSV 텍스트를 파싱하여 헌금 데이터 배열 + 원본 데이터 행수 반환
 function parseCsv(text) {
-  const lines = text.split('\n').filter(line => line.trim());
+  // 빈 행 및 쉼표만 있는 행(은행 CSV 패딩) 제거
+  const lines = text
+    .split('\n')
+    .filter(line => line.trim() && line.replace(/,/g, '').trim());
   if (lines.length < 2) return { rows: [], rawDataCount: 0 };
 
   const dataLines = lines.slice(1);
@@ -178,6 +186,10 @@ export default function OfferingRegisterPage() {
   const [counterparties, setCounterparties] = useState([]);
   const [categories, setCategories] = useState([]);
   const [parsing, setParsing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState(null);
+  const [invalidRows, setInvalidRows] = useState(new Set());
+  const [dupModalOpen, setDupModalOpen] = useState(false);
 
   // 입출금자 + 카테고리 목록 미리 조회
   useEffect(() => {
@@ -255,6 +267,73 @@ export default function OfferingRegisterPage() {
   // 행의 입/출금 타입에 맞는 카테고리 옵션만 반환
   const getCategoryOptions = type =>
     categories.filter(c => c.type === (type === '입금' ? 'income' : 'expense'));
+
+  // 서버에 저장
+  const handleSave = async () => {
+    if (!verifyResult?.ok) {
+      alert('검증이 완료되지 않은 데이터는 저장할 수 없습니다.');
+      return;
+    }
+    if (saving) return;
+
+    // 입금 → 확정이름 필수, 카테고리는 입금/출금 모두 필수
+    const missing = new Set();
+    const missingParty = [];
+    const missingCategory = [];
+    rows.forEach((row, idx) => {
+      if (row.type === '입금' && !row.matchedParty) {
+        missing.add(idx);
+        missingParty.push(idx + 1);
+      }
+      if (!row.matchedCategory) {
+        missing.add(idx);
+        missingCategory.push(idx + 1);
+      }
+    });
+    if (missing.size > 0) {
+      setInvalidRows(missing);
+      const msgs = [];
+      if (missingParty.length > 0)
+        msgs.push(`확정이름 미선택 (입금): ${missingParty.join(', ')}행`);
+      if (missingCategory.length > 0)
+        msgs.push(`카테고리 미선택: ${missingCategory.join(', ')}행`);
+      alert(msgs.join('\n'));
+      return;
+    }
+    setInvalidRows(new Set());
+
+    setSaving(true);
+    setSaveResult(null);
+    try {
+      const payload = rows.map(row => ({
+        transactionDate: row.date,
+        type: row.type === '입금' ? 'income' : 'expense',
+        rawName: row.name,
+        counterpartyId: row.matchedParty?.id || null,
+        withdrawal: row.withdrawal,
+        deposit: row.deposit,
+        balance: row.balance,
+        note: row.note,
+        memo: row.memo,
+        categoryId: row.matchedCategory?.id || null,
+      }));
+      const { data } = await api.post('/admin/transactions/bulk', {
+        rows: payload,
+      });
+      setSaveResult(data);
+      if (data.skipped > 0) {
+        setDupModalOpen(true);
+      }
+      if (data.inserted > 0) {
+        toast.success(`${data.inserted}건 저장 완료`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || '저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -389,6 +468,11 @@ export default function OfferingRegisterPage() {
                             variant="outlined"
                             size="small"
                             placeholder="선택"
+                            error={
+                              invalidRows.has(idx) &&
+                              row.type === '입금' &&
+                              !row.matchedParty
+                            }
                           />
                         )}
                         sx={{ minWidth: 140 }}
@@ -431,6 +515,7 @@ export default function OfferingRegisterPage() {
                             variant="outlined"
                             size="small"
                             placeholder="선택"
+                            error={invalidRows.has(idx) && !row.matchedCategory}
                           />
                         )}
                         sx={{ minWidth: 130 }}
@@ -442,14 +527,103 @@ export default function OfferingRegisterPage() {
             </table>
           </div>
 
-          {/* 하단 요약 */}
-          <div className="bg-gray-50 px-4 py-3 border-t text-sm text-gray-500">
-            총 {rows.length}건 · 이름매칭{' '}
-            {rows.filter(r => r.matchedParty).length}건 · 카테고리매칭{' '}
-            {rows.filter(r => r.matchedCategory).length}건
+          {/* 하단 요약 + 저장 버튼 */}
+          <div className="bg-gray-50 px-4 py-3 border-t text-sm text-gray-500 flex items-center justify-between">
+            <span>
+              총 {rows.length}건 · 이름매칭{' '}
+              {rows.filter(r => r.matchedParty).length}건 · 카테고리매칭{' '}
+              {rows.filter(r => r.matchedCategory).length}건
+              {saveResult && (
+                <span className="ml-3 text-blue-600 font-medium">
+                  → {saveResult.inserted}건 저장, {saveResult.skipped}건 중복
+                  제외
+                </span>
+              )}
+            </span>
+            <button
+              onClick={handleSave}
+              disabled={saving || !verifyResult?.ok}
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? '저장 중...' : '저장'}
+            </button>
           </div>
         </div>
       )}
+
+      {/* 중복 내역 모달 */}
+      <Dialog
+        open={dupModalOpen}
+        onClose={() => setDupModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>중복 데이터 안내</DialogTitle>
+        <DialogContent>
+          {saveResult && (
+            <>
+              <p className="text-sm text-gray-600 mb-3">
+                {saveResult.inserted > 0
+                  ? `${saveResult.inserted}건 저장, ${saveResult.skipped}건은 이미 등록된 데이터와 중복되어 제외되었습니다.`
+                  : `${saveResult.skipped}건 모두 이미 등록된 데이터와 중복되어 저장되지 않았습니다.`}
+              </p>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">
+                        거래일시
+                      </th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">
+                        보낸분/받는분
+                      </th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-500">
+                        출금액
+                      </th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-500">
+                        입금액
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {saveResult.skippedRows.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-b last:border-0 hover:bg-gray-50"
+                      >
+                        <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                          {row.transactionDate}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {row.rawName || '-'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-red-600 whitespace-nowrap">
+                          {row.withdrawal > 0
+                            ? row.withdrawal.toLocaleString('ko-KR')
+                            : '-'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-blue-600 whitespace-nowrap">
+                          {row.deposit > 0
+                            ? row.deposit.toLocaleString('ko-KR')
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <button
+            onClick={() => setDupModalOpen(false)}
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
+          >
+            확인
+          </button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

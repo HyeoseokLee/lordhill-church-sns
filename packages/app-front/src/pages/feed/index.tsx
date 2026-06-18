@@ -56,7 +56,7 @@ export default function FeedPage() {
       {/* 상단 헤더 (고정, 스크롤 안 됨) */}
       <header className="w-full flex items-center justify-between py-4 px-5">
         <h1 className="text-[22px] font-extrabold tracking-tight text-text">
-          손안의 교회
+          주안의 교회
         </h1>
         <button
           onClick={() => delayNavigate(navigate, '/feed/notifications')}

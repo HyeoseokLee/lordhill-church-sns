@@ -14,6 +14,7 @@ import RecycleMedia from './recycle/models/RecycleMedia.js';
 import RecycleComment from './recycle/models/RecycleComment.js';
 import Counterparty from './counterparty/models/Counterparty.js';
 import TransactionCategory from './transaction-category/models/TransactionCategory.js';
+import Transaction from './transaction/models/Transaction.js';
 
 // config 패키지는 immutable 객체를 반환 — Sequelize가 내부 수정 시 hanging 발생
 const dbconfig = JSON.parse(JSON.stringify(config.sequelize));
@@ -61,6 +62,7 @@ db.RecycleMedia = RecycleMedia(sequelize);
 db.RecycleComment = RecycleComment(sequelize);
 db.Counterparty = Counterparty(sequelize);
 db.TransactionCategory = TransactionCategory(sequelize);
+db.Transaction = Transaction(sequelize);
 
 // Association 설정
 Object.keys(db).forEach((modelName) => {

@@ -1,13 +1,9 @@
-import { useNavigate } from 'react-router-dom';
-import IcDolphin from '@/assets/icons/ic_dolphin.svg?react';
 import useOutletTransition from '@/hooks/useOutletTransition';
-import { delayNavigate } from '@/util/navigateUtil';
-import RecyclePage from './index';
+import StatisticsPage from './index';
 import BottomNavigation from '@/components/common/BottomNavigation';
 
-// 돌고래 탭 WithOutlet 래퍼 (네이티브 푸시 트랜지션)
-export default function RecycleWithOutlet() {
-  const navigate = useNavigate();
+// 통계 탭 WithOutlet 래퍼 (네이티브 푸시 트랜지션)
+export default function StatisticsWithOutlet() {
   const {
     hasOutlet,
     displayOutlet,
@@ -31,24 +27,8 @@ export default function RecycleWithOutlet() {
             : `transform ${transitionMs}ms ease-out`,
         }}
       >
-        <RecyclePage />
+        <StatisticsPage />
       </div>
-      {/* 글쓰기 플로팅 버튼 (max-w-[480px] 컨테이너 내 우측 하단) */}
-      {!hasOutlet && (
-        <div className="fixed bottom-[70px] left-1/2 z-40 w-full max-w-[480px] -translate-x-1/2 pointer-events-none">
-          <button
-            onClick={() => delayNavigate(navigate, '/recycle/post')}
-            className="absolute bottom-0 right-5 w-14 h-14 bg-accent text-white rounded-full shadow-lg flex items-center justify-center hover:bg-accent-dark transition-colors duration-150 active:scale-[0.95] pointer-events-auto"
-          >
-            <IcDolphin
-              width={26}
-              height={26}
-              stroke="currentColor"
-              strokeWidth={6}
-            />
-          </button>
-        </div>
-      )}
       <BottomNavigation />
       {showOverlay && (
         <div

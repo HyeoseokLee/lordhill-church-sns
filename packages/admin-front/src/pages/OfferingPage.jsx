@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -163,6 +163,36 @@ export default function OfferingPage() {
   const [categories, setCategories] = useState([]);
   const [catLoading, setCatLoading] = useState(false);
 
+  // 거래내역 리스트 상태
+  const [transactions, setTransactions] = useState([]);
+  const [txLoading, setTxLoading] = useState(false);
+  const [txPage, setTxPage] = useState(1);
+  const [txTotal, setTxTotal] = useState(0);
+  const [txTotalPages, setTxTotalPages] = useState(0);
+  const TX_LIMIT = 50;
+
+  // 거래내역 조회
+  const fetchTransactions = useCallback(async (page = 1) => {
+    setTxLoading(true);
+    try {
+      const { data } = await api.get(
+        `/admin/transactions?page=${page}&limit=${TX_LIMIT}`,
+      );
+      setTransactions(data.items);
+      setTxTotal(data.total);
+      setTxTotalPages(data.totalPages);
+      setTxPage(page);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setTxLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTransactions(1);
+  }, [fetchTransactions]);
+
   // --- 입출금자 CRUD ---
   const fetchDonors = async () => {
     setDonorLoading(true);
@@ -259,36 +289,124 @@ export default function OfferingPage() {
         </div>
       </div>
 
-      {/* 리스트 목업 */}
+      {/* 거래내역 리스트 */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">
-                거래일시
-              </th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">
-                구분
-              </th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">
-                보낸분/받는분
-              </th>
-              <th className="text-right px-4 py-3 font-medium text-gray-500">
-                금액
-              </th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">
-                카테고리
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={5} className="text-center py-8 text-gray-400">
-                등록된 헌금 내역이 없습니다.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  거래일시
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  구분
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  보낸분/받는분
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  확정이름
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  출금액
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  입금액
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  잔액
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                  카테고리
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {txLoading ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-gray-400">
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-gray-400">
+                    등록된 헌금 내역이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                transactions.map(tx => (
+                  <tr
+                    key={tx.id}
+                    className="border-b last:border-0 hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      {new Date(tx.transactionDate).toLocaleString('ko-KR')}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                          tx.type === 'expense'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {tx.type === 'income' ? '입금' : '출금'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {tx.rawName || '-'}
+                    </td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">
+                      {tx.counterparty?.name || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
+                      {tx.withdrawal > 0
+                        ? tx.withdrawal.toLocaleString('ko-KR')
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
+                      {tx.deposit > 0
+                        ? tx.deposit.toLocaleString('ko-KR')
+                        : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
+                      {tx.balance.toLocaleString('ko-KR')}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {tx.category?.name || '-'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 페이지네이션 */}
+        {txTotalPages > 1 && (
+          <div className="bg-gray-50 px-4 py-3 border-t flex items-center justify-between text-sm text-gray-500">
+            <span>
+              총 {txTotal}건 (페이지 {txPage}/{txTotalPages})
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchTransactions(txPage - 1)}
+                disabled={txPage <= 1}
+                className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                이전
+              </button>
+              <button
+                onClick={() => fetchTransactions(txPage + 1)}
+                disabled={txPage >= txTotalPages}
+                className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                다음
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 입출금자 관리 다이얼로그 */}

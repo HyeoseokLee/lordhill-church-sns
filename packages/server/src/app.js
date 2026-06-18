@@ -19,6 +19,8 @@ import pushRouter from './push/routes/push.js';
 import recycleRouter from './recycle/routes/recycle.js';
 import counterpartyRouter from './counterparty/routes/counterparty.js';
 import transactionCategoryRouter from './transaction-category/routes/transactionCategory.js';
+import transactionRouter from './transaction/routes/transaction.js';
+import statisticsRouter from './statistics/routes/statistics.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -65,11 +67,15 @@ apiRouter.use('/pushs', onlyLoginUser, onlyApprovedUser, pushRouter);
 // 푸시 토큰 (로그인한 사용자)
 apiRouter.use('/users', onlyLoginUser, fcmTokenRouter);
 
+// 통계 (승인된 사용자)
+apiRouter.use('/statistics', onlyLoginUser, onlyApprovedUser, statisticsRouter);
+
 // 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
 apiRouter.use('/admin', adminAuthRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, adminRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, counterpartyRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionCategoryRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionRouter);
 
 // 댓글 (승인된 사용자만 — use('/')는 모든 경로에 매칭되므로 반드시 마지막에 배치)
 apiRouter.use('/', onlyLoginUser, onlyApprovedUser, commentRouter);
