@@ -39,7 +39,7 @@ function IconDolphin({ size = 20 }: { size?: number; strokeWidth?: number }) {
       width={scaledSize}
       height={scaledSize}
       stroke="currentColor"
-      strokeWidth={6}
+      strokeWidth={10}
     />
   );
 }

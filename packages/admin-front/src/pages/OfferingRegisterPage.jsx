@@ -461,9 +461,7 @@ export default function OfferingRegisterPage() {
                               ) || null
                             : null
                         }
-                        onChange={(_, newVal) =>
-                          handlePartyChange(idx, newVal)
-                        }
+                        onChange={(_, newVal) => handlePartyChange(idx, newVal)}
                         isOptionEqualToValue={(opt, val) => opt.id === val.id}
                         renderInput={params => (
                           <TextField

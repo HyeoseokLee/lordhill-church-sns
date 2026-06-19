@@ -17,6 +17,8 @@ interface MonthData {
 interface OfferingStats {
   year: number;
   monthly: MonthData[];
+  currentBalance: number;
+  balanceDate: string | null;
 }
 
 const fetcher = (url: string) => axiosInstance.get(url).then(res => res.data);

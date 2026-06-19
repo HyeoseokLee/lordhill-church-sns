@@ -105,5 +105,17 @@ export const getOfferingStatistics = async (req, res) => {
     });
   }
 
-  res.json({ year, monthly });
+  // 최신 거래의 잔액 조회
+  const latestTransaction = await db.Transaction.findOne({
+    attributes: ['balance', 'transactionDate'],
+    order: [['transactionDate', 'DESC']],
+    raw: true,
+  });
+
+  res.json({
+    year,
+    monthly,
+    currentBalance: latestTransaction ? latestTransaction.balance : 0,
+    balanceDate: latestTransaction ? latestTransaction.transactionDate : null,
+  });
 };

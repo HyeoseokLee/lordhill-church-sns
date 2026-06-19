@@ -29,17 +29,27 @@ function formatFull(n: number) {
   return n.toLocaleString('ko-KR') + '원';
 }
 
-// 차트 색상 팔레트
-const COLORS = [
-  '#40C057',
-  '#339AF0',
-  '#F06595',
-  '#FCC419',
-  '#845EF7',
-  '#FF922B',
-  '#20C997',
-  '#E64980',
-];
+// 입금 카테고리별 월별 그래프 대상
+const INCOME_CATEGORIES = ['십일조', '감사헌금', '목적헌금', '외부헌금'];
+
+// 카테고리별 고정 색상 맵 (차트/레전드/테이블 통일)
+const CATEGORY_COLOR_MAP: Record<string, string> = {
+  십일조: '#339AF0',
+  감사헌금: '#FCC419',
+  목적헌금: '#845EF7',
+  외부헌금: '#FF922B',
+};
+
+// 색상 팔레트 fallback (맵에 없는 카테고리용)
+const FALLBACK_COLORS = ['#20C997', '#E64980', '#F06595', '#40C057'];
+
+// 카테고리명으로 색상 조회
+function getCategoryColor(name: string, fallbackIdx: number) {
+  return (
+    CATEGORY_COLOR_MAP[name] ||
+    FALLBACK_COLORS[fallbackIdx % FALLBACK_COLORS.length]
+  );
+}
 
 // 통계 메인 페이지
 export default function StatisticsPage() {
@@ -57,12 +67,30 @@ export default function StatisticsPage() {
   // 전체보기 — 월별 추이 선 그래프 데이터
   const trendSeries = useMemo(() => {
     if (!data) return [];
-    const incomeData = data.monthly.map(m => m.income.total);
-    const expenseData = data.monthly.map(m => m.expense.total);
-    return type === 'income'
-      ? [{ name: '입금', data: incomeData }]
-      : [{ name: '출금', data: expenseData }];
+    if (type === 'expense') {
+      return [
+        { name: '출금 총액', data: data.monthly.map(m => m.expense.total) },
+      ];
+    }
+    // 입금: 총액 + 카테고리별
+    const totalData = data.monthly.map(m => m.income.total);
+    const catSeries = INCOME_CATEGORIES.map(catName => ({
+      name: catName,
+      data: data.monthly.map(m => {
+        const found = m.income.categories.find(c => c.categoryName === catName);
+        return found ? found.total : 0;
+      }),
+    })).filter(s => s.data.some(v => v > 0));
+    return [{ name: '입금 총액', data: totalData }, ...catSeries];
   }, [data, type]);
+
+  // 전체보기 — 그래프 색상 (카테고리 맵 기반)
+  const trendColors = useMemo(() => {
+    if (type === 'expense') return ['#F06595'];
+    return trendSeries.map((s, i) =>
+      i === 0 ? '#40C057' : getCategoryColor(s.name, i),
+    );
+  }, [type, trendSeries]);
 
   // 월별보기 — 카테고리별 도넛 차트 데이터
   const monthData = useMemo(() => {
@@ -117,6 +145,22 @@ export default function StatisticsPage() {
           </div>
         ) : (
           <>
+            {/* 현재 잔액 */}
+            <div className="bg-surface rounded-2xl p-4 mb-4">
+              <p className="text-[12px] text-text-muted mb-1">
+                현재 잔액
+                {data.balanceDate && (
+                  <span className="ml-1.5 text-[11px]">
+                    ({new Date(data.balanceDate).toLocaleDateString('ko-KR')}{' '}
+                    기준)
+                  </span>
+                )}
+              </p>
+              <p className="text-[24px] font-extrabold text-text">
+                {formatFull(data.currentBalance)}
+              </p>
+            </div>
+
             {/* 입금/출금 토글 */}
             <div className="flex gap-2 mb-4">
               <button
@@ -192,8 +236,9 @@ export default function StatisticsPage() {
                 {activeMonths.length > 0 && (
                   <div className="bg-white rounded-2xl mb-4">
                     <Chart
-                      type="area"
-                      height={220}
+                      key={type}
+                      type="line"
+                      height={280}
                       series={trendSeries}
                       options={{
                         chart: {
@@ -201,15 +246,14 @@ export default function StatisticsPage() {
                           zoom: { enabled: false },
                           fontFamily: 'Pretendard Variable',
                         },
-                        colors: [type === 'income' ? '#40C057' : '#F06595'],
+                        colors: trendColors,
                         stroke: { curve: 'smooth', width: 2.5 },
-                        fill: {
-                          type: 'gradient',
-                          gradient: {
-                            shadeIntensity: 1,
-                            opacityFrom: 0.3,
-                            opacityTo: 0.05,
-                          },
+                        markers: { size: 3 },
+                        legend: {
+                          show: trendSeries.length > 1,
+                          position: 'top',
+                          fontSize: '11px',
+                          labels: { colors: '#212529' },
                         },
                         xaxis: {
                           categories: MONTH_LABELS,
@@ -261,7 +305,7 @@ export default function StatisticsPage() {
                           <div
                             className="w-2.5 h-2.5 rounded-full"
                             style={{
-                              backgroundColor: COLORS[idx % COLORS.length],
+                              backgroundColor: getCategoryColor(c.name, idx),
                             }}
                           />
                           <span className="text-[13px] text-text">
@@ -311,7 +355,9 @@ export default function StatisticsPage() {
                           fontFamily: 'Pretendard Variable',
                         },
                         labels: monthData.categories.map(c => c.categoryName),
-                        colors: COLORS.slice(0, monthData.categories.length),
+                        colors: monthData.categories.map((c, i) =>
+                          getCategoryColor(c.categoryName, i),
+                        ),
                         legend: {
                           position: 'bottom',
                           fontSize: '12px',
@@ -336,13 +382,13 @@ export default function StatisticsPage() {
                                 show: true,
                                 total: {
                                   show: true,
-                                  label: '합계',
+                                  label: '',
                                   formatter: (w: any) => {
                                     const total = w.globals.seriesTotals.reduce(
                                       (a: number, b: number) => a + b,
                                       0,
                                     );
-                                    return formatFull(total);
+                                    return total.toLocaleString('ko-KR');
                                   },
                                 },
                               },
@@ -382,7 +428,10 @@ export default function StatisticsPage() {
                             <div
                               className="w-2.5 h-2.5 rounded-full"
                               style={{
-                                backgroundColor: COLORS[idx % COLORS.length],
+                                backgroundColor: getCategoryColor(
+                                  c.categoryName,
+                                  idx,
+                                ),
                               }}
                             />
                             <span className="text-[13px] text-text">
