@@ -169,7 +169,7 @@ export default function OfferingPage() {
   const [txPage, setTxPage] = useState(1);
   const [txTotal, setTxTotal] = useState(0);
   const [txTotalPages, setTxTotalPages] = useState(0);
-  const TX_LIMIT = 50;
+  const TX_LIMIT = 20;
 
   // 거래내역 조회
   const fetchTransactions = useCallback(async (page = 1) => {

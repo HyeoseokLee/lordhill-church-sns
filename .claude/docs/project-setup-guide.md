@@ -515,7 +515,22 @@ Firebase 푸시를 사용하면:
 fly secrets set FIREBASE_SERVICE_ACCOUNT='<firebase-service-account.json 전체 내용>'
 ```
 
-**C. 배포**
+**C. fly.toml에 자동 마이그레이션 설정**
+
+`fly deploy` 시 마이그레이션이 자동 실행되도록 `[deploy]` 섹션을 추가한다.
+이 설정이 없으면 새 테이블/컬럼 추가 시 수동으로 `flyctl ssh console -a <앱이름> -C "npx sequelize-cli db:migrate"`를 실행해야 한다.
+
+```toml
+# fly.toml
+[deploy]
+  release_command = "npx sequelize-cli db:migrate"
+```
+
+- `release_command`는 새 버전이 배포되기 **전에** 별도 임시 VM에서 실행됨
+- 마이그레이션 실패 시 배포가 중단되므로 안전
+- 시더(`db:seed:all`)는 여기에 넣지 않는다 — 중복 방지 로직이 없으면 매 배포마다 중복 삽입됨
+
+**D. 배포**
 ```bash
 fly deploy
 ```
@@ -543,9 +558,16 @@ fly status
 기존 AWS RDS에 데이터가 있는 경우, 테이블 생성(마이그레이션) 후 데이터를 이전한다.
 
 **A. Fly.io에서 마이그레이션 + 시더 실행**
+
+> fly.toml에 `release_command = "npx sequelize-cli db:migrate"` 설정이 있으면 `fly deploy` 시 마이그레이션이 자동 실행된다 (6-1-4-C 참조). 아래는 수동 실행이 필요한 경우.
+
 ```bash
+# 원격에서 직접 실행 (SSH 접속 없이)
+flyctl ssh console -a <앱이름> -C "npx sequelize-cli db:migrate"
+flyctl ssh console -a <앱이름> -C "npx sequelize-cli db:seed:all"
+
+# 또는 SSH 접속 후 실행
 fly ssh console
-# 접속 후:
 npx sequelize-cli db:migrate
 npx sequelize-cli db:seed:all
 exit

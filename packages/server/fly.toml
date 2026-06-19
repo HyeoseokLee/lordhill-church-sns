@@ -8,6 +8,9 @@ primary_region = 'nrt'
 
 [build]
 
+[deploy]
+  release_command = "npx sequelize-cli db:migrate"
+
 [env]
   NODE_CONFIG_DIR = './config'
   NODE_ENV = 'production'

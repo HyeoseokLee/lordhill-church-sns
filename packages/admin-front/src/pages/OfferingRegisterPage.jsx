@@ -167,11 +167,12 @@ function matchCategory(row, categories) {
   return null;
 }
 
-// 전체 rows에 입출금자 + 카테고리 매칭 수행
+// 전체 rows에 확정이름 + 카테고리 매칭 수행 (입금만 확정이름 매칭)
 function matchAllRows(rows, counterparties, categories) {
   return rows.map(row => ({
     ...row,
-    matchedParty: matchCounterparty(row.name, counterparties),
+    matchedParty:
+      row.type === '입금' ? matchCounterparty(row.name, counterparties) : null,
     matchedCategory: matchCategory(row, categories),
   }));
 }
@@ -449,34 +450,36 @@ export default function OfferingRegisterPage() {
                       {row.name}
                     </td>
                     <td className="px-2 py-1 whitespace-nowrap">
-                      <Autocomplete
-                        size="small"
-                        options={counterparties}
-                        getOptionLabel={opt => opt.name || ''}
-                        value={
-                          row.matchedParty
-                            ? counterparties.find(
-                                cp => cp.id === row.matchedParty.id,
-                              ) || null
-                            : null
-                        }
-                        onChange={(_, newVal) => handlePartyChange(idx, newVal)}
-                        isOptionEqualToValue={(opt, val) => opt.id === val.id}
-                        renderInput={params => (
-                          <TextField
-                            {...params}
-                            variant="outlined"
-                            size="small"
-                            placeholder="선택"
-                            error={
-                              invalidRows.has(idx) &&
-                              row.type === '입금' &&
-                              !row.matchedParty
-                            }
-                          />
-                        )}
-                        sx={{ minWidth: 140 }}
-                      />
+                      {row.type === '입금' ? (
+                        <Autocomplete
+                          size="small"
+                          options={counterparties}
+                          getOptionLabel={opt => opt.name || ''}
+                          value={
+                            row.matchedParty
+                              ? counterparties.find(
+                                  cp => cp.id === row.matchedParty.id,
+                                ) || null
+                              : null
+                          }
+                          onChange={(_, newVal) =>
+                            handlePartyChange(idx, newVal)
+                          }
+                          isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                          renderInput={params => (
+                            <TextField
+                              {...params}
+                              variant="outlined"
+                              size="small"
+                              placeholder="선택"
+                              error={invalidRows.has(idx) && !row.matchedParty}
+                            />
+                          )}
+                          sx={{ minWidth: 140 }}
+                        />
+                      ) : (
+                        <span className="text-sm text-gray-300 px-2">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
                       {row.withdrawal > 0 ? formatNumber(row.withdrawal) : '-'}
