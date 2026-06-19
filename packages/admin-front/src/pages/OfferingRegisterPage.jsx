@@ -450,36 +450,36 @@ export default function OfferingRegisterPage() {
                       {row.name}
                     </td>
                     <td className="px-2 py-1 whitespace-nowrap">
-                      {row.type === '입금' ? (
-                        <Autocomplete
-                          size="small"
-                          options={counterparties}
-                          getOptionLabel={opt => opt.name || ''}
-                          value={
-                            row.matchedParty
-                              ? counterparties.find(
-                                  cp => cp.id === row.matchedParty.id,
-                                ) || null
-                              : null
-                          }
-                          onChange={(_, newVal) =>
-                            handlePartyChange(idx, newVal)
-                          }
-                          isOptionEqualToValue={(opt, val) => opt.id === val.id}
-                          renderInput={params => (
-                            <TextField
-                              {...params}
-                              variant="outlined"
-                              size="small"
-                              placeholder="선택"
-                              error={invalidRows.has(idx) && !row.matchedParty}
-                            />
-                          )}
-                          sx={{ minWidth: 140 }}
-                        />
-                      ) : (
-                        <span className="text-sm text-gray-300 px-2">-</span>
-                      )}
+                      <Autocomplete
+                        size="small"
+                        options={counterparties}
+                        getOptionLabel={opt => opt.name || ''}
+                        value={
+                          row.matchedParty
+                            ? counterparties.find(
+                                cp => cp.id === row.matchedParty.id,
+                              ) || null
+                            : null
+                        }
+                        onChange={(_, newVal) =>
+                          handlePartyChange(idx, newVal)
+                        }
+                        isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                        renderInput={params => (
+                          <TextField
+                            {...params}
+                            variant="outlined"
+                            size="small"
+                            placeholder="선택"
+                            error={
+                              invalidRows.has(idx) &&
+                              row.type === '입금' &&
+                              !row.matchedParty
+                            }
+                          />
+                        )}
+                        sx={{ minWidth: 140 }}
+                      />
                     </td>
                     <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
                       {row.withdrawal > 0 ? formatNumber(row.withdrawal) : '-'}
