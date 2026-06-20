@@ -58,31 +58,43 @@ export default function StatisticsPage() {
   const [selectedMonth, setSelectedMonth] = useState(0); // 0 = 전체보기
   const { data, isLoading } = useOfferingStats(year);
 
-  // 데이터가 있는 월만 필터
-  const activeMonths = useMemo(() => {
+  // 데이터가 있는 월의 인덱스 목록
+  const activeMonthIndices = useMemo(() => {
     if (!data) return [];
-    return data.monthly.filter(m => m.income.total > 0 || m.expense.total > 0);
+    return data.monthly
+      .map((m, i) => (m.income.total > 0 || m.expense.total > 0 ? i : -1))
+      .filter(i => i >= 0);
   }, [data]);
 
-  // 전체보기 — 월별 추이 선 그래프 데이터
+  // 전체보기 — 월별 추이 선 그래프 데이터 (데이터 있는 월만)
   const trendSeries = useMemo(() => {
-    if (!data) return [];
+    if (!data || activeMonthIndices.length === 0) return [];
     if (type === 'expense') {
       return [
-        { name: '출금 총액', data: data.monthly.map(m => m.expense.total) },
+        {
+          name: '출금 총액',
+          data: activeMonthIndices.map(i => data.monthly[i].expense.total),
+        },
       ];
     }
-    // 입금: 총액 + 카테고리별
-    const totalData = data.monthly.map(m => m.income.total);
+    const totalData = activeMonthIndices.map(i => data.monthly[i].income.total);
     const catSeries = INCOME_CATEGORIES.map(catName => ({
       name: catName,
-      data: data.monthly.map(m => {
-        const found = m.income.categories.find(c => c.categoryName === catName);
+      data: activeMonthIndices.map(i => {
+        const found = data.monthly[i].income.categories.find(
+          c => c.categoryName === catName,
+        );
         return found ? found.total : 0;
       }),
     })).filter(s => s.data.some(v => v > 0));
     return [{ name: '입금 총액', data: totalData }, ...catSeries];
-  }, [data, type]);
+  }, [data, type, activeMonthIndices]);
+
+  // 전체보기 — X축 라벨 (데이터 있는 월만)
+  const trendLabels = useMemo(
+    () => activeMonthIndices.map(i => MONTH_LABELS[i]),
+    [activeMonthIndices],
+  );
 
   // 전체보기 — 그래프 색상 (카테고리 맵 기반)
   const trendColors = useMemo(() => {
@@ -233,7 +245,7 @@ export default function StatisticsPage() {
                 </div>
 
                 {/* 월별 추이 선 그래프 */}
-                {activeMonths.length > 0 && (
+                {activeMonthIndices.length > 0 && (
                   <div className="bg-white rounded-2xl mb-4">
                     <Chart
                       key={type}
@@ -256,7 +268,7 @@ export default function StatisticsPage() {
                           labels: { colors: '#212529' },
                         },
                         xaxis: {
-                          categories: MONTH_LABELS,
+                          categories: trendLabels,
                           labels: {
                             style: { fontSize: '10px', colors: '#868E96' },
                           },
@@ -383,6 +395,9 @@ export default function StatisticsPage() {
                                 total: {
                                   show: true,
                                   label: '',
+                                  fontSize: '16px',
+                                  fontWeight: 700,
+                                  color: '#212529',
                                   formatter: (w: any) => {
                                     const total = w.globals.seriesTotals.reduce(
                                       (a: number, b: number) => a + b,
