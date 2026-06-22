@@ -1,3 +1,4 @@
+import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import { privacyPolicyContent } from './privacyPolicyContent';
 
@@ -6,7 +7,7 @@ export default function PrivacyPolicyPage() {
   const { title, lastUpdated, sections } = privacyPolicyContent;
 
   return (
-    <>
+    <FullHeightBox>
       <SubPageHeader title={title} />
       <div className="scrollInner">
         <p className="text-[13px] text-text-muted mb-6">
@@ -23,6 +24,6 @@ export default function PrivacyPolicyPage() {
           </div>
         ))}
       </div>
-    </>
+    </FullHeightBox>
   );
 }

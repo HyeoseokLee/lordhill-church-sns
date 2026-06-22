@@ -1,3 +1,4 @@
+import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import { termsOfServiceContent } from './termsOfServiceContent';
 
@@ -6,7 +7,7 @@ export default function TermsOfServicePage() {
   const { title, lastUpdated, sections } = termsOfServiceContent;
 
   return (
-    <>
+    <FullHeightBox>
       <SubPageHeader title={title} />
       <div className="scrollInner">
         <p className="text-[13px] text-text-muted mb-6">
@@ -23,6 +24,6 @@ export default function TermsOfServicePage() {
           </div>
         ))}
       </div>
-    </>
+    </FullHeightBox>
   );
 }
