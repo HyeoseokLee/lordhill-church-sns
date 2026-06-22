@@ -12,6 +12,7 @@ export const getProfile = async (req, res) => {
       'provider',
       'role',
       'status',
+      'tosAcceptedAt',
       'createdAt',
     ],
   });
@@ -56,6 +57,32 @@ export const updateProfile = async (req, res) => {
       'provider',
       'role',
       'status',
+      'tosAcceptedAt',
+      'createdAt',
+    ],
+  });
+  res.json(user);
+};
+
+// 이용약관 동의 처리
+export const acceptTerms = async (req, res) => {
+  const userId = req.user.id;
+
+  await models.User.update(
+    { tosAcceptedAt: new Date() },
+    { where: { id: userId } },
+  );
+
+  const user = await models.User.findByPk(userId, {
+    attributes: [
+      'id',
+      'email',
+      'nickname',
+      'profileImageUrl',
+      'provider',
+      'role',
+      'status',
+      'tosAcceptedAt',
       'createdAt',
     ],
   });

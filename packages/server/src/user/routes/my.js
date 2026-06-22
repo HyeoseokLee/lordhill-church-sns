@@ -3,6 +3,7 @@ import asyncHandler from 'express-async-handler';
 import {
   getProfile,
   updateProfile,
+  acceptTerms,
   getUserProfile,
 } from '../controllers/my.js';
 import { uploadProfileImage } from '../../uploader/index.js';
@@ -18,6 +19,9 @@ router.patch(
   uploadProfileImage.single('profileImage'),
   asyncHandler(updateProfile),
 );
+
+// 이용약관 동의
+router.post('/me/accept-terms', asyncHandler(acceptTerms));
 
 // 다른 유저 프로필
 router.get('/:id', asyncHandler(getUserProfile));

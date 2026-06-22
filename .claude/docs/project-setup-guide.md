@@ -3624,6 +3624,217 @@ interface Window {
 
 ---
 
+## 20. 이용약관 & 개인정보 처리방침 세팅
+
+앱 심사(Google Play, App Store)와 법적 의무를 위해 약관 페이지, 동의 플로우, 공개 URL을 세팅한다.
+
+### 필요한 약관
+
+| 약관 | 필수 여부 | 용도 |
+|------|----------|------|
+| 개인정보 처리방침 (Privacy Policy) | 필수 | 개인정보보호법 의무 + 앱 심사 필수 제출 |
+| 서비스 이용약관 (Terms of Service) | 권장 | 분쟁 방지 + UGC 앱 운영 근거 |
+
+### 약관 콘텐츠에 반드시 포함할 내용
+
+**개인정보 처리방침:**
+- 수집항목 (소셜 로그인으로 수집하는 이메일, 이름, 프로필사진 등)
+- 수집목적, 보유기간, 제3자 제공 여부
+- 파기 절차, 안전성 확보 조치
+- 이용자 권리 (열람/수정/삭제/탈퇴)
+- 부적절 콘텐츠 신고 및 처리 (Google Play UGC 정책)
+- 개인정보 보호책임자 연락처
+
+**서비스 이용약관:**
+- 서비스 내용, 가입 자격
+- 이용자 의무 (금지 행위)
+- 게시물 관리 (삭제/비공개 조건)
+- **콘텐츠 신고 및 사용자 차단** (Google Play UGC 필수)
+- 회원 탈퇴, 면책 조항
+
+### 절차
+
+#### 1단계: DB — 약관동의 컬럼 추가
+
+```bash
+cd packages/server
+npm run migration -- add-tos-accepted-at-to-users
+```
+
+마이그레이션 파일:
+```javascript
+// migrations/YYYYMMDD-add-tos-accepted-at-to-users.cjs
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.addColumn('users', 'tos_accepted_at', {
+      type: Sequelize.DATE,
+      allowNull: true,
+      defaultValue: null,
+    });
+  },
+  async down(queryInterface) {
+    await queryInterface.removeColumn('users', 'tos_accepted_at');
+  },
+};
+```
+
+User 모델에 필드 추가:
+```javascript
+// src/user/models/User.js
+tosAcceptedAt: {
+  type: DataTypes.DATE,
+  allowNull: true,
+  field: 'tos_accepted_at',
+},
+```
+
+#### 2단계: 서버 — 약관동의 API
+
+컨트롤러 (`src/user/controllers/my.js`):
+```javascript
+export const acceptTerms = async (req, res) => {
+  const userId = req.user.id;
+  await models.User.update(
+    { tosAcceptedAt: new Date() },
+    { where: { id: userId } },
+  );
+  const user = await models.User.findByPk(userId, { attributes: [...] });
+  res.json(user);
+};
+```
+
+라우트 (`src/user/routes/my.js`):
+```javascript
+router.post('/me/accept-terms', asyncHandler(acceptTerms));
+```
+
+**주의:** `getProfile`, `updateProfile`, `getMe` 등 유저 정보를 반환하는 모든 API의 응답 attributes에 `tosAcceptedAt`을 포함해야 함.
+
+#### 3단계: 프론트 — 약관 콘텐츠 파일
+
+약관 전문을 TS 객체로 관리한다. 마이페이지 열람용과 바텀 모달 내 전문 보기에서 공유.
+
+```
+src/pages/my/terms/
+  ├── privacyPolicyContent.ts   # 개인정보 처리방침 전문
+  ├── termsOfServiceContent.ts  # 서비스 이용약관 전문
+  ├── PrivacyPolicyPage.tsx     # 마이페이지 자식 열람 페이지
+  └── TermsOfServicePage.tsx    # 마이페이지 자식 열람 페이지
+```
+
+콘텐츠 구조:
+```typescript
+export const privacyPolicyContent = {
+  title: '개인정보 처리방침',
+  lastUpdated: '2026년 6월 22일',
+  sections: [
+    { heading: '1. 개인정보의 수집 및 이용 목적', body: '...' },
+    // ...
+  ],
+};
+```
+
+#### 4단계: 프론트 — authStore에 tosAcceptedAt 추가
+
+```typescript
+// stores/authStore.ts
+export interface User {
+  // ... 기존 필드
+  tosAcceptedAt: string | null;
+}
+
+const mapUser = (data: any): User => ({
+  // ... 기존 매핑
+  tosAcceptedAt: data.tosAcceptedAt || null,
+});
+```
+
+#### 5단계: 프론트 — 약관동의 바텀 드로어
+
+`src/components/common/TermsConsentModal.tsx` — MUI Drawer 사용.
+
+기능:
+- 전체 동의 체크박스
+- 개별 체크 (개인정보 처리방침 [필수], 서비스 이용약관 [필수])
+- 각 항목 우측 `>` 버튼으로 약관 전문 보기 (모달 내 전환)
+- "동의하고 시작하기" 버튼 → `POST /users/me/accept-terms` 호출
+
+#### 6단계: 프론트 — MainLayout에서 동의 플로우
+
+`src/components/frame/MainLayout.tsx`에서 로그인 후 `user.tosAcceptedAt`이 null이면 TermsConsentModal을 표시.
+
+```typescript
+const needsTermsConsent = user && !user.tosAcceptedAt;
+// ...
+<TermsConsentModal
+  open={!!needsTermsConsent}
+  onAccept={handleAcceptTerms}
+  loading={termsLoading}
+/>
+```
+
+동의 완료 시 authStore가 업데이트되면서 모달이 자동으로 닫힘.
+
+#### 7단계: 프론트 — 마이페이지에 약관 메뉴 추가
+
+마이페이지 메뉴 영역에 "개인정보 처리방침", "서비스 이용약관" 버튼 추가. 클릭 시 WithOutlet 슬라이드 패턴으로 자식 페이지 이동.
+
+라우터 등록:
+```typescript
+// router/Router.tsx — my 하위 children
+{ path: 'privacy-policy', element: <PrivacyPolicyPage /> },
+{ path: 'terms-of-service', element: <TermsOfServicePage /> },
+```
+
+#### 8단계: 공개 약관 페이지 (앱 심사용)
+
+**Google Play / App Store 모두 로그인 없이 접근 가능한 개인정보 처리방침 URL을 필수로 요구한다.**
+
+```
+src/pages/public/
+  ├── PublicPrivacyPolicyPage.tsx    # FullHeightBox 래핑 독립 페이지
+  └── PublicTermsOfServicePage.tsx
+```
+
+라우터에 공개 라우트 등록 (MainLayout 밖):
+```typescript
+{ path: '/privacy-policy', element: <PublicPrivacyPolicyPage /> },
+{ path: '/terms-of-service', element: <PublicTermsOfServicePage /> },
+```
+
+앱 심사 시 입력할 URL:
+- `https://<도메인>/privacy-policy`
+- `https://<도메인>/terms-of-service`
+
+### 전체 동작 플로우
+
+```
+최초 로그인 → getMe 응답 (tosAcceptedAt: null)
+  → MainLayout에서 TermsConsentModal 바텀 드로어 표시
+  → 전체 동의 체크 + "동의하고 시작하기" 클릭
+  → POST /users/me/accept-terms → authStore 업데이트
+  → 모달 닫힘 → 피드 정상 이용
+
+이후 로그인 → getMe 응답 (tosAcceptedAt: "2026-06-22T...")
+  → 모달 표시 안 함 → 바로 피드 진입
+
+마이페이지 → 약관 메뉴 클릭 → 슬라이드 전환으로 약관 전문 열람
+```
+
+### 시행착오
+
+1. **WithOutlet 오버레이가 뷰포트 전체로 슬라이드** — `position: fixed; left:0; right:0`이 max-width 컨테이너를 무시함. 해결: 외부 wrapper(`fixed inset-0 flex justify-center`)로 중앙 정렬 + 내부 div에 `max-w-[480px]` 적용. 단, `slideInFromRight` 애니메이션이 `transform: translateX`를 사용하므로 `left:50%; transform:translateX(-50%)` 방식은 충돌함
+2. **약관동의 철회 기능 불필요** — 약관 동의 철회 = 서비스 이용 불가 = 회원탈퇴와 동일. 마이페이지에서는 약관 열람만 제공하면 충분
+3. **기존 유저 처리** — 약관동의 기능 추가 전에 가입한 기존 유저는 `tos_accepted_at`이 null이므로, 다음 로그인 시 자동으로 동의 모달이 표시됨. 별도 데이터 마이그레이션 불필요
+
+### 핵심 포인트
+
+- 약관 콘텐츠는 TS 객체로 관리하여 마이페이지 열람, 바텀 모달, 공개 페이지에서 **단일 소스**로 공유
+- Google Play UGC 앱은 **콘텐츠 신고/차단 기능**이 필수이며, 약관에도 해당 조항을 명시해야 함
+- 공개 약관 URL은 CloudFront SPA 설정(403→index.html)이 적용되어 있으므로 별도 서버 설정 불필요
+
+---
+
 ## 부록: 프리 티어 요약
 
 | 서비스 | 무료 범위 | 기간 |

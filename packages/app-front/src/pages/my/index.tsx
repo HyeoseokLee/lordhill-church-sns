@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Pencil, X, Check } from 'lucide-react';
+import { Camera, Pencil, X, Check, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/authApi';
 import { userApi } from '@/api/userApi';
@@ -234,10 +234,31 @@ export default function MyPage() {
         </div>
 
         {/* 구분선 */}
-        <div className="h-[1px] bg-surface-strong" />
+        <div className="h-2 bg-surface" />
 
-        {/* 메뉴 영역 */}
-        <div className="py-2">
+        {/* 약관 메뉴 영역 */}
+        <div className="py-1">
+          <button
+            onClick={() => navigate('/my/privacy-policy')}
+            className="w-full flex items-center justify-between py-3.5 px-1 text-[15px] text-text"
+          >
+            <span>개인정보 처리방침</span>
+            <ChevronRight size={18} className="text-text-muted" />
+          </button>
+          <button
+            onClick={() => navigate('/my/terms-of-service')}
+            className="w-full flex items-center justify-between py-3.5 px-1 text-[15px] text-text"
+          >
+            <span>서비스 이용약관</span>
+            <ChevronRight size={18} className="text-text-muted" />
+          </button>
+        </div>
+
+        {/* 구분선 */}
+        <div className="h-2 bg-surface" />
+
+        {/* 로그아웃 */}
+        <div className="py-1">
           <button
             onClick={handleLogout}
             className="w-full py-3.5 px-1 text-center text-[15px] text-error font-medium"

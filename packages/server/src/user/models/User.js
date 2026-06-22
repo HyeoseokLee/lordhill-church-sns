@@ -69,6 +69,12 @@ export default (sequelize) => {
         allowNull: false,
         defaultValue: 'pending',
       },
+      // 이용약관 동의 일시
+      tosAcceptedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: 'tos_accepted_at',
+      },
     },
     {
       sequelize,

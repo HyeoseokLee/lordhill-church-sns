@@ -23,6 +23,10 @@ import RecycleDetailPage from '@/pages/recycle/detail/index';
 import NotificationsWithOutlet from '@/pages/feed/notifications/NotificationsWithOutlet';
 import PrayerWritePage from '@/pages/prayer/write/index';
 import ProfilePage from '@/pages/my/profile/index';
+import PrivacyPolicyPage from '@/pages/my/terms/PrivacyPolicyPage';
+import TermsOfServicePage from '@/pages/my/terms/TermsOfServicePage';
+import PublicPrivacyPolicyPage from '@/pages/public/PublicPrivacyPolicyPage';
+import PublicTermsOfServicePage from '@/pages/public/PublicTermsOfServicePage';
 
 const router = createBrowserRouter([
   {
@@ -36,6 +40,15 @@ const router = createBrowserRouter([
   {
     path: '/auth/callback',
     element: <OAuthCallbackPage />,
+  },
+  // 공개 약관 페이지 (로그인 불필요, 앱 심사용)
+  {
+    path: '/privacy-policy',
+    element: <PublicPrivacyPolicyPage />,
+  },
+  {
+    path: '/terms-of-service',
+    element: <PublicTermsOfServicePage />,
   },
   {
     path: '/',
@@ -87,7 +100,11 @@ const router = createBrowserRouter([
       {
         path: 'my',
         element: <MyWithOutlet />,
-        children: [{ path: 'profile', element: <ProfilePage /> }],
+        children: [
+          { path: 'profile', element: <ProfilePage /> },
+          { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
+          { path: 'terms-of-service', element: <TermsOfServicePage /> },
+        ],
       },
     ],
   },

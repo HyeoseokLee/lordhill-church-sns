@@ -8,6 +8,7 @@ export interface User {
   role: string;
   status: string;
   provider: string;
+  tosAcceptedAt: string | null;
 }
 
 // 서버 응답 필드명을 프론트 필드명으로 매핑
@@ -19,6 +20,7 @@ const mapUser = (data: any): User => ({
   role: data.role || '',
   status: data.status || '',
   provider: data.provider || '',
+  tosAcceptedAt: data.tosAcceptedAt || null,
 });
 
 interface AuthState {
