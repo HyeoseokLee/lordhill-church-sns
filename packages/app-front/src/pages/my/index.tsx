@@ -233,32 +233,29 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* 구분선 */}
-        <div className="h-2 bg-surface" />
-
-        {/* 약관 메뉴 영역 */}
-        <div className="py-1">
-          <button
-            onClick={() => navigate('/my/privacy-policy')}
-            className="w-full flex items-center justify-between py-3.5 px-1 text-[15px] text-text"
-          >
-            <span>개인정보 처리방침</span>
-            <ChevronRight size={18} className="text-text-muted" />
-          </button>
-          <button
-            onClick={() => navigate('/my/terms-of-service')}
-            className="w-full flex items-center justify-between py-3.5 px-1 text-[15px] text-text"
-          >
-            <span>서비스 이용약관</span>
-            <ChevronRight size={18} className="text-text-muted" />
-          </button>
+        {/* 서비스 이용약관 섹션 */}
+        <div className="mt-4">
+          <p className="text-[13px] text-text-muted mb-2">서비스 이용약관</p>
+          <div className="bg-white rounded-[12px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] overflow-hidden">
+            <button
+              onClick={() => navigate('/my/privacy-policy')}
+              className="w-full flex items-center justify-between py-3.5 px-4 text-[15px] text-text"
+            >
+              <span>개인정보 처리방침</span>
+              <ChevronRight size={18} className="text-text-muted" />
+            </button>
+            <button
+              onClick={() => navigate('/my/terms-of-service')}
+              className="w-full flex items-center justify-between py-3.5 px-4 text-[15px] text-text"
+            >
+              <span>서비스 이용약관</span>
+              <ChevronRight size={18} className="text-text-muted" />
+            </button>
+          </div>
         </div>
 
-        {/* 구분선 */}
-        <div className="h-2 bg-surface" />
-
         {/* 로그아웃 */}
-        <div className="py-1">
+        <div className="py-2 mt-4">
           <button
             onClick={handleLogout}
             className="w-full py-3.5 px-1 text-center text-[15px] text-error font-medium"

@@ -10,10 +10,14 @@ import {
   X,
   ImagePlus,
   Trash2,
+  Flag,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import ConfirmModal from '@/components/common/ConfirmModal';
+import ReportModal from '@/components/common/ReportModal';
+import { reportApi, type ReportTargetType } from '@/api/reportApi';
 import { usePost } from '@/hooks/api/usePost';
 import { useComments } from '@/hooks/api/useComments';
 import { useAuthStore } from '@/stores/authStore';
@@ -59,6 +63,49 @@ export default function PostDetailPage() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editCommentText, setEditCommentText] = useState('');
   const [isSavingComment, setIsSavingComment] = useState(false);
+
+  // 신고 모달 상태
+  const [reportTarget, setReportTarget] = useState<{
+    type: ReportTargetType;
+    id: number;
+  } | null>(null);
+  // 내가 신고한 대상 ID 세트
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
+
+  // 내 신고 내역 조회 (게시글 + 댓글)
+  useEffect(() => {
+    if (!post || !comments) return;
+    const postIds = [Number(postId)];
+    const commentIds = comments.map((c: any) => c.id);
+    const fetchReports = async () => {
+      try {
+        const [postRes, commentRes] = await Promise.all([
+          reportApi.getMine('post', postIds),
+          commentIds.length > 0
+            ? reportApi.getMine('comment', commentIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+        const ids = new Set<string>();
+        postRes.data.forEach(r => ids.add(`${r.targetType}_${r.targetId}`));
+        commentRes.data.forEach(r => ids.add(`${r.targetType}_${r.targetId}`));
+        setReportedIds(ids);
+      } catch {
+        // 실패해도 무시
+      }
+    };
+    fetchReports();
+  }, [post, comments, postId]);
+
+  // 신고 성공 시 로컬 상태 업데이트
+  const handleReportSuccess = () => {
+    if (reportTarget) {
+      setReportedIds(prev => {
+        const next = new Set(prev);
+        next.add(`${reportTarget.type}_${reportTarget.id}`);
+        return next;
+      });
+    }
+  };
 
   // ?focus=comment 쿼리 시 댓글 입력에 포커스
   useEffect(() => {
@@ -368,6 +415,27 @@ export default function PostDetailPage() {
                 </button>
               </div>
             )}
+            {/* 타인 게시글 신고 버튼 */}
+            {post && !isMyPost && (
+              <button
+                onClick={() =>
+                  reportedIds.has(`post_${postId}`)
+                    ? toast('이미 신고한 콘텐츠입니다.')
+                    : setReportTarget({ type: 'post', id: Number(postId) })
+                }
+                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface transition-colors duration-150"
+              >
+                <Flag
+                  size={16}
+                  strokeWidth={1.5}
+                  className={
+                    reportedIds.has(`post_${postId}`)
+                      ? 'text-error fill-error'
+                      : 'text-text-muted'
+                  }
+                />
+              </button>
+            )}
           </div>
 
           {/* 본문 — 로딩 중 빈 공간 / 수정 모드 / 읽기 모드 */}
@@ -576,6 +644,30 @@ export default function PostDetailPage() {
                               </button>
                             </div>
                           )}
+                          {/* 타인 댓글 신고 버튼 */}
+                          {!isMyComment && !isEditingThis && (
+                            <button
+                              onClick={() =>
+                                reportedIds.has(`comment_${comment.id}`)
+                                  ? toast('이미 신고한 콘텐츠입니다.')
+                                  : setReportTarget({
+                                      type: 'comment',
+                                      id: comment.id,
+                                    })
+                              }
+                              className="ml-auto"
+                            >
+                              <Flag
+                                size={12}
+                                strokeWidth={1.5}
+                                className={
+                                  reportedIds.has(`comment_${comment.id}`)
+                                    ? 'text-error fill-error'
+                                    : 'text-text-muted'
+                                }
+                              />
+                            </button>
+                          )}
                         </div>
                         {/* 댓글 내용 — 수정 모드 / 읽기 모드 */}
                         {isEditingThis ? (
@@ -655,6 +747,14 @@ export default function PostDetailPage() {
         confirmText="삭제"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteModal(null)}
+      />
+      {/* 신고 모달 */}
+      <ReportModal
+        open={!!reportTarget}
+        onClose={() => setReportTarget(null)}
+        onSuccess={handleReportSuccess}
+        targetType={reportTarget?.type || 'post'}
+        targetId={reportTarget?.id || 0}
       />
     </FullHeightBox>
   );

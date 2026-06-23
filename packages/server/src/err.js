@@ -117,6 +117,13 @@ export const ErrInfo = {
     code: 60,
     message: '중복된 값이 존재합니다.',
   },
+
+  // Report
+  DuplicateReport: {
+    statusCode: 400,
+    code: 70,
+    message: '이미 신고한 콘텐츠입니다.',
+  },
 };
 
 class CustomError extends Error {

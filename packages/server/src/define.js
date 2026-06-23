@@ -43,6 +43,22 @@ export const contentLimit = {
   videoMaxSize: 100 * 1024 * 1024, // 100MB
 };
 
+// 신고 사유
+export const reportReason = {
+  spam: 'spam',
+  abuse: 'abuse',
+  inappropriate: 'inappropriate',
+  other: 'other',
+};
+
+// 신고 대상 타입
+export const reportTargetType = {
+  post: 'post',
+  comment: 'comment',
+  recycle: 'recycle',
+  recycleComment: 'recycle_comment',
+};
+
 // 관리자 감사 로그 액션
 export const auditAction = {
   approveUser: 'approve_user',

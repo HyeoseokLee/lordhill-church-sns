@@ -21,6 +21,7 @@ import counterpartyRouter from './counterparty/routes/counterparty.js';
 import transactionCategoryRouter from './transaction-category/routes/transactionCategory.js';
 import transactionRouter from './transaction/routes/transaction.js';
 import statisticsRouter from './statistics/routes/statistics.js';
+import reportRouter from './report/routes/report.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -69,6 +70,9 @@ apiRouter.use('/users', onlyLoginUser, fcmTokenRouter);
 
 // 통계 (승인된 사용자)
 apiRouter.use('/statistics', onlyLoginUser, onlyApprovedUser, statisticsRouter);
+
+// 신고 (승인된 사용자)
+apiRouter.use('/reports', onlyLoginUser, onlyApprovedUser, reportRouter);
 
 // 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
 apiRouter.use('/admin', adminAuthRouter);

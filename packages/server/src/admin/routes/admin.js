@@ -22,6 +22,7 @@ import {
   restoreRecycleComment,
   permanentDeleteRecycleComment,
   getDashboard,
+  dismissReport,
 } from '../controllers/admin.js';
 import { sendPush, getPushLogs } from '../controllers/push.js';
 
@@ -83,6 +84,9 @@ router.delete(
   '/recycle-comments/:id/permanent',
   asyncHandler(permanentDeleteRecycleComment),
 );
+
+// 신고 기각
+router.patch('/reports/:id/dismiss', asyncHandler(dismissReport));
 
 // 푸시 알림 전송
 router.post('/push/send', asyncHandler(sendPush));
