@@ -233,8 +233,29 @@ export default function MyPage() {
           )}
         </div>
 
-        {/* 서비스 이용약관 섹션 */}
+        {/* 고객지원 섹션 */}
         <div className="mt-4">
+          <p className="text-[13px] text-text-muted mb-2">고객지원</p>
+          <div className="bg-white rounded-[12px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] overflow-hidden">
+            <button
+              onClick={() => navigate('/my/notices')}
+              className="w-full flex items-center justify-between py-3.5 px-4 text-[15px] text-text"
+            >
+              <span>공지사항</span>
+              <ChevronRight size={18} className="text-text-muted" />
+            </button>
+            <button
+              onClick={() => navigate('/my/faq')}
+              className="w-full flex items-center justify-between py-3.5 px-4 text-[15px] text-text"
+            >
+              <span>자주 묻는 질문</span>
+              <ChevronRight size={18} className="text-text-muted" />
+            </button>
+          </div>
+        </div>
+
+        {/* 서비스 이용약관 섹션 */}
+        <div className="mt-8">
           <p className="text-[13px] text-text-muted mb-2">서비스 이용약관</p>
           <div className="bg-white rounded-[12px] shadow-[0_1px_4px_rgba(0,0,0,0.08)] overflow-hidden">
             <button

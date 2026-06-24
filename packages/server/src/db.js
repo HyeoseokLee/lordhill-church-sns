@@ -16,6 +16,7 @@ import Counterparty from './counterparty/models/Counterparty.js';
 import TransactionCategory from './transaction-category/models/TransactionCategory.js';
 import Transaction from './transaction/models/Transaction.js';
 import Report from './report/models/Report.js';
+import Notice from './notice/models/Notice.js';
 
 // config 패키지는 immutable 객체를 반환 — Sequelize가 내부 수정 시 hanging 발생
 const dbconfig = JSON.parse(JSON.stringify(config.sequelize));
@@ -65,6 +66,7 @@ db.Counterparty = Counterparty(sequelize);
 db.TransactionCategory = TransactionCategory(sequelize);
 db.Transaction = Transaction(sequelize);
 db.Report = Report(sequelize);
+db.Notice = Notice(sequelize);
 
 // Association 설정
 Object.keys(db).forEach((modelName) => {

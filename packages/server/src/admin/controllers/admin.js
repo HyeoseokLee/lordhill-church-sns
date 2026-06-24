@@ -3,6 +3,7 @@ import { ErrClass, ErrInfo } from '../../err.js';
 import { userStatus, auditAction } from '../../define.js';
 import { deleteFromS3 } from '../../uploader/index.js';
 import logger from '../../logger.js';
+import { sendPushToAll } from '../../push/pushService.js';
 
 const logAudit = async (adminUserId, action, target, metadata) => {
   await models.AdminAuditLog.create({ adminUserId, action, target, metadata });
@@ -665,4 +666,102 @@ export const dismissReport = async (req, res) => {
   });
 
   res.json({ message: '신고가 기각되었습니다.' });
+};
+
+// 어드민 공지사항 목록 (삭제 포함)
+export const getAdminNotices = async (_req, res) => {
+  const notices = await models.Notice.findAll({
+    paranoid: false,
+    order: [
+      ['displayOrder', 'ASC'],
+      ['createdAt', 'DESC'],
+    ],
+  });
+  res.json(notices);
+};
+
+// 공지사항 생성
+export const createNotice = async (req, res) => {
+  const { title, content, displayOrder = 0 } = req.body;
+  if (!title || !content) {
+    throw new ErrClass(ErrInfo.BadRequest, '제목과 내용을 입력해주세요.');
+  }
+  const notice = await models.Notice.create({
+    title,
+    content,
+    displayOrder,
+  });
+  await logAudit(req.user.id, 'create_notice', `notice:${notice.id}`, {
+    title,
+  });
+
+  // 전체 유저에게 푸시 알림 발송
+  sendPushToAll({
+    title: '새 공지사항',
+    body: title,
+    data: { path: '/my/notices' },
+    senderType: 'system',
+  }).catch((err) => logger.error('notice-push-failed', { error: err.message }));
+
+  res.json(notice);
+};
+
+// 공지사항 순서 일괄 업데이트
+export const reorderNotices = async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new ErrClass(ErrInfo.BadRequest, '순서 데이터가 필요합니다.');
+  }
+  await Promise.all(
+    ids.map((id, index) =>
+      models.Notice.update({ displayOrder: index }, { where: { id } }),
+    ),
+  );
+  res.json({ message: '순서가 변경되었습니다.' });
+};
+
+// 공지사항 수정
+export const updateNotice = async (req, res) => {
+  const notice = await models.Notice.findByPk(req.params.id);
+  if (!notice) {
+    throw new ErrClass(ErrInfo.NotFound, '공지사항을 찾을 수 없습니다.');
+  }
+  const { title, content, displayOrder } = req.body;
+  await notice.update({
+    ...(title !== undefined && { title }),
+    ...(content !== undefined && { content }),
+    ...(displayOrder !== undefined && { displayOrder }),
+  });
+  await logAudit(req.user.id, 'update_notice', `notice:${notice.id}`, {
+    title: notice.title,
+  });
+  res.json(notice);
+};
+
+// 공지사항 삭제 (소프트 딜리트)
+export const deleteNotice = async (req, res) => {
+  const notice = await models.Notice.findByPk(req.params.id);
+  if (!notice) {
+    throw new ErrClass(ErrInfo.NotFound, '공지사항을 찾을 수 없습니다.');
+  }
+  await notice.destroy();
+  await logAudit(req.user.id, 'delete_notice', `notice:${notice.id}`, {
+    title: notice.title,
+  });
+  res.json({ message: '삭제되었습니다.' });
+};
+
+// 공지사항 복구
+export const restoreNotice = async (req, res) => {
+  const notice = await models.Notice.findByPk(req.params.id, {
+    paranoid: false,
+  });
+  if (!notice) {
+    throw new ErrClass(ErrInfo.NotFound, '공지사항을 찾을 수 없습니다.');
+  }
+  await notice.restore();
+  await logAudit(req.user.id, 'restore_notice', `notice:${notice.id}`, {
+    title: notice.title,
+  });
+  res.json(notice);
 };

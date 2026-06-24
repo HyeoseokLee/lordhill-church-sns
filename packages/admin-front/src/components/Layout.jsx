@@ -99,6 +99,13 @@ export default function Layout({ children }) {
             >
               <span className="text-base">🐬</span>
             </NavLink>
+            <NavLink
+              to="/notices"
+              className={iconLinkClass}
+              title="공지사항 관리"
+            >
+              <span className="text-base">📢</span>
+            </NavLink>
             <NavLink to="/push" className={iconLinkClass} title="푸시 관리">
               <span className="text-base">🔔</span>
             </NavLink>
@@ -119,6 +126,9 @@ export default function Layout({ children }) {
             </NavLink>
             <NavLink to="/recycle" className={linkClass}>
               공유글 관리
+            </NavLink>
+            <NavLink to="/notices" className={linkClass}>
+              공지사항 관리
             </NavLink>
             <NavLink to="/push" className={linkClass}>
               푸시 관리

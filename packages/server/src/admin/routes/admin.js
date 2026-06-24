@@ -23,6 +23,12 @@ import {
   permanentDeleteRecycleComment,
   getDashboard,
   dismissReport,
+  getAdminNotices,
+  createNotice,
+  reorderNotices,
+  updateNotice,
+  deleteNotice,
+  restoreNotice,
 } from '../controllers/admin.js';
 import { sendPush, getPushLogs } from '../controllers/push.js';
 
@@ -87,6 +93,14 @@ router.delete(
 
 // 신고 기각
 router.patch('/reports/:id/dismiss', asyncHandler(dismissReport));
+
+// 공지사항 관리
+router.get('/notices', asyncHandler(getAdminNotices));
+router.post('/notices', asyncHandler(createNotice));
+router.patch('/notices/reorder', asyncHandler(reorderNotices));
+router.patch('/notices/:id', asyncHandler(updateNotice));
+router.delete('/notices/:id', asyncHandler(deleteNotice));
+router.patch('/notices/:id/restore', asyncHandler(restoreNotice));
 
 // 푸시 알림 전송
 router.post('/push/send', asyncHandler(sendPush));

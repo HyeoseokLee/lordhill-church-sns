@@ -45,6 +45,15 @@
   }
 }
 
+/* Quill 에디터 콘텐츠 렌더링 스타일 */
+.ql-content h1 { font-size: 1.5em; font-weight: 700; margin: 0.5em 0; }
+.ql-content h2 { font-size: 1.25em; font-weight: 700; margin: 0.5em 0; }
+.ql-content h3 { font-size: 1.1em; font-weight: 700; margin: 0.5em 0; }
+.ql-content ul, .ql-content ol { padding-left: 1.5em; margin: 0.5em 0; }
+.ql-content ul { list-style-type: disc; }
+.ql-content ol { list-style-type: decimal; }
+.ql-content p { margin: 0.3em 0; }
+
 /* 네이티브 푸시 트랜지션 (부모 ← 살짝 밀림, 자식 ← 오른쪽에서 등장/퇴장) */
 @keyframes slideInFromRight {
   from { transform: translateX(100%); }

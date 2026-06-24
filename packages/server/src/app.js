@@ -22,6 +22,7 @@ import transactionCategoryRouter from './transaction-category/routes/transaction
 import transactionRouter from './transaction/routes/transaction.js';
 import statisticsRouter from './statistics/routes/statistics.js';
 import reportRouter from './report/routes/report.js';
+import noticeRouter from './notice/routes/notice.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -73,6 +74,9 @@ apiRouter.use('/statistics', onlyLoginUser, onlyApprovedUser, statisticsRouter);
 
 // 신고 (승인된 사용자)
 apiRouter.use('/reports', onlyLoginUser, onlyApprovedUser, reportRouter);
+
+// 공지사항 (승인된 사용자)
+apiRouter.use('/notices', onlyLoginUser, onlyApprovedUser, noticeRouter);
 
 // 어드민 (로그인은 인증 불필요, 나머지는 admin 권한 필요)
 apiRouter.use('/admin', adminAuthRouter);

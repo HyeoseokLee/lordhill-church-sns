@@ -10,6 +10,7 @@ import PushPage from './pages/PushPage';
 import RecyclePage from './pages/RecyclePage';
 import OfferingPage from './pages/OfferingPage';
 import OfferingRegisterPage from './pages/OfferingRegisterPage';
+import NoticePage from './pages/NoticePage';
 
 function AdminRoute({ children }) {
   const [state, setState] = useState({ loading: true, isAdmin: false });
@@ -91,6 +92,14 @@ export default function App() {
           element={
             <AdminRoute>
               <OfferingPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/notices"
+          element={
+            <AdminRoute>
+              <NoticePage />
             </AdminRoute>
           }
         />

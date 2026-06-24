@@ -23,6 +23,8 @@ import RecycleDetailPage from '@/pages/recycle/detail/index';
 import NotificationsWithOutlet from '@/pages/feed/notifications/NotificationsWithOutlet';
 import PrayerWritePage from '@/pages/prayer/write/index';
 import ProfilePage from '@/pages/my/profile/index';
+import NoticesPage from '@/pages/my/notices/index';
+import FaqPage from '@/pages/my/faq/index';
 import PrivacyPolicyPage from '@/pages/my/terms/PrivacyPolicyPage';
 import TermsOfServicePage from '@/pages/my/terms/TermsOfServicePage';
 import PublicPrivacyPolicyPage from '@/pages/public/PublicPrivacyPolicyPage';
@@ -102,6 +104,8 @@ const router = createBrowserRouter([
         element: <MyWithOutlet />,
         children: [
           { path: 'profile', element: <ProfilePage /> },
+          { path: 'notices', element: <NoticesPage /> },
+          { path: 'faq', element: <FaqPage /> },
           { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
           { path: 'terms-of-service', element: <TermsOfServicePage /> },
         ],
