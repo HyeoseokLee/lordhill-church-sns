@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import Dialog from '@mui/material/Dialog';
 import { useAuthStore } from '@/stores/authStore';
+import { authApi } from '@/api/authApi';
 import { API_BASE_URL } from '@/config/define';
 import { MessageCircle } from 'lucide-react';
 import logoImg from '@/assets/images/img_logo3.png';
@@ -70,7 +71,14 @@ const getLastProvider = () => localStorage.getItem('lastProvider') || '';
 
 export default function LoginPage() {
   const { isAuthenticated } = useAuthStore();
+  const setUser = useAuthStore(s => s.setUser);
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // 심사용 로그인 상태
+  const [reviewEmail, setReviewEmail] = useState('');
+  const [reviewPassword, setReviewPassword] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   // URL 쿼리에서 에러 메시지 감지 (초기값으로 처리)
   const errorParam = searchParams.get('error');
@@ -160,8 +168,53 @@ export default function LoginPage() {
           ))}
         </div>
 
+        {/* 심사용 로그인 */}
+        <div className="w-full mt-10 pt-6 border-t border-surface">
+          <p className="text-[11px] text-text-muted mb-3 text-center">
+            심사용 로그인
+          </p>
+          <input
+            type="email"
+            value={reviewEmail}
+            onChange={e => setReviewEmail(e.target.value)}
+            placeholder="이메일"
+            className="w-full px-4 py-3 bg-surface rounded-[10px] text-[14px] text-text placeholder-text-muted outline-none mb-2"
+          />
+          <input
+            type="password"
+            value={reviewPassword}
+            onChange={e => setReviewPassword(e.target.value)}
+            placeholder="비밀번호"
+            className="w-full px-4 py-3 bg-surface rounded-[10px] text-[14px] text-text placeholder-text-muted outline-none mb-3"
+          />
+          <button
+            onClick={async () => {
+              if (!reviewEmail || !reviewPassword) return;
+              setReviewLoading(true);
+              try {
+                const res = await authApi.reviewLogin(
+                  reviewEmail,
+                  reviewPassword,
+                );
+                localStorage.setItem('accessToken', res.data.accessToken);
+                const me = await authApi.getMe();
+                setUser(me.data);
+                navigate('/feed', { replace: true });
+              } catch {
+                setErrorMessage('로그인에 실패했습니다.');
+              } finally {
+                setReviewLoading(false);
+              }
+            }}
+            disabled={reviewLoading}
+            className="w-full py-3 bg-surface-strong text-text-muted font-semibold text-[14px] rounded-[10px] active:scale-[0.98] transition-all duration-150"
+          >
+            {reviewLoading ? '로그인 중...' : '로그인'}
+          </button>
+        </div>
+
         {/* 하단 푸터 */}
-        <footer className="mt-12 text-center">
+        <footer className="mt-8 text-center">
           <p className="text-[10px] text-text-muted leading-relaxed px-8 opacity-60">
             계속 진행하면 손안의 교회 SNS의
             <br />

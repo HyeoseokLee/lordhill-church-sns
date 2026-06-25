@@ -278,6 +278,35 @@ export const devLogin = async (_req, res) => {
   });
 };
 
+// 심사용 로그인 (고정 계정 + 비밀번호)
+export const reviewLogin = async (req, res) => {
+  const { email, password } = req.body;
+  if (email !== 'review@lordhill.church' || password !== 'lordhill2026!') {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  const [user] = await models.User.findOrCreate({
+    where: { provider: 'dev', providerId: 'review-user' },
+    defaults: {
+      email: 'review@lordhill.church',
+      nickname: '심사계정',
+      provider: 'dev',
+      providerId: 'review-user',
+      role: 'member',
+      status: userStatus.approved,
+      tosAcceptedAt: new Date(),
+    },
+  });
+
+  if (user.status !== userStatus.approved) {
+    await user.update({ status: userStatus.approved });
+  }
+
+  const tokens = generateTokens(user);
+  setCookies(res, tokens);
+  res.json({ accessToken: tokens.accessToken });
+};
+
 export const getMe = async (req, res) => {
   const user = await models.User.findByPk(req.user.id, {
     attributes: { exclude: ['updatedAt'] },

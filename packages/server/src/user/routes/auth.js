@@ -11,6 +11,7 @@ import {
   logout,
   getMe,
   devLogin,
+  reviewLogin,
 } from '../controllers/auth.js';
 import { onlyLoginUser } from '../../middlewares.js';
 
@@ -102,6 +103,9 @@ router.post('/naver/native', asyncHandler(naverNativeLogin));
 if (process.env.NODE_ENV !== 'production') {
   router.post('/dev-login', asyncHandler(devLogin));
 }
+
+// 심사용 로그인
+router.post('/review-login', asyncHandler(reviewLogin));
 
 // 토큰 리프레시
 router.post('/refresh', asyncHandler(refreshToken));
