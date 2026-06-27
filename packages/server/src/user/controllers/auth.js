@@ -166,6 +166,46 @@ export const kakaoNativeLogin = async (req, res) => {
   res.json({ accessToken: tokens.accessToken });
 };
 
+// 네이티브 앱에서 Apple identityToken으로 로그인
+export const appleNativeLogin = async (req, res) => {
+  const { identityToken, fullName } = req.body;
+  if (!identityToken) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  // Apple identityToken 검증 (JWT 디코딩)
+  const tokenParts = identityToken.split('.');
+  if (tokenParts.length !== 3) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  const payload = JSON.parse(
+    Buffer.from(tokenParts[1], 'base64').toString('utf8'),
+  );
+  const providerId = payload.sub;
+  const email = payload.email || '';
+
+  if (!providerId) {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+
+  // Apple은 최초 로그인 시에만 이름을 제공
+  const nickname = fullName || '';
+
+  const { user, error } = await findOrRestoreUser({
+    provider: 'apple',
+    providerId,
+    email,
+    nickname,
+    profileImageUrl: '',
+  });
+  if (error === 'account_locked') throw new ErrClass(ErrInfo.UserDeactivated);
+  if (error === 'account_deleted') throw new ErrClass(ErrInfo.UserDeleted);
+
+  const tokens = generateTokens(user);
+  res.json({ accessToken: tokens.accessToken });
+};
+
 // 네이티브 앱에서 Naver accessToken으로 로그인
 export const naverNativeLogin = async (req, res) => {
   const { accessToken } = req.body;

@@ -5,6 +5,7 @@ import asyncHandler from 'express-async-handler';
 import {
   oauthCallback,
   googleNativeLogin,
+  appleNativeLogin,
   kakaoNativeLogin,
   naverNativeLogin,
   refreshToken,
@@ -44,6 +45,9 @@ router.get(
 
 // 네이티브 앱 Google 로그인 (idToken 검증)
 router.post('/google/native', asyncHandler(googleNativeLogin));
+
+// 네이티브 앱 Apple 로그인 (identityToken 검증)
+router.post('/apple/native', asyncHandler(appleNativeLogin));
 
 // Kakao OAuth 로그인 시작
 router.get(

@@ -41,7 +41,7 @@ export default (sequelize) => {
         field: 'profile_image_url',
       },
       provider: {
-        type: DataTypes.ENUM('google', 'kakao', 'naver', 'dev'),
+        type: DataTypes.ENUM('google', 'kakao', 'naver', 'dev', 'apple'),
         allowNull: false,
       },
       providerId: {
