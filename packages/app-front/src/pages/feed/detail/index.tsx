@@ -68,6 +68,7 @@ export default function PostDetailPage() {
   const [reportTarget, setReportTarget] = useState<{
     type: ReportTargetType;
     id: number;
+    userId?: number;
   } | null>(null);
   // 내가 신고한 대상 ID 세트
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
@@ -421,7 +422,11 @@ export default function PostDetailPage() {
                 onClick={() =>
                   reportedIds.has(`post_${postId}`)
                     ? toast('이미 신고한 콘텐츠입니다.')
-                    : setReportTarget({ type: 'post', id: Number(postId) })
+                    : setReportTarget({
+                        type: 'post',
+                        id: Number(postId),
+                        userId: post.user?.id,
+                      })
                 }
                 className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface transition-colors duration-150"
               >
@@ -653,6 +658,7 @@ export default function PostDetailPage() {
                                   : setReportTarget({
                                       type: 'comment',
                                       id: comment.id,
+                                      userId: comment.user?.id,
                                     })
                               }
                               className="ml-auto"
@@ -753,8 +759,13 @@ export default function PostDetailPage() {
         open={!!reportTarget}
         onClose={() => setReportTarget(null)}
         onSuccess={handleReportSuccess}
+        onBlock={() => {
+          window.dispatchEvent(new Event('feed-refresh'));
+          navigate(-1);
+        }}
         targetType={reportTarget?.type || 'post'}
         targetId={reportTarget?.id || 0}
+        targetUserId={reportTarget?.userId}
       />
     </FullHeightBox>
   );

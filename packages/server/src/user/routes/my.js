@@ -4,6 +4,7 @@ import {
   getProfile,
   updateProfile,
   acceptTerms,
+  deleteAccount,
   getUserProfile,
 } from '../controllers/my.js';
 import { uploadProfileImage } from '../../uploader/index.js';
@@ -22,6 +23,9 @@ router.patch(
 
 // 이용약관 동의
 router.post('/me/accept-terms', asyncHandler(acceptTerms));
+
+// 회원 탈퇴
+router.delete('/me', asyncHandler(deleteAccount));
 
 // 다른 유저 프로필
 router.get('/:id', asyncHandler(getUserProfile));

@@ -6,13 +6,16 @@ import {
   type ReportTargetType,
   type ReportReason,
 } from '@/api/reportApi';
+import { blockApi } from '@/api/blockApi';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  onBlock?: () => void;
   targetType: ReportTargetType;
   targetId: number;
+  targetUserId?: number;
 }
 
 // 신고 사유 옵션
@@ -23,13 +26,15 @@ const reasonOptions: { value: ReportReason; label: string }[] = [
   { value: 'other', label: '기타' },
 ];
 
-// 신고 모달
+// 신고 + 차단 모달
 export default function ReportModal({
   open,
   onClose,
   onSuccess,
+  onBlock,
   targetType,
   targetId,
+  targetUserId,
 }: Props) {
   const [selected, setSelected] = useState<ReportReason | null>(null);
   const [detail, setDetail] = useState('');
@@ -37,7 +42,6 @@ export default function ReportModal({
 
   const handleSubmit = async (reason: ReportReason) => {
     if (reason === 'other') {
-      // 기타 선택 시 입력 모드 전환
       setSelected('other');
       return;
     }
@@ -58,6 +62,25 @@ export default function ReportModal({
       handleClose();
     } catch (err: any) {
       const msg = err?.response?.data?.message || '신고에 실패했습니다.';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 사용자 차단 처리
+  const handleBlock = async () => {
+    if (!targetUserId) return;
+    setLoading(true);
+    try {
+      await blockApi.block(targetUserId);
+      toast.success(
+        '사용자를 차단했습니다.\n해당 사용자의 글이 더 이상 표시되지 않습니다.',
+      );
+      onBlock?.();
+      handleClose();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || '차단에 실패했습니다.';
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -134,6 +157,16 @@ export default function ReportModal({
               {option.label}
             </button>
           ))}
+          {/* 사용자 차단 버튼 */}
+          {targetUserId && (
+            <button
+              onClick={handleBlock}
+              disabled={loading}
+              className="w-full py-3 text-[14px] text-error font-medium bg-red-50 rounded-[10px] hover:bg-red-100 transition-colors duration-150"
+            >
+              이 사용자 차단
+            </button>
+          )}
           <button
             onClick={handleClose}
             className="w-full py-2.5 mt-1 text-[13px] text-text-muted"

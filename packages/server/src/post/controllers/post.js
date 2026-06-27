@@ -46,7 +46,18 @@ export const getFeed = async (req, res) => {
   const { cursor, limit = pagination.feedPageSize } = req.query;
   const pageSize = Math.min(parseInt(limit, 10), 50);
 
+  // 차단한 유저의 게시글 제외
+  const blocks = await models.UserBlock.findAll({
+    where: { blockerId: req.user.id },
+    attributes: ['blockedId'],
+    raw: true,
+  });
+  const blockedIds = blocks.map((b) => b.blockedId);
+
   const where = {};
+  if (blockedIds.length > 0) {
+    where.userId = { [Op.notIn]: blockedIds };
+  }
   if (cursor) {
     where.createdAt = { [Op.lt]: new Date(cursor) };
   }

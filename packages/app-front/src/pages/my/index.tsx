@@ -4,6 +4,7 @@ import { Camera, Pencil, X, Check, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/api/authApi';
 import { userApi } from '@/api/userApi';
+import ConfirmModal from '@/components/common/ConfirmModal';
 
 // 마이페이지 메인
 export default function MyPage() {
@@ -114,6 +115,21 @@ export default function MyPage() {
     } finally {
       setNicknameSaving(false);
     }
+  };
+
+  // 회원 탈퇴 모달
+  const [deleteAccountModal, setDeleteAccountModal] = useState(false);
+
+  // 회원 탈퇴
+  const handleDeleteAccount = async () => {
+    try {
+      await userApi.deleteAccount();
+      logout();
+      navigate('/login', { replace: true });
+    } catch {
+      alert('회원 탈퇴에 실패했습니다.');
+    }
+    setDeleteAccountModal(false);
   };
 
   // 로그아웃
@@ -251,6 +267,13 @@ export default function MyPage() {
               <span>자주 묻는 질문</span>
               <ChevronRight size={18} className="text-text-muted" />
             </button>
+            <button
+              onClick={() => navigate('/my/blocked')}
+              className="w-full flex items-center justify-between py-3.5 px-4 text-[15px] text-text"
+            >
+              <span>차단한 사용자</span>
+              <ChevronRight size={18} className="text-text-muted" />
+            </button>
           </div>
         </div>
 
@@ -284,7 +307,28 @@ export default function MyPage() {
             로그아웃
           </button>
         </div>
+
+        {/* 회원 탈퇴 */}
+        <div className="mt-8 mb-4">
+          <button
+            onClick={() => setDeleteAccountModal(true)}
+            className="w-full py-2 text-center text-[12px] text-text-muted underline"
+          >
+            회원 탈퇴
+          </button>
+        </div>
       </div>
+
+      {/* 회원 탈퇴 확인 모달 */}
+      <ConfirmModal
+        open={deleteAccountModal}
+        message={
+          '정말 탈퇴하시겠습니까?\n\n작성한 게시글과 댓글이 삭제되며,\n같은 계정으로 다시 로그인할 수 없습니다.'
+        }
+        confirmText="탈퇴하기"
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setDeleteAccountModal(false)}
+      />
     </>
   );
 }

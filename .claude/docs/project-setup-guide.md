@@ -1558,6 +1558,46 @@ export default function NotificationsWithOutlet() {
 - **React Router index 라우트에 element 없으면 흰 화면** — `{ index: true }` (element 미지정)는 빈 Outlet을 렌더링. WithOutlet이 직접 메인 페이지를 렌더링하므로 index route 불필요, children에 자식 페이지만 등록
 - **자식→자식 전환 시 부모 흔들림** — 같은 WithOutlet 아래에서 자식이 다른 자식으로 교체되면(알림→상세→알림), outlet 변경을 새 진입으로 인식하여 부모가 translateX(-30%) 후 복구됨. 해결: `useOutletTransition`에서 이전 outlet도 truthy이면 `skipAnimation=true`로 설정. **더 나은 해결**: 해당 자식을 자체 WithOutlet으로 만들어 중첩 구조로 변경하면 각 전환이 독립적인 부모→자식 관계가 되어 문제 없음
 
+### WithOutlet 자식→부모 데이터 갱신 (커스텀 이벤트 패턴)
+
+WithOutlet 구조에서 자식 페이지(상세)에서 조치(차단, 삭제, 글쓰기 등)를 하면 부모 페이지(리스트)의 데이터도 갱신되어야 한다. 그러나 WithOutlet은 부모를 리마운트하지 않으므로, `navigate(-1)`로 돌아가도 **SWR 캐시가 유지**되어 리스트가 갱신되지 않는다.
+
+**해결: `window` 커스텀 이벤트로 부모에 갱신 신호 전달**
+
+**1단계 — 부모 페이지에서 이벤트 리스너 등록:**
+
+```tsx
+// src/pages/feed/index.tsx (부모 리스트)
+const { mutate } = useFeed();
+const mutateRef = useRef(mutate);
+useEffect(() => {
+  mutateRef.current = mutate;
+}, [mutate]);
+
+useEffect(() => {
+  const handler = () => mutateRef.current();
+  window.addEventListener('feed-refresh', handler);
+  return () => window.removeEventListener('feed-refresh', handler);
+}, []);
+```
+
+**2단계 — 자식 페이지에서 이벤트 발생:**
+
+```tsx
+// src/pages/feed/detail/index.tsx (자식 상세)
+onBlock={() => {
+  window.dispatchEvent(new Event('feed-refresh'));
+  navigate(-1);
+}}
+```
+
+**이벤트 네이밍 규칙:** `{탭이름}-refresh` (예: `feed-refresh`, `recycle-refresh`)
+
+**주의사항:**
+- `mutate`를 `useRef`에 저장하는 이유: `mutate` 함수가 리렌더링마다 바뀔 수 있어서 이벤트 리스너에 직접 넣으면 stale closure 문제 발생
+- SWR의 글로벌 `mutate(() => true)`는 `useSWRInfinite`(무한스크롤)의 내부 캐시 키 구조와 호환되지 않아 동작하지 않음 → 커스텀 이벤트 방식이 더 확실함
+- 이 패턴은 글쓰기 완료, 사용자 차단, 게시글 삭제 등 부모 리스트에 영향을 주는 모든 자식 액션에 동일하게 적용
+
 ### 독립 페이지 (MainLayout 밖)의 전체 높이 처리
 
 LoginPage 등 MainLayout을 거치지 않는 독립 페이지에서 뷰포트 전체를 채우려면:
@@ -2783,6 +2823,176 @@ const handleConfirmDifferentLogin = () => {
 ```
 
 모달 버튼은 DESIGN.md의 **Primary/Secondary 버튼 스타일** 적용 (MUI Button 대신 커스텀 `<button>` + Tailwind).
+
+---
+
+## 16-1. 콘텐츠 신고 기능
+
+앱 심사(Google Play UGC 정책, App Store Guideline 1.2)를 위해 부적절한 콘텐츠 신고 기능이 필수.
+
+### DB — reports 테이블
+
+```sql
+-- 통합 신고 테이블 (게시글/댓글/재활용/재활용댓글)
+reports: id, user_id, target_type(ENUM), target_id, reason(ENUM), detail, status(ENUM), timestamps
+-- 유니크 인덱스: user_id + target_type + target_id (중복 신고 방지)
+```
+
+- `target_type`: `post`, `comment`, `recycle`, `recycle_comment`
+- `reason`: `spam`, `abuse`, `inappropriate`, `other`
+- `status`: `pending`, `resolved`, `dismissed`
+
+### 서버
+
+- `POST /api/reports` — 신고 생성 (자기 콘텐츠 신고 불가, 중복 방지, 기각 후 재신고 가능)
+- `GET /api/reports/mine?targetType=post&targetIds=1,2,3` — 내 신고 내역 조회 (pending만)
+- `PATCH /api/admin/reports/:id/dismiss` — 어드민 신고 기각
+
+**핵심 로직 — 기각 후 재신고:**
+```javascript
+const existing = await models.Report.findOne({
+  where: { userId, targetType, targetId },
+});
+if (existing) {
+  if (existing.status === 'pending') throw new ErrClass(ErrInfo.DuplicateReport);
+  // 기각된 신고 → 기존 레코드 업데이트로 재신고
+  await existing.update({ reason, detail, status: 'pending' });
+} else {
+  await models.Report.create({ userId, targetType, targetId, reason, detail });
+}
+```
+
+### 프론트 — 신고 모달 (ReportModal)
+
+- 신고 사유 3개는 **원탭 완료** (스팸/광고, 욕설/비방, 부적절한 콘텐츠)
+- "기타"는 텍스트 입력 후 신고
+- 신고 성공/에러 시 `react-hot-toast` 사용 (`alert()` 아님)
+- 이미 신고한 콘텐츠: Flag 아이콘이 빨간색(`text-error fill-error`) + 클릭 시 토스트
+
+### 프론트 — 신고 아이콘 (Flag)
+
+- 자기 글/댓글에는 안 보임, 타인 콘텐츠에만 표시
+- Lucide `Flag` 아이콘 사용 (게시글 16px, 댓글 12px)
+- 미신고: 회색 → 신고 완료: 빨간색 fill
+- 상세 페이지 진입 시 `GET /reports/mine`으로 신고 여부 조회
+
+### 어드민 — 신고 관리
+
+- 게시글/재활용 테이블에 **"신고" 컬럼** 추가 (pending 건수만 카운트)
+- 아코디언 상세: 게시글/댓글 흰색 영역 안에 신고 내역 표시
+- 각 신고에 신고자, 사유, 기타 상세, 기각 버튼
+- 기각 시 신고 건수에서 제외 + 앱에서 빨간 깃발 해제
+
+---
+
+## 16-2. 사용자 차단 기능
+
+앱 심사(App Store Guideline 1.2)에서 "사용자 차단 메커니즘" 필수.
+
+### DB — user_blocks 테이블
+
+```sql
+user_blocks: id, blocker_id, blocked_id, timestamps
+-- 유니크 인덱스: blocker_id + blocked_id
+```
+
+### 서버
+
+- `POST /api/blocks/:userId` — 사용자 차단
+- `DELETE /api/blocks/:userId` — 차단 해제
+- `GET /api/blocks` — 차단 유저 목록 (프로필 포함)
+- `GET /api/blocks/ids` — 차단 유저 ID 목록
+
+**피드/댓글 필터링 — 차단 유저 콘텐츠 제외:**
+```javascript
+const blocks = await models.UserBlock.findAll({
+  where: { blockerId: req.user.id },
+  attributes: ['blockedId'],
+  raw: true,
+});
+const blockedIds = blocks.map(b => b.blockedId);
+
+const where = {};
+if (blockedIds.length > 0) {
+  where.userId = { [Op.notIn]: blockedIds };
+}
+```
+
+적용 위치: `getFeed`, `getComments`, `getRecycles`, `getComments(recycle)`
+
+### 프론트 — 차단 UI
+
+- **신고 모달에 "이 사용자 차단" 버튼** 추가 (빨간 텍스트, 하단 배치)
+- 차단 시: 토스트 + 커스텀 이벤트로 부모 리스트 갱신 + `navigate(-1)`
+- **마이페이지 > 차단한 사용자** 페이지: 차단 목록 + 해제 버튼
+
+**차단 후 부모 리스트 갱신 (WithOutlet 구조):**
+```tsx
+// 자식 상세 페이지
+onBlock={() => {
+  window.dispatchEvent(new Event('feed-refresh'));
+  navigate(-1);
+}}
+```
+
+### 어드민 — 차단 현황
+
+- 회원 관리 테이블에 **"차단" 컬럼** (N명 뱃지, 클릭 시 차단자 목록 팝업)
+
+---
+
+## 16-3. 회원 탈퇴 (계정 삭제)
+
+앱 심사(App Store Guideline 5.1.1(v))에서 계정 삭제 기능 필수.
+
+### 서버 — `DELETE /api/users/me`
+
+```javascript
+export const deleteAccount = async (req, res) => {
+  const userId = req.user.id;
+  const user = await models.User.findByPk(userId);
+
+  // 게시글/댓글 소프트 딜리트
+  await models.Post.destroy({ where: { userId } });
+  await models.Comment.destroy({ where: { userId } });
+  await models.Recycle.destroy({ where: { userId } });
+  await models.RecycleComment.destroy({ where: { userId } });
+
+  // 유저 소프트 딜리트
+  await user.destroy();
+
+  // FCM 토큰 삭제 + 쿠키 클리어
+  await models.FcmToken.destroy({ where: { userId } });
+  res.clearCookie('access_token');
+  res.clearCookie('refresh_token');
+
+  res.json({ message: '회원 탈퇴가 완료되었습니다.' });
+};
+```
+
+### 프론트 — 마이페이지 회원 탈퇴 UI
+
+- 마이페이지 **맨 하단**에 작은 텍스트 (`text-[12px] text-text-muted underline`)
+- 로그아웃 버튼과 충분한 여백(`mt-8`)으로 분리 → 실수로 탈퇴 방지
+- 클릭 시 ConfirmModal: "정말 탈퇴하시겠습니까? 작성한 게시글과 댓글이 삭제되며, 같은 계정으로 다시 로그인할 수 없습니다."
+
+### 탈퇴 후 재로그인 시도
+
+- 서버의 `findOrRestoreUser`에서 `deletedAt` 존재 시 `account_deleted` 에러 반환
+- 프론트에서 "삭제된 계정입니다. 관리자에게 문의하세요." 모달 표시
+- 어드민에서 유저 복구(restore) 시 다시 로그인 가능
+
+### 삭제 정책
+
+- **즉시**: soft delete (유저 + 게시글/댓글 + FCM 토큰)
+- **향후**: 30일 후 hard delete 스케줄러 추가 예정
+- 어드민에서 복구 시 유저 + 게시글/댓글 모두 복구 가능
+
+### 시행착오
+
+1. **회원 탈퇴 버튼 위치** — 로그아웃 바로 아래에 두면 혼동 가능. 충분한 여백 + 작고 눈에 덜 띄는 스타일로 분리
+2. **차단 후 피드 미갱신** — WithOutlet 구조에서 `navigate(-1)` 해도 부모 리마운트 안 됨. `window.dispatchEvent(new Event('feed-refresh'))` 커스텀 이벤트로 부모의 SWR mutate 트리거 필요. `useSWRInfinite`는 글로벌 `mutate()` 매처와 호환 안 됨
+3. **기각된 신고 재신고 불가** — 유니크 인덱스(user+target) 때문에 기각 후 새 레코드 생성 불가. 기존 레코드를 `update({ reason, detail, status: 'pending' })`으로 갱신하여 해결
 
 ---
 

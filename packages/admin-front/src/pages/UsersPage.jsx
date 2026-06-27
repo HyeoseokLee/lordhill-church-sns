@@ -41,6 +41,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [blockDetailTarget, setBlockDetailTarget] = useState(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -140,6 +141,9 @@ export default function UsersPage() {
                 상태
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">
+                차단
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">
                 가입일
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">
@@ -150,13 +154,13 @@ export default function UsersPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
+                <td colSpan={7} className="text-center py-8 text-gray-400">
                   불러오는 중...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">
+                <td colSpan={7} className="text-center py-8 text-gray-400">
                   회원이 없습니다.
                 </td>
               </tr>
@@ -179,6 +183,18 @@ export default function UsersPage() {
                     >
                       {getStatusLabel(user)}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {user.blockedByCount > 0 ? (
+                      <button
+                        onClick={() => setBlockDetailTarget(user)}
+                        className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-xs font-medium hover:bg-orange-200 transition-colors"
+                      >
+                        {user.blockedByCount}명
+                      </button>
+                    ) : (
+                      <span className="text-gray-300 text-xs">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString('ko-KR')}
@@ -305,6 +321,40 @@ export default function UsersPage() {
           </Button>
           <Button onClick={handleDelete} color="error" variant="contained">
             삭제
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 차단 상세 모달 */}
+      <Dialog
+        open={!!blockDetailTarget}
+        onClose={() => setBlockDetailTarget(null)}
+      >
+        <DialogTitle>
+          {blockDetailTarget?.nickname || blockDetailTarget?.email}님을 차단한
+          사용자
+        </DialogTitle>
+        <DialogContent>
+          {blockDetailTarget?.blockedBy?.length > 0 ? (
+            <div className="space-y-2">
+              {blockDetailTarget.blockedBy.map(blocker => (
+                <div
+                  key={blocker.id}
+                  className="flex items-center gap-2 py-1.5"
+                >
+                  <span className="text-sm font-medium text-gray-700">
+                    {blocker.nickname || '익명'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">차단 내역이 없습니다.</p>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBlockDetailTarget(null)} color="inherit">
+            닫기
           </Button>
         </DialogActions>
       </Dialog>

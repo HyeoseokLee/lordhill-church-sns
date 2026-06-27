@@ -36,7 +36,31 @@ export const getUsers = async (req, res) => {
     order: [['createdAt', 'DESC']],
   });
 
-  res.json(users);
+  // 각 유저별 차단당한 내역 조회 (누가 차단했는지 포함)
+  const userIds = users.map((u) => u.id);
+  const blocks = await models.UserBlock.findAll({
+    where: { blockedId: userIds },
+    include: [
+      {
+        model: models.User,
+        as: 'blocker',
+        attributes: ['id', 'nickname'],
+      },
+    ],
+  });
+  const blockMap = {};
+  for (const b of blocks) {
+    if (!blockMap[b.blockedId]) blockMap[b.blockedId] = [];
+    blockMap[b.blockedId].push(b.blocker);
+  }
+
+  const result = users.map((u) => ({
+    ...u.toJSON(),
+    blockedByCount: (blockMap[u.id] || []).length,
+    blockedBy: blockMap[u.id] || [],
+  }));
+
+  res.json(result);
 };
 
 export const approveUser = async (req, res) => {

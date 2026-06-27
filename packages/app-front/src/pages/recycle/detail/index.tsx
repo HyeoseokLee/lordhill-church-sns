@@ -66,6 +66,7 @@ export default function RecycleDetailPage() {
   const [reportTarget, setReportTarget] = useState<{
     type: ReportTargetType;
     id: number;
+    userId?: number;
   } | null>(null);
   // 내가 신고한 대상 ID 세트
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
@@ -509,6 +510,7 @@ export default function RecycleDetailPage() {
                   : setReportTarget({
                       type: 'recycle',
                       id: Number(recycleId),
+                      userId: item.user?.id,
                     })
               }
               className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface transition-colors duration-150"
@@ -733,6 +735,7 @@ export default function RecycleDetailPage() {
                                   : setReportTarget({
                                       type: 'recycle_comment',
                                       id: comment.id,
+                                      userId: comment.user?.id,
                                     })
                               }
                               className="ml-auto"
@@ -936,8 +939,13 @@ export default function RecycleDetailPage() {
         open={!!reportTarget}
         onClose={() => setReportTarget(null)}
         onSuccess={handleReportSuccess}
+        onBlock={() => {
+          window.dispatchEvent(new Event('recycle-refresh'));
+          navigate(-1);
+        }}
         targetType={reportTarget?.type || 'recycle'}
         targetId={reportTarget?.id || 0}
+        targetUserId={reportTarget?.userId}
       />
     </FullHeightBox>
   );

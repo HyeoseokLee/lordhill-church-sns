@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
@@ -15,8 +16,21 @@ export const getComments = async (req, res) => {
     throw new ErrClass(ErrInfo.NotFoundPost);
   }
 
+  // 차단한 유저의 댓글 제외
+  const blocks = await models.UserBlock.findAll({
+    where: { blockerId: req.user.id },
+    attributes: ['blockedId'],
+    raw: true,
+  });
+  const blockedIds = blocks.map((b) => b.blockedId);
+
+  const commentWhere = { postId };
+  if (blockedIds.length > 0) {
+    commentWhere.userId = { [Op.notIn]: blockedIds };
+  }
+
   const { rows, count } = await models.Comment.findAndCountAll({
-    where: { postId },
+    where: commentWhere,
     include: [
       {
         model: models.User,

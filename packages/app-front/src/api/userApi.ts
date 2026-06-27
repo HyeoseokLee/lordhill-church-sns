@@ -10,4 +10,7 @@ export const userApi = {
 
   // 이용약관 동의
   acceptTerms: () => axiosInstance.post('/users/me/accept-terms'),
+
+  // 회원 탈퇴
+  deleteAccount: () => axiosInstance.delete('/users/me'),
 };
