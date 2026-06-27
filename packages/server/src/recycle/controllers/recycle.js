@@ -6,6 +6,7 @@ import { pagination, contentLimit } from '../../define.js';
 import { generatePresignedUrl, deleteFromS3 } from '../../uploader/index.js';
 import { sendPushToUser, sendPushToAll } from '../../push/pushService.js';
 import logger from '../../logger.js';
+import { containsBadWord } from '../../filter/contentFilter.js';
 
 // 목록 (커서 페이지네이션)
 export const getRecycles = async (req, res) => {
@@ -133,6 +134,12 @@ export const createRecycle = async (req, res) => {
 
   if (!title || !title.trim()) {
     throw new ErrClass(ErrInfo.BadRequest, '제목을 입력해주세요.');
+  }
+  if (containsBadWord(title) || containsBadWord(content)) {
+    throw new ErrClass(
+      ErrInfo.BadRequest,
+      '부적절한 표현이 포함되어 있습니다.',
+    );
   }
 
   const item = await models.Recycle.create({
@@ -387,6 +394,12 @@ export const createComment = async (req, res) => {
 
   if (!content || !content.trim()) {
     throw new ErrClass(ErrInfo.BadRequest, '댓글 내용을 입력해주세요.');
+  }
+  if (containsBadWord(content)) {
+    throw new ErrClass(
+      ErrInfo.BadRequest,
+      '부적절한 표현이 포함되어 있습니다.',
+    );
   }
   if (content.length > contentLimit.commentMaxLength) {
     throw new ErrClass(ErrInfo.CommentContentTooLong);

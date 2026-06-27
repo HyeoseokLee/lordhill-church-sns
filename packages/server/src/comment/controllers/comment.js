@@ -4,6 +4,7 @@ import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
 import { sendPushToUser } from '../../push/pushService.js';
 import logger from '../../logger.js';
+import { containsBadWord } from '../../filter/contentFilter.js';
 
 export const getComments = async (req, res) => {
   const postId = parseInt(req.params.postId, 10);
@@ -57,6 +58,12 @@ export const createComment = async (req, res) => {
 
   if (!content || content.trim().length === 0) {
     throw new ErrClass(ErrInfo.BadRequest, '댓글 내용을 입력해주세요.');
+  }
+  if (containsBadWord(content)) {
+    throw new ErrClass(
+      ErrInfo.BadRequest,
+      '부적절한 표현이 포함되어 있습니다.',
+    );
   }
   if (content.length > contentLimit.commentMaxLength) {
     throw new ErrClass(ErrInfo.CommentContentTooLong);

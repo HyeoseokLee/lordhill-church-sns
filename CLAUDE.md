@@ -31,7 +31,7 @@ MySQL + Sequelize 6. 6개 테이블: users, posts, post_media, likes, comments, 
 Post/Comment는 `paranoid: true` (soft delete). 마이그레이션은 `packages/server/migrations/`.
 
 - 로컬 Adminer: `http://localhost:8081` (서버: `mysql`, 사용자: `root`, 비밀번호: `rootpassword`)
-- 라이브 Adminer: `http://localhost:8081` (서버: `lordhill-sns-db.c1qaum2qg2re.ap-northeast-2.rds.amazonaws.com`, 사용자: `admin`)
+- 라이브 DB: TiDB Cloud Serverless (MySQL CLI로 접속, `--ssl-mode=REQUIRED` 필수)
 
 ## Environment
 
@@ -45,20 +45,19 @@ Post/Comment는 `paranoid: true` (soft delete). 마이그레이션은 `packages/
 
 - 도메인: `lordhill-sns.kr` (가비아, 루트→www 포워딩)
 - 프론트: `https://www.lordhill-sns.kr` (CloudFront: `d3r7fh2kgsbnqt.cloudfront.net`)
-- API 서버: `https://api.lordhill-sns.kr` (EC2: `15.164.129.119`, nginx + certbot SSL)
-- RDS: `lordhill-sns-db.c1qaum2qg2re.ap-northeast-2.rds.amazonaws.com` (admin)
+- API 서버: `https://api.lordhill-sns.kr` (Fly.io, Docker 컨테이너)
+- DB: TiDB Cloud Serverless (MySQL 호환, SSL 필수)
 - S3 이미지: `lordhill-sns-media`
 - S3 프론트: `lordhill-sns-front-905418091773-ap-northeast-2-an`
 - 어드민: `https://admin.lordhill-sns.kr` (CloudFront: `d2yslh3s5p8hv0.cloudfront.net`)
 - S3 어드민: `lordhill-sns-admin`
 - CI/CD: GitHub Actions (`.github/workflows/deploy-server.yml`, `deploy-front.yml`, `deploy-admin.yml`)
-- EC2 SSH: `ssh -i lordhill-key.pem ec2-user@15.164.129.119`
 
 ## CI/CD 파이프라인
 
 ```
 서버 (packages/server/** 변경 시):
-  lint → prettier → EC2 배포 → DB 마이그레이션 → PM2 재시작
+  lint → prettier → Fly.io 배포 (fly deploy) → DB 마이그레이션 자동 실행
 
 프론트 (packages/app-front/** 변경 시):
   lint → prettier → type-check → 빌드 (VITE_API_URL=https://api.lordhill-sns.kr) → S3 업로드 → CloudFront 캐시 무효화
@@ -84,28 +83,26 @@ Post/Comment는 `paranoid: true` (soft delete). 마이그레이션은 `packages/
 - 라이브: `VITE_API_URL=https://api.lordhill-sns.kr`, axiosInstance baseURL이 환경변수 사용
 - OAuth 리다이렉트: `API_BASE_URL` (config/define.ts) + `/api/auth/google`
 
-## AWS 인프라 구성
+## 인프라 구성 (Fly.io + TiDB + AWS S3/CloudFront)
 
 ```
 사용자 (iOS/Android WebView)
   ↓
 CloudFront (HTTPS + CDN) → S3 (프론트 빌드 파일)
   ↓ API 호출
-nginx (HTTPS, certbot) → EC2:3001 (Express) → RDS MySQL
-                                              → S3 (이미지)
+Fly.io (Docker 컨테이너, Express) → TiDB Cloud Serverless (MySQL 호환, SSL)
+                                   → AWS S3 (이미지)
 ```
 
-- EC2 보안 그룹: SSH(22), HTTP(80), HTTPS(443), 3001 개방
-- RDS 보안 그룹: EC2 보안 그룹에서 3306 허용
+- Fly.io: SSL 자동 발급, Docker 배포, nginx/certbot/PM2 불필요
+- TiDB Cloud Serverless: MySQL 호환, 5GB 무료, SSL 필수
 - CloudFront: OAC로 S3 접근, SPA 에러 페이지(403→index.html), 커스텀 도메인 + ACM 인증서
-- nginx: certbot SSL 자동 갱신, reverse proxy (443→3001)
-- PM2: 서버 프로세스 관리, 재부팅 시 자동 시작
 
 ## 도메인 설정 (가비아)
 
 - `lordhill-sns.kr` → www로 포워딩
 - `www` CNAME → `d3r7fh2kgsbnqt.cloudfront.net.`
-- `api` A → `15.164.129.119`
+- `api` CNAME → Fly.io 앱 도메인
 - ACM 인증서 검증용 CNAME 레코드
 
 ## 보류 과제
@@ -160,7 +157,7 @@ Do not deviate without explicit user approval.
 
 ## 배포 가이드
 
-상세 절차: `.claude/docs/aws-cicd-guide.md`
+상세 절차: `.claude/docs/project-setup-guide.md` (6-1. Fly.io + TiDB 섹션)
 
 ## Skill routing
 

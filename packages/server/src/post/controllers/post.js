@@ -4,6 +4,7 @@ import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { pagination, contentLimit } from '../../define.js';
 import { generatePresignedUrl, deleteFromS3 } from '../../uploader/index.js';
+import { containsBadWord } from '../../filter/contentFilter.js';
 
 // 게시글의 좋아요 누른 유저 목록 조회
 const getLikedUsers = async (postId) => {
@@ -185,6 +186,12 @@ export const createPost = async (req, res) => {
 
   if (content && content.length > contentLimit.postMaxLength) {
     throw new ErrClass(ErrInfo.PostContentTooLong);
+  }
+  if (containsBadWord(content)) {
+    throw new ErrClass(
+      ErrInfo.BadRequest,
+      '부적절한 표현이 포함되어 있습니다.',
+    );
   }
 
   const post = await models.Post.create({
