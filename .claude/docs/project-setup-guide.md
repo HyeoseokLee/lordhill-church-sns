@@ -2996,6 +2996,68 @@ export const deleteAccount = async (req, res) => {
 
 ---
 
+## 16-4. 비속어 필터링 (콘텐츠 필터)
+
+앱 심사(App Store Guideline 1.2)에서 "a method for filtering objectionable content" 요구. 사용자가 작성하는 모든 콘텐츠(게시글, 댓글 등)에 비속어 필터를 적용한다.
+
+### 서버 — 필터 모듈
+
+```javascript
+// src/filter/contentFilter.js
+const badWords = [
+  // 한국어 비속어
+  '시발', '씨발', 'ㅅㅂ', 'ㅆㅂ', '병신', 'ㅂㅅ', '지랄', 'ㅈㄹ',
+  '개새끼', '새끼', 'ㅅㄲ', '미친놈', '미친년', '좆', 'ㅈ같', '씹',
+  // 영어 비속어
+  'fuck', 'shit', 'damn', 'asshole', 'bitch',
+  // ... 필요에 따라 추가
+];
+
+export const containsBadWord = (text) => {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return badWords.some((word) => lower.includes(word.toLowerCase()));
+};
+```
+
+### 적용 위치
+
+모든 UGC(사용자 생성 콘텐츠) 작성 API의 유효성 검사에 추가:
+
+```javascript
+import { containsBadWord } from '../../filter/contentFilter.js';
+
+// 게시글/댓글 작성 시
+if (containsBadWord(content)) {
+  throw new ErrClass(ErrInfo.BadRequest, '부적절한 표현이 포함되어 있습니다.');
+}
+```
+
+| 적용 파일 | 함수 | 검사 대상 |
+|-----------|------|----------|
+| `post/controllers/post.js` | `createPost` | content |
+| `comment/controllers/comment.js` | `createComment` | content |
+| `recycle/controllers/recycle.js` | `createRecycle` | title, content |
+| `recycle/controllers/recycle.js` | `createComment` | content |
+
+### 핵심 포인트
+
+- 비속어 목록은 `src/filter/contentFilter.js`에서 중앙 관리 — 새 비속어 추가 시 이 파일만 수정
+- 대소문자 무시(`toLowerCase()`)로 영어 비속어도 감지
+- 게시글 수정(update) API에도 동일하게 적용 권장
+- 향후 정규식 패턴(초성 조합, 자음 치환 등)으로 확장 가능
+
+### 이용약관 연동
+
+이용약관 제4조에 다음 문구를 명시:
+- **"무관용(Zero Tolerance) 원칙"** 적용
+- **"위반 시 콘텐츠 즉시 삭제, 계정 정지/삭제"**
+- **"관리자는 신고된 콘텐츠를 24시간 이내에 검토하고 조치"**
+
+Apple 심사에서 이 문구들을 명시적으로 요구하므로 반드시 포함해야 함.
+
+---
+
 ## 17. 푸시 알림 (FCM)
 
 Firebase Cloud Messaging(FCM)을 사용한 푸시 알림. iOS/Android 네이티브 앱에서 수신.
@@ -4042,6 +4104,198 @@ src/pages/public/
 - 약관 콘텐츠는 TS 객체로 관리하여 마이페이지 열람, 바텀 모달, 공개 페이지에서 **단일 소스**로 공유
 - Google Play UGC 앱은 **콘텐츠 신고/차단 기능**이 필수이며, 약관에도 해당 조항을 명시해야 함
 - 공개 약관 URL은 CloudFront SPA 설정(403→index.html)이 적용되어 있으므로 별도 서버 설정 불필요
+
+---
+
+## 21. 앱 스토어 배포 (iOS App Store + Google Play)
+
+앱 심사에 필요한 사전 준비, 제출 절차, 거절 대응 경험을 정리한다.
+
+### 앱 심사 전 필수 기능 체크리스트
+
+앱 심사 제출 전에 다음이 모두 구현되어 있어야 한다. 하나라도 빠지면 거절됨.
+
+| 기능 | iOS (App Store) | Android (Google Play) | 구현 위치 |
+|------|-----------------|----------------------|----------|
+| **이용약관 동의** | 필수 (1.2) | 필수 (UGC 정책) | 로그인 후 바텀 드로어 |
+| **개인정보 처리방침** | 필수 (공개 URL) | 필수 (공개 URL) | `/privacy-policy` (로그인 불필요) |
+| **콘텐츠 신고** | 필수 (1.2) | 필수 (UGC) | 게시글/댓글 Flag 아이콘 |
+| **비속어 필터링** | 필수 (1.2) | 필수 (UGC) | 서버 `contentFilter.js` |
+| **사용자 차단** | 필수 (1.2) | 필수 (UGC) | 신고 모달 내 차단 버튼 |
+| **계정 삭제 (회원 탈퇴)** | 필수 (5.1.1) | 필수 | 마이페이지 하단 |
+| **Sign in with Apple** | 필수 (4.8) | 불필요 | iOS 네이티브만 |
+| **심사용 로그인** | 필수 (데모 계정) | 필수 (데모 계정) | 로그인 화면 하단 필드 |
+
+### 심사용 로그인 구현
+
+소셜 로그인만 있는 앱은 심사팀이 로그인할 수 없으므로, 심사 전용 로그인을 제공해야 한다.
+
+**서버** — `POST /api/auth/review-login`:
+```javascript
+export const reviewLogin = async (req, res) => {
+  const { email, password } = req.body;
+  if (email !== 'review@lordhill.church' || password !== 'lordhill2026!') {
+    throw new ErrClass(ErrInfo.UnAuthorized);
+  }
+  const [user] = await models.User.findOrCreate({
+    where: { provider: 'dev', providerId: 'review-user' },
+    defaults: {
+      email: 'review@lordhill.church',
+      nickname: '심사계정',
+      provider: 'dev',
+      providerId: 'review-user',
+      status: userStatus.approved,
+      tosAcceptedAt: new Date(),  // 약관 동의 처리
+    },
+  });
+  const tokens = generateTokens(user);
+  res.json({ accessToken: tokens.accessToken });
+};
+```
+
+**프론트** — 로그인 화면 하단에 이메일/비밀번호 입력 필드 + 로그인 버튼 추가. 심사 통과 후 제거 가능.
+
+### 21-1. iOS App Store 배포
+
+#### 사전 준비
+
+1. **Apple Developer Program** 가입 ($99/년)
+2. Xcode에서 **Apple Developer 계정**으로 로그인 (일반 Apple ID가 아님)
+3. Bundle ID 등록: [Apple Developer Identifiers](https://developer.apple.com/account/resources/identifiers)
+4. **Sign in with Apple** capability 추가 (Signing & Capabilities)
+5. Constants.swift 환경을 `.live`로 변경
+
+#### 앱 아이콘
+
+- iOS: `Assets.xcassets/AppIcon.appiconset/` — **1024x1024 단일 이미지**만 넣으면 됨 (Xcode 15+에서 자동 리사이즈)
+- 원형 로고를 정사각형 흰색 배경에 배치 (원형 그대로 넣으면 둥근 사각형 마스킹에서 어색)
+
+#### Archive + 업로드
+
+1. Xcode → 빌드 대상을 **Any iOS Device**로 선택
+2. **Product > Archive**
+3. Organizer → **Distribute App > App Store Connect** → 업로드
+
+#### App Store Connect 설정
+
+1. [appstoreconnect.apple.com](https://appstoreconnect.apple.com) 접속
+2. 앱 생성: 이름, Bundle ID, SKU(`com.lordhill.church.sns`), 기본 언어
+3. 필수 입력:
+   - **카테고리**: 소셜 네트워킹
+   - **개인정보 처리방침 URL**: `https://<도메인>/privacy-policy`
+   - **연령 등급**: 설문 작성 (UGC 앱 → "예")
+   - **스크린샷**: 6.5인치 (1242x2688 또는 1284x2778) 최소 1장
+   - **앱 설명, 키워드, 지원 URL**
+   - **가격**: 무료
+   - **앱 개인정보**: 수집 데이터 유형 선택 후 "게시"
+4. **심사 정보**:
+   - 로그인 필요 → 예
+   - 데모 계정: `review@lordhill.church` / `lordhill2026!`
+   - 메모: 심사용 로그인 위치 안내
+5. **심사 영상**: 거절 후 Reply에서 직접 영상 파일 첨부 (S3 URL은 심사팀이 못 볼 수 있음)
+
+#### iOS 심사 거절 사유 및 대응 (실제 경험)
+
+**1차 거절 — 3가지 사유:**
+
+| 사유 | Guideline | 문제 | 해결 |
+|------|-----------|------|------|
+| Sign in with Apple 없음 | 4.8 | 소셜 로그인 제공 시 Apple 로그인 필수 | iOS 네이티브 Apple Sign In 구현 |
+| UGC 사용자 차단 없음 | 1.2 | 신고는 있지만 차단 기능 없음 | 사용자 차단 + 피드 필터링 구현 |
+| 계정 삭제 없음 | 5.1.1(v) | 가입은 되지만 탈퇴가 없음 | 마이페이지 회원 탈퇴 구현 |
+
+**2차 거절 — 1가지 사유:**
+
+| 사유 | Guideline | 문제 | 해결 |
+|------|-----------|------|------|
+| 콘텐츠 필터링 없음 | 1.2 | "a method for filtering objectionable content" 요구 | 비속어 필터(`contentFilter.js`) 구현 |
+| 이용약관 무관용 문구 부족 | 1.2 | "no tolerance for objectionable content" 명시 필요 | 제4조에 Zero Tolerance + 24시간 조치 문구 추가 |
+| 심사 영상 미확인 | 1.2 | S3 URL로 영상 제공했으나 확인 안 됨 | Reply에서 직접 영상 파일 첨부로 변경 |
+
+**심사 영상 제출 방법:**
+- iPhone 화면 녹화: 제어센터 → 녹화 버튼 (⏺)
+- 녹화 내용: 약관 동의 → 콘텐츠 신고 → 사용자 차단 → 회원 탈퇴
+- 첨부: App Store Connect에서 거절 메시지에 **Reply** → 영상 파일 직접 첨부
+
+### 21-2. Google Play Store 배포
+
+#### 사전 준비
+
+1. **Google Play Console** 개발자 등록 ($25 일회성)
+2. 개발자 본인 확인 + 전화번호 인증 완료
+3. 앱의 `usesCleartextTraffic`을 `false`로 설정 + `network_security_config.xml` 추가
+
+#### 앱 아이콘 (Android)
+
+- 각 해상도별 PNG: `mipmap-mdpi`(48) ~ `mipmap-xxxhdpi`(192)
+- adaptive icon 사용 시 foreground는 safe zone(바깥 18dp 잘림) 고려
+- Play Store용: `512x512` 별도 준비
+- Feature Graphic(배너): `1024x500`
+
+#### AAB 파일 생성
+
+1. Android Studio → **Build > Generate Signed Bundle / APK**
+2. **Android App Bundle** 선택
+3. Keystore 생성 (최초 1회):
+   - Key store path: 안전한 위치에 `.jks` 파일
+   - Alias, Password 설정
+   - Validity: 25년
+   - ⚠️ **Keystore 파일 + 비밀번호 절대 분실 금지** — 앱 업데이트 시 동일 키 필요
+4. Release 빌드 타입 선택 → Create
+5. 생성 위치: `app/release/app-release.aab`
+
+#### Google Play Console 앱 설정
+
+**앱 콘텐츠 설정 (모두 완료해야 심사 가능):**
+
+| 항목 | 설정 값 |
+|------|---------|
+| 개인정보처리방침 | `https://<도메인>/privacy-policy` |
+| 로그인 세부정보 | 예 → `review@lordhill.church` / `lordhill2026!` |
+| 광고 | 아니요 |
+| 콘텐츠 등급 | 설문 작성 (UGC 차단 기능 → 예) |
+| 타겟층 | 해당 연령대 선택 |
+| 데이터 보안 | 수집: 이름, 이메일, 사진 / 암호화 전송: 예 / 삭제 요청: 개인정보처리방침 URL |
+| 정부 앱 / 금융 / 건강 | 아니요 |
+| 앱 카테고리 | 소셜 |
+| 스토어 등록정보 | 앱 이름, 설명, 스크린샷, 아이콘, Feature Graphic |
+
+**스토어 등록정보:**
+- 앱 이름: `손안의 교회`
+- 간단한 설명: `교회 멤버 전용 비공개 커뮤니티. 피드, 기도, 나눔을 함께.`
+- 스크린샷: 최소 2장, 9:16 비율 (1080x1920 권장)
+
+#### 신규 개발자 필수: 비공개 테스트 (Closed Testing)
+
+Google Play는 신규 개발자 계정에 대해 **프로덕션 출시 전 비공개 테스트를 필수**로 요구:
+
+1. **테스터 최소 20명**의 Gmail 주소 등록
+2. **14일 이상** 테스트 기간 유지
+3. 14일 경과 후 프로덕션 출시 신청 가능
+
+**절차:**
+1. Google Play Console → 테스트 및 출시 → 비공개 테스트
+2. 트랙 만들기 (이름: `Beta` 등)
+3. 새 버전 만들기 → AAB 업로드
+4. 국가/지역 → 한국 추가
+5. 테스터 → 이메일 목록 만들기 → Gmail 20개 추가
+6. 출시 시작 → 테스터에게 설치 링크 공유
+7. 14일 후 → 프로덕션 출시 가능
+
+**테스터 참여 방법:**
+- 테스터에게 전용 링크 공유
+- 링크 접속 → "테스터 참여" 수락 → Play Store에서 앱 설치
+- 일반 사용자에게는 앱이 검색되지 않음
+
+### ⚠️ 시행착오 (앱 스토어 배포)
+
+1. **Xcode Provisioning Profile 에러** — Apple Developer Program 계정으로 Xcode에 로그인해야 함. 일반 Apple ID로는 불가. Team 선택 시 "(Personal Team)"이 아닌 Developer Program 계정 선택
+2. **App Store Connect 앱 생성 불필요** — Archive 업로드하면 앱이 자동 생성됨. 별도로 "신규 앱 등록"할 필요 없음
+3. **심사 영상 S3 URL 실패** — App Store Connect 파일 첨부는 이미지만 지원. 영상은 거절 메시지 Reply에서 직접 첨부
+4. **Android AAB 빌드 R8 에러** — `missing_rules.txt`에 나온 `-dontwarn` 규칙을 `proguard-rules.pro`에 추가
+5. **Android Keystore 분실 = 앱 업데이트 불가** — Keystore 파일과 비밀번호를 안전한 곳에 백업 필수. 분실하면 같은 패키지명으로 업데이트 불가
+6. **Google Play 신규 개발자 비공개 테스트 필수** — 테스터 20명 + 14일 대기. 교회 멤버 Gmail 활용
+7. **앱 아이콘 원형 로고 문제** — 원형 로고를 그대로 넣으면 iOS 둥근 사각형 / Android adaptive icon에서 어색. 정사각형 배경 위에 로고 배치 필요. Android adaptive icon은 foreground safe zone(바깥 18dp) 고려
 
 ---
 

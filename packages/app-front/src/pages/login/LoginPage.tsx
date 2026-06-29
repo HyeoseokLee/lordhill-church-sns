@@ -156,7 +156,9 @@ export default function LoginPage() {
 
         {/* 소셜 로그인 버튼 */}
         <div className="w-full space-y-3">
-          {OAUTH_PROVIDERS.map(provider => (
+          {OAUTH_PROVIDERS.filter(
+            p => p.key !== 'apple' || !!window.isIOSApp,
+          ).map(provider => (
             <div key={provider.name} className="relative">
               <button
                 onClick={() => handleLogin(provider)}
