@@ -48,8 +48,6 @@ export default function TermsConsentModal({ open, onAccept, loading }: Props) {
             borderTopLeftRadius: '20px',
             borderTopRightRadius: '20px',
             maxHeight: '85vh',
-            maxWidth: '480px',
-            margin: '0 auto',
           },
         },
       }}

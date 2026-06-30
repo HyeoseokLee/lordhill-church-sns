@@ -4258,44 +4258,75 @@ export const reviewLogin = async (req, res) => {
 | 데이터 보안 | 수집: 이름, 이메일, 사진 / 암호화 전송: 예 / 삭제 요청: 개인정보처리방침 URL |
 | 정부 앱 / 금융 / 건강 | 아니요 |
 | 앱 카테고리 | 소셜 |
+| 아동 안전 표준 | 소셜 카테고리 필수 — 안전 표준 URL + 연락처 제공 |
 | 스토어 등록정보 | 앱 이름, 설명, 스크린샷, 아이콘, Feature Graphic |
+
+**데이터 보안 상세 설정:**
+
+| 질문 | 답변 |
+|------|------|
+| 필수 사용자 데이터 수집/공유 | 예 |
+| 암호화 전송 | 예 (HTTPS) |
+| 계정 생성 방법 | OAuth |
+| 계정 삭제 링크 | `https://<도메인>/privacy-policy` |
+| 데이터 유형 (이름) | 수집됨, 필수, 앱 기능 + 계정 관리 |
+| 데이터 유형 (이메일) | 수집됨, 필수, 앱 기능 + 계정 관리 |
+| 데이터 유형 (사진) | 수집됨, 선택, 앱 기능 |
+
+**아동 안전 표준 (소셜 카테고리 필수):**
+- 소셜 또는 데이트 카테고리의 앱은 Google 아동 안전 표준 정책 준수 선언 필수
+- 안전 표준 URL: 이용약관 URL 입력 (`https://<도메인>/terms-of-service`)
+- 연락처 정보: 개발자 이메일
 
 **스토어 등록정보:**
 - 앱 이름: `손안의 교회`
-- 간단한 설명: `교회 멤버 전용 비공개 커뮤니티. 피드, 기도, 나눔을 함께.`
+- 간단한 설명 (80자): `교회 멤버 전용 비공개 커뮤니티. 피드, 기도, 나눔을 함께.`
 - 스크린샷: 최소 2장, 9:16 비율 (1080x1920 권장)
+- 앱 아이콘: 512x512 PNG
+- Feature Graphic(배너): 1024x500 PNG (로고 중앙 배치)
 
 #### 신규 개발자 필수: 비공개 테스트 (Closed Testing)
 
-Google Play는 신규 개발자 계정에 대해 **프로덕션 출시 전 비공개 테스트를 필수**로 요구:
+Google Play는 신규 개발자 계정에 대해 **프로덕션 출시 전 비공개 테스트를 필수**로 요구한다.
 
-1. **테스터 최소 20명**의 Gmail 주소 등록
-2. **14일 이상** 테스트 기간 유지
-3. 14일 경과 후 프로덕션 출시 신청 가능
+- **테스터 최소 12명**이 "테스터 참여"를 수락해야 함 (등록만으로는 불충분)
+- **14일 이상** 비공개 테스트 실행
 
 **절차:**
 1. Google Play Console → 테스트 및 출시 → 비공개 테스트
-2. 트랙 만들기 (이름: `Beta` 등)
+2. 트랙 만들기 (이름이 중복되면 `Church Beta` 등으로 변경)
 3. 새 버전 만들기 → AAB 업로드
 4. 국가/지역 → 한국 추가
-5. 테스터 → 이메일 목록 만들기 → Gmail 20개 추가
-6. 출시 시작 → 테스터에게 설치 링크 공유
-7. 14일 후 → 프로덕션 출시 가능
+5. 테스터 → 이메일 목록 만들기 → 테스터 Gmail 추가
+6. 변경사항 검토 → 제출 (Google 검토 소요: 수 시간~1~2일)
+7. 검토 승인 → 테스터에게 설치 링크 공유
+8. 테스터들이 링크 접속 → "테스터 참여" 수락 → Play Store에서 앱 설치
+9. 14일 대기 후 → 프로덕션 출시 가능
 
 **테스터 참여 방법:**
-- 테스터에게 전용 링크 공유
-- 링크 접속 → "테스터 참여" 수락 → Play Store에서 앱 설치
+- 비공개 테스트 출시 후 생성되는 전용 링크를 테스터에게 공유
+- 테스터가 링크 접속 → "테스터 참여" 수락 → Play Store에서 앱 설치
 - 일반 사용자에게는 앱이 검색되지 않음
+- 교회 멤버 Gmail 활용하면 자연스러움
+
+#### 프로덕션 출시
+
+비공개 테스트 14일 경과 후:
+1. Google Play Console → 테스트 및 출시 → 프로덕션
+2. 새 버전 만들기 → 비공개 테스트와 동일한 AAB 사용 가능
+3. 출시 → Google 검토 → 승인 시 Play Store에 공개
 
 ### ⚠️ 시행착오 (앱 스토어 배포)
 
 1. **Xcode Provisioning Profile 에러** — Apple Developer Program 계정으로 Xcode에 로그인해야 함. 일반 Apple ID로는 불가. Team 선택 시 "(Personal Team)"이 아닌 Developer Program 계정 선택
 2. **App Store Connect 앱 생성 불필요** — Archive 업로드하면 앱이 자동 생성됨. 별도로 "신규 앱 등록"할 필요 없음
 3. **심사 영상 S3 URL 실패** — App Store Connect 파일 첨부는 이미지만 지원. 영상은 거절 메시지 Reply에서 직접 첨부
-4. **Android AAB 빌드 R8 에러** — `missing_rules.txt`에 나온 `-dontwarn` 규칙을 `proguard-rules.pro`에 추가
-5. **Android Keystore 분실 = 앱 업데이트 불가** — Keystore 파일과 비밀번호를 안전한 곳에 백업 필수. 분실하면 같은 패키지명으로 업데이트 불가
-6. **Google Play 신규 개발자 비공개 테스트 필수** — 테스터 20명 + 14일 대기. 교회 멤버 Gmail 활용
-7. **앱 아이콘 원형 로고 문제** — 원형 로고를 그대로 넣으면 iOS 둥근 사각형 / Android adaptive icon에서 어색. 정사각형 배경 위에 로고 배치 필요. Android adaptive icon은 foreground safe zone(바깥 18dp) 고려
+4. **Android AAB 빌드 R8 에러** — `Missing classes detected while running R8` 에러 발생. `app/build/outputs/mapping/release/missing_rules.txt`에 나온 `-dontwarn` 규칙을 `proguard-rules.pro`에 추가하면 해결
+5. **Android Keystore 분실 = 앱 업데이트 불가** — Keystore 파일(`.jks`)과 비밀번호를 안전한 곳에 백업 필수. 분실하면 같은 패키지명으로 업데이트 올릴 수 없음
+6. **Google Play 비공개 테스트 트랙 이름 중복** — 기본 이름(`Beta` 등)이 이미 존재하면 에러. `Church Beta` 등 고유한 이름 사용
+7. **Google Play 아동 안전 표준 선언** — 소셜 카테고리 앱은 아동 안전 표준 URL + 연락처 제공 필수. 이용약관 URL 활용
+8. **앱 아이콘 원형 로고 문제** — 원형 로고를 그대로 넣으면 iOS 둥근 사각형 / Android adaptive icon에서 어색. 정사각형 배경 위에 로고 배치 필요. Android adaptive icon은 foreground safe zone(바깥 18dp) 고려
+9. **Android `usesCleartextTraffic` 보안** — `AndroidManifest.xml`에서 `usesCleartextTraffic="false"` 설정 + `network_security_config.xml` 추가 필수. `true`로 두면 Play Store 거절 가능
 
 ---
 
