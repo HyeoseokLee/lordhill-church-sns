@@ -4327,6 +4327,105 @@ Google Play는 신규 개발자 계정에 대해 **프로덕션 출시 전 비�
 7. **Google Play 아동 안전 표준 선언** — 소셜 카테고리 앱은 아동 안전 표준 URL + 연락처 제공 필수. 이용약관 URL 활용
 8. **앱 아이콘 원형 로고 문제** — 원형 로고를 그대로 넣으면 iOS 둥근 사각형 / Android adaptive icon에서 어색. 정사각형 배경 위에 로고 배치 필요. Android adaptive icon은 foreground safe zone(바깥 18dp) 고려
 9. **Android `usesCleartextTraffic` 보안** — `AndroidManifest.xml`에서 `usesCleartextTraffic="false"` 설정 + `network_security_config.xml` 추가 필수. `true`로 두면 Play Store 거절 가능
+10. **R8(ProGuard) 난독화로 소셜 로그인 크래시/무반응** — release 빌드에서 `isMinifyEnabled = true`로 R8을 켜면 소셜 SDK 내부 클래스가 제거되어 로그인이 안 됨. Kakao SDK는 Retrofit 의존성으로 크래시, Google/Naver는 무반응. 소규모 앱은 `isMinifyEnabled = false`로 R8을 끄는 게 가장 안전. R8을 켜려면 각 SDK별 ProGuard 규칙을 빠짐없이 추가해야 함
+11. **MUI Drawer가 Android WebView에서 렌더링 안 됨** — MUI `Drawer` (bottom sheet)가 Android WebView에서 배경 오버레이만 뜨고 드로어 자체가 안 보이는 현상. 해결: `Drawer` 대신 `Dialog fullScreen`으로 변경
+
+### ⚠️ 시행착오 (Android 소셜 로그인 — Google Play 배포 시 필독)
+
+**Android 소셜 로그인은 debug에서 되더라도 Play Store release에서 안 되는 경우가 매우 흔함. 아래 3가지를 반드시 모두 처리해야 함.**
+
+#### 문제의 근본 원인
+
+Google Play에 AAB를 업로드하면 **Google이 앱을 자체 키로 다시 서명**함. 즉 Play Store에서 설치된 앱의 SHA-1 지문은 개발자의 keystore SHA-1과 **다름**. 총 3개의 SHA-1이 존재:
+
+| SHA-1 | 용도 | 확인 방법 |
+|-------|------|----------|
+| **debug keystore** | 로컬 개발/테스트 | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` |
+| **upload keystore** | AAB 서명 (개발자 keystore) | `keytool -list -v -keystore <keystore경로> -alias <alias>` |
+| **Google Play App Signing** | Play Store에서 설치 시 실제 사용 | `adb`로 설치된 APK에서 추출 (아래 참고) |
+
+#### Google Play App Signing SHA-1 확인 방법
+
+Play Console의 "앱 서명" 메뉴에서 찾기 어려울 수 있음. 가장 확실한 방법:
+
+```bash
+# 1. 기기에서 Play Store로 설치된 APK 추출
+adb shell pm path com.lordhill.church.sns
+# 출력된 경로로 pull
+adb pull <출력된_경로> /tmp/app.apk
+
+# 2. 서명 인증서 SHA-1 확인
+<Android SDK>/build-tools/<버전>/apksigner verify --print-certs /tmp/app.apk
+# "Signer #1 certificate SHA-1 digest" 값이 Google Play 서명 SHA-1
+```
+
+#### 각 소셜 로그인별 등록 필요 사항
+
+**Google 로그인:**
+1. 3개 SHA-1 모두 **Firebase Console** → 프로젝트 설정 → Android 앱 → SHA 인증서 지문에 등록
+2. 3개 SHA-1 각각에 대해 **Google Cloud Console** → API 및 서비스 → 사용자 인증 정보 → Android OAuth 클라이언트 생성
+3. **google-services.json**에 `oauth_client`가 비어있으면 수동으로 추가:
+
+```json
+"oauth_client": [
+  {
+    "client_id": "<debug용 OAuth 클라이언트 ID>.apps.googleusercontent.com",
+    "client_type": 1,
+    "android_info": {
+      "package_name": "com.lordhill.church.sns",
+      "certificate_hash": "<debug SHA-1 콜론 제거 소문자>"
+    }
+  },
+  {
+    "client_id": "<Play서명용 OAuth 클라이언트 ID>.apps.googleusercontent.com",
+    "client_type": 1,
+    "android_info": {
+      "package_name": "com.lordhill.church.sns",
+      "certificate_hash": "<Play서명 SHA-1 콜론 제거 소문자>"
+    }
+  }
+]
+```
+
+⚠️ Firebase에 SHA-1 등록 시 "다른 프로젝트에 동일한 SHA-1" 경고가 뜨면 → google-services.json에 `oauth_client`가 자동 생성되지 않음 → **반드시 수동으로 추가**해야 함
+
+**Kakao 로그인:**
+1. SHA-1을 Base64 Key Hash로 변환:
+```bash
+echo "<SHA-1 콜론 포함>" | tr -d ':' | xxd -r -p | base64
+```
+2. [Kakao Developers](https://developers.kakao.com) → 내 애플리케이션 → 플랫폼 → Android → 키 해시에 추가
+3. debug + Play signing 키 해시 **모두** 등록
+
+**Naver 로그인:**
+- 별도 키 등록 불필요 (client_id/secret만 있으면 됨)
+
+#### Android WebView에서 소셜 로그인 URL 인터셉트 주의
+
+서버의 OAuth 엔드포인트(`/api/auth/google` 등)는 302 리다이렉트로 소셜 로그인 페이지로 보내는데, **Android WebView는 서버 302 리다이렉트를 `shouldOverrideUrlLoading`으로 인터셉트하지 않음** (iOS `decidePolicyFor`와 다름).
+
+해결: 리다이렉트되기 **전에** 서버 엔드포인트 URL 자체를 인터셉트:
+
+```kotlin
+// ❌ 안 됨 — 302 리다이렉트 후 accounts.google.com을 잡으려고 하면 인터셉트 안 됨
+if (isGoogleLoginUrl(uri.host)) { ... }
+
+// ✅ 됨 — 서버 엔드포인트 URL을 직접 인터셉트
+if (urlString.contains("/api/auth/google")) {
+    handleGoogleLogin(view)
+    return true
+}
+```
+
+#### 디버깅 체크리스트
+
+소셜 로그인이 release에서 안 될 때 순서대로 확인:
+
+1. **debug 빌드 + LIVE URL로 테스트** → 되면 R8 또는 SHA-1 문제
+2. **R8 끄고(`isMinifyEnabled = false`) release 빌드** → 되면 R8 문제 (ProGuard 규칙 부족)
+3. **R8 끄고도 안 되면** → SHA-1 미등록 또는 google-services.json 문제
+4. **adb로 설치된 앱의 실제 서명 SHA-1 확인** → Firebase/Cloud Console에 등록 여부 체크
+5. **google-services.json의 `oauth_client` 확인** → 비어있으면 수동 추가
 
 ---
 

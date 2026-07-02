@@ -656,6 +656,14 @@ export default function RecycleDetailPage() {
           )}
         </div>
 
+        {/* 공유 가이드 카드 */}
+        <div className="my-3 px-3 py-3 bg-accent/5 rounded-[10px]">
+          <p className="text-[13px] text-accent leading-[1.6]">
+            댓글로 공유의사를 알려주세요. 글쓴이가 그중에서 한명에게
+            공유할거에요.
+          </p>
+        </div>
+
         {/* 댓글 목록 */}
         {!isEditing && (
           <div className="pt-3 pb-4">

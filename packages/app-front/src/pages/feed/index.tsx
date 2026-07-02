@@ -142,23 +142,24 @@ export default function FeedPage() {
                   </div>
                 </div>
 
-                {/* 본문 + 이미지 (클릭 시 상세 이동) */}
-                <button
-                  onClick={() => {
-                    swrMutate(`/posts/${post.id}`, post, false);
-                    delayNavigate(navigate, `/feed/detail/${post.id}`);
-                  }}
-                  className="w-full text-left"
-                >
-                  {post.content && (
+                {/* 본문 (클릭 시 상세 이동) */}
+                {post.content && (
+                  <button
+                    onClick={() => {
+                      swrMutate(`/posts/${post.id}`, post, false);
+                      delayNavigate(navigate, `/feed/detail/${post.id}`);
+                    }}
+                    className="w-full text-left"
+                  >
                     <p className="text-[14px] text-text leading-relaxed whitespace-pre-wrap mb-3">
                       {post.content}
                     </p>
-                  )}
-                  {post.media?.length > 0 && (
-                    <ImageCarousel images={post.media} />
-                  )}
-                </button>
+                  </button>
+                )}
+                {/* 이미지 (클릭 시 전체화면) */}
+                {post.media?.length > 0 && (
+                  <ImageCarousel images={post.media} />
+                )}
 
                 {/* 좋아요/댓글 카운트 */}
                 <div className="flex items-center gap-4 text-text-muted">
