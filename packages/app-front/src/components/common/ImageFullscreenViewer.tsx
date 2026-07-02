@@ -44,6 +44,7 @@ export default function ImageFullscreenViewer({
         lastDistRef.current = dist;
       } else if (e.touches.length === 1 && scale > 1) {
         // 확대 상태에서 패닝
+        e.preventDefault();
         const x = e.touches[0].clientX;
         const y = e.touches[0].clientY;
         if (isDraggingRef.current) {
@@ -115,6 +116,7 @@ export default function ImageFullscreenViewer({
   return (
     <div
       className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
+      style={{ touchAction: 'none' }}
       onClick={handleBackgroundClick}
     >
       {/* 닫기 버튼 */}
