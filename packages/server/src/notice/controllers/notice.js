@@ -4,6 +4,13 @@ import models from '../../db.js';
 export const getNotices = async (_req, res) => {
   const notices = await models.Notice.findAll({
     attributes: ['id', 'title', 'content', 'displayOrder', 'createdAt'],
+    include: [
+      {
+        model: models.NoticeMedia,
+        as: 'media',
+        attributes: ['id', 'url', 'displayOrder'],
+      },
+    ],
     order: [
       ['displayOrder', 'ASC'],
       ['createdAt', 'DESC'],

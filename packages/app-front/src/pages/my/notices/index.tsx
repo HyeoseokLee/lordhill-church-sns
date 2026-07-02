@@ -10,6 +10,7 @@ interface Notice {
   content: string;
   displayOrder: number;
   createdAt: string;
+  media?: { id: number; url: string; displayOrder: number }[];
 }
 
 // 공지사항 목록 페이지 (아코디언)
@@ -75,6 +76,18 @@ export default function NoticesPage() {
                         className="pt-3 text-[14px] text-text leading-[1.7] ql-content"
                         dangerouslySetInnerHTML={{ __html: notice.content }}
                       />
+                      {notice.media?.length > 0 && (
+                        <div className="flex flex-col gap-2 mt-3">
+                          {notice.media.map((m: any) => (
+                            <img
+                              key={m.id}
+                              src={m.url}
+                              alt=""
+                              className="w-full rounded-[8px] object-cover"
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

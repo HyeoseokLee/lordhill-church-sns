@@ -147,6 +147,23 @@ function SortableNoticeRow({
             className="text-sm text-gray-700 bg-white rounded p-3 ql-editor"
             dangerouslySetInnerHTML={{ __html: notice.content }}
           />
+          {notice.media?.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs font-medium text-gray-400 mb-2">
+                이미지 ({notice.media.length})
+              </p>
+              <div className="flex gap-2 overflow-x-auto">
+                {notice.media.map(m => (
+                  <img
+                    key={m.id}
+                    src={m.url}
+                    alt=""
+                    className="w-24 h-24 rounded-lg object-cover flex-shrink-0"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -163,6 +180,8 @@ export default function NoticePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState(null);
   const [form, setForm] = useState({ title: '', content: '' });
+  const [newImages, setNewImages] = useState([]);
+  const [deleteMediaIds, setDeleteMediaIds] = useState([]);
   const [saving, setSaving] = useState(false);
 
   // dnd-kit 센서 (5px 이상 움직여야 드래그 시작)
@@ -216,6 +235,8 @@ export default function NoticePage() {
   const openCreateDialog = () => {
     setEditingNotice(null);
     setForm({ title: '', content: '' });
+    setNewImages([]);
+    setDeleteMediaIds([]);
     setDialogOpen(true);
   };
 
@@ -223,6 +244,8 @@ export default function NoticePage() {
   const openEditDialog = notice => {
     setEditingNotice(notice);
     setForm({ title: notice.title, content: notice.content });
+    setNewImages([]);
+    setDeleteMediaIds([]);
     setDialogOpen(true);
   };
 
@@ -234,10 +257,22 @@ export default function NoticePage() {
     }
     setSaving(true);
     try {
+      const formData = new FormData();
+      formData.append('title', form.title);
+      formData.append('content', form.content);
+      newImages.forEach(file => formData.append('images', file));
+
       if (editingNotice) {
-        await api.patch(`/admin/notices/${editingNotice.id}`, form);
+        if (deleteMediaIds.length > 0) {
+          deleteMediaIds.forEach(id => formData.append('deleteMediaIds[]', id));
+        }
+        await api.patch(`/admin/notices/${editingNotice.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       } else {
-        await api.post('/admin/notices', form);
+        await api.post('/admin/notices', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
       }
       setDialogOpen(false);
       fetchNotices();
@@ -376,6 +411,70 @@ export default function NoticePage() {
               onChange={v => setForm({ ...form, content: v })}
               modules={quillModules}
               style={{ height: '250px', marginBottom: '50px' }}
+            />
+          </div>
+
+          {/* 이미지 첨부 */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              이미지 첨부
+            </label>
+            {/* 기존 이미지 (수정 시) */}
+            {editingNotice?.media?.length > 0 && (
+              <div className="flex gap-2 flex-wrap mb-2">
+                {editingNotice.media
+                  .filter(m => !deleteMediaIds.includes(m.id))
+                  .map(m => (
+                    <div key={m.id} className="relative">
+                      <img
+                        src={m.url}
+                        alt=""
+                        className="w-20 h-20 rounded-lg object-cover"
+                      />
+                      <button
+                        onClick={() =>
+                          setDeleteMediaIds(prev => [...prev, m.id])
+                        }
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            )}
+            {/* 새 이미지 미리보기 */}
+            {newImages.length > 0 && (
+              <div className="flex gap-2 flex-wrap mb-2">
+                {newImages.map((file, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt=""
+                      className="w-20 h-20 rounded-lg object-cover"
+                    />
+                    <button
+                      onClick={() =>
+                        setNewImages(prev => prev.filter((_, j) => j !== i))
+                      }
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={e => {
+                const files = Array.from(e.target.files || []);
+                setNewImages(prev => [...prev, ...files]);
+                e.target.value = '';
+              }}
+              className="text-sm text-gray-500"
             />
           </div>
 

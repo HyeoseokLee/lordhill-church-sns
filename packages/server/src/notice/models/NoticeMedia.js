@@ -2,30 +2,31 @@ import Sequelize from 'sequelize';
 
 const { DataTypes } = Sequelize;
 
-// 공지사항 모델
+// 공지사항 이미지 모델
 export default (sequelize) => {
-  class Notice extends Sequelize.Model {
+  class NoticeMedia extends Sequelize.Model {
     static associate(models) {
-      this.hasMany(models.NoticeMedia, {
+      this.belongsTo(models.Notice, {
         foreignKey: 'noticeId',
-        as: 'media',
+        as: 'notice',
       });
     }
   }
 
-  Notice.init(
+  NoticeMedia.init(
     {
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
-      title: {
-        type: DataTypes.STRING(200),
+      noticeId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
+        field: 'notice_id',
       },
-      content: {
-        type: DataTypes.TEXT,
+      url: {
+        type: DataTypes.STRING(500),
         allowNull: false,
       },
       displayOrder: {
@@ -37,13 +38,12 @@ export default (sequelize) => {
     },
     {
       sequelize,
-      modelName: 'Notice',
-      tableName: 'notices',
+      modelName: 'NoticeMedia',
+      tableName: 'notice_media',
       underscored: true,
       timestamps: true,
-      paranoid: true,
     },
   );
 
-  return Notice;
+  return NoticeMedia;
 };

@@ -696,6 +696,13 @@ export const dismissReport = async (req, res) => {
 export const getAdminNotices = async (_req, res) => {
   const notices = await models.Notice.findAll({
     paranoid: false,
+    include: [
+      {
+        model: models.NoticeMedia,
+        as: 'media',
+        attributes: ['id', 'url', 'displayOrder'],
+      },
+    ],
     order: [
       ['displayOrder', 'ASC'],
       ['createdAt', 'DESC'],
@@ -715,6 +722,17 @@ export const createNotice = async (req, res) => {
     content,
     displayOrder,
   });
+
+  // 이미지 저장 (multer-s3가 업로드한 파일들)
+  if (req.files && req.files.length > 0) {
+    const mediaRecords = req.files.map((file, index) => ({
+      noticeId: notice.id,
+      url: file.location || file.path,
+      displayOrder: index,
+    }));
+    await models.NoticeMedia.bulkCreate(mediaRecords);
+  }
+
   await logAudit(req.user.id, 'create_notice', `notice:${notice.id}`, {
     title,
   });
@@ -750,16 +768,53 @@ export const updateNotice = async (req, res) => {
   if (!notice) {
     throw new ErrClass(ErrInfo.NotFound, '공지사항을 찾을 수 없습니다.');
   }
-  const { title, content, displayOrder } = req.body;
+  const { title, content, displayOrder, deleteMediaIds } = req.body;
   await notice.update({
     ...(title !== undefined && { title }),
     ...(content !== undefined && { content }),
     ...(displayOrder !== undefined && { displayOrder }),
   });
+
+  // 기존 이미지 삭제
+  if (deleteMediaIds && deleteMediaIds.length > 0) {
+    const mediaToDelete = await models.NoticeMedia.findAll({
+      where: { id: deleteMediaIds, noticeId: notice.id },
+    });
+    const urls = mediaToDelete.map((m) => m.url);
+    await models.NoticeMedia.destroy({
+      where: { id: deleteMediaIds, noticeId: notice.id },
+    });
+    deleteFromS3(urls).catch(() => {});
+  }
+
+  // 새 이미지 추가
+  if (req.files && req.files.length > 0) {
+    const existingCount = await models.NoticeMedia.count({
+      where: { noticeId: notice.id },
+    });
+    const mediaRecords = req.files.map((file, index) => ({
+      noticeId: notice.id,
+      url: file.location || file.path,
+      displayOrder: existingCount + index,
+    }));
+    await models.NoticeMedia.bulkCreate(mediaRecords);
+  }
+
   await logAudit(req.user.id, 'update_notice', `notice:${notice.id}`, {
     title: notice.title,
   });
-  res.json(notice);
+
+  // 업데이트된 공지사항 반환 (media 포함)
+  const updated = await models.Notice.findByPk(notice.id, {
+    include: [
+      {
+        model: models.NoticeMedia,
+        as: 'media',
+        attributes: ['id', 'url', 'displayOrder'],
+      },
+    ],
+  });
+  res.json(updated);
 };
 
 // 공지사항 삭제 (소프트 딜리트)

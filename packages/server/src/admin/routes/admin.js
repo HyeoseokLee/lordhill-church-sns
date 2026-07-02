@@ -1,5 +1,6 @@
 import express from 'express';
 import asyncHandler from 'express-async-handler';
+import { uploadImage } from '../../uploader/index.js';
 import {
   getUsers,
   approveUser,
@@ -96,9 +97,17 @@ router.patch('/reports/:id/dismiss', asyncHandler(dismissReport));
 
 // 공지사항 관리
 router.get('/notices', asyncHandler(getAdminNotices));
-router.post('/notices', asyncHandler(createNotice));
+router.post(
+  '/notices',
+  uploadImage.array('images', 10),
+  asyncHandler(createNotice),
+);
 router.patch('/notices/reorder', asyncHandler(reorderNotices));
-router.patch('/notices/:id', asyncHandler(updateNotice));
+router.patch(
+  '/notices/:id',
+  uploadImage.array('images', 10),
+  asyncHandler(updateNotice),
+);
 router.delete('/notices/:id', asyncHandler(deleteNotice));
 router.patch('/notices/:id/restore', asyncHandler(restoreNotice));
 
