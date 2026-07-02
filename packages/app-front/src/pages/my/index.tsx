@@ -45,7 +45,11 @@ export default function MyPage() {
     ) => {
       if (images.length > 0) {
         const img = images[0];
-        const byteString = atob(img.base64);
+        // base64 문자열에서 줄바꿈/공백/data URL prefix 제거
+        const cleanBase64 = img.base64
+          .replace(/^data:[^;]+;base64,/, '')
+          .replace(/\s/g, '');
+        const byteString = atob(cleanBase64);
         const ab = new ArrayBuffer(byteString.length);
         const ia = new Uint8Array(ab);
         for (let i = 0; i < byteString.length; i++) {
