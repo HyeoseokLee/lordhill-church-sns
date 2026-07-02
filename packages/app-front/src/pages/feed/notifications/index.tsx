@@ -27,10 +27,13 @@ export default function NotificationsPage() {
       // /feed/detail/123 → feed/123, /recycle/detail/456 → recycle/456
       const feedMatch = item.path.match(/^\/feed\/detail\/(.+)$/);
       const recycleMatch = item.path.match(/^\/recycle\/detail\/(.+)$/);
+      const noticesMatch = item.path === '/my/notices';
       if (feedMatch) {
         delayNavigate(navigate, `feed/${feedMatch[1]}`);
       } else if (recycleMatch) {
         delayNavigate(navigate, `recycle/${recycleMatch[1]}`);
+      } else if (noticesMatch) {
+        delayNavigate(navigate, 'notices');
       } else {
         navigate(item.path);
       }

@@ -30,20 +30,21 @@ export default function NotificationsWithOutlet() {
       </div>
       {showOverlay && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1300,
-            backgroundColor: '#FFFFFF',
-            animation: skipAnimation
-              ? 'none'
-              : `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
-          }}
+          className="fixed inset-0 z-[1300] flex justify-center"
+          style={{ pointerEvents: 'none' }}
         >
-          {displayOutlet}
+          <div
+            className="w-full max-w-[480px] h-full"
+            style={{
+              pointerEvents: 'auto',
+              backgroundColor: '#FFFFFF',
+              animation: skipAnimation
+                ? 'none'
+                : `${isExiting ? 'slideOutToRight' : 'slideInFromRight'} ${transitionMs}ms ease-out forwards`,
+            }}
+          >
+            {displayOutlet}
+          </div>
         </div>
       )}
     </>
