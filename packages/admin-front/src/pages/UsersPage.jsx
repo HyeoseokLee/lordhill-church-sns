@@ -39,6 +39,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [blockDetailTarget, setBlockDetailTarget] = useState(null);
@@ -129,7 +130,7 @@ export default function UsersPage() {
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-500">
-                닉네임
+                회원
               </th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">
                 이메일
@@ -166,95 +167,218 @@ export default function UsersPage() {
               </tr>
             ) : (
               users.map(user => (
-                <tr
-                  key={user.id}
-                  className={`border-b last:border-0 hover:bg-gray-50 ${
-                    isDeleted(user) ? 'opacity-50' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3">{user.nickname || '-'}</td>
-                  <td className="px-4 py-3 text-gray-500">{user.email}</td>
-                  <td className="px-4 py-3 text-gray-500 capitalize">
-                    {user.provider}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user)}`}
-                    >
-                      {getStatusLabel(user)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {user.blockedByCount > 0 ? (
-                      <button
-                        onClick={() => setBlockDetailTarget(user)}
-                        className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-xs font-medium hover:bg-orange-200 transition-colors"
+                <>
+                  {/* 회원 행 */}
+                  <tr
+                    key={user.id}
+                    className={`border-b last:border-0 cursor-pointer ${
+                      isDeleted(user) ? 'opacity-50' : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() =>
+                      setExpandedId(expandedId === user.id ? null : user.id)
+                    }
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {user.profileImageUrl ? (
+                          <img
+                            src={user.profileImageUrl}
+                            alt=""
+                            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-400 text-xs font-bold">
+                              {(user.nickname || '?').charAt(0)}
+                            </span>
+                          </div>
+                        )}
+                        <span className="font-medium">
+                          {user.nickname || '-'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{user.email}</td>
+                    <td className="px-4 py-3 text-gray-500 capitalize">
+                      {user.provider}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user)}`}
                       >
-                        {user.blockedByCount}명
-                      </button>
-                    ) : (
-                      <span className="text-gray-300 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {new Date(user.createdAt).toLocaleDateString('ko-KR')}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-2">
-                      {/* 삭제된 유저 → 삭제복구만 */}
-                      {isDeleted(user) && (
+                        {getStatusLabel(user)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {user.blockedByCount > 0 ? (
                         <button
-                          onClick={() => handleRestore(user.id)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setBlockDetailTarget(user);
+                          }}
+                          className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-xs font-medium hover:bg-orange-200 transition-colors"
                         >
-                          삭제복구
+                          {user.blockedByCount}명
                         </button>
+                      ) : (
+                        <span className="text-gray-300 text-xs">-</span>
                       )}
-                      {/* 대기 유저 → 승인/거절 */}
-                      {!isDeleted(user) && user.status === 'pending' && (
-                        <>
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {new Date(user.createdAt).toLocaleDateString('ko-KR')}
+                    </td>
+                    <td
+                      className="px-4 py-3"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div className="flex gap-2">
+                        {isDeleted(user) && (
                           <button
-                            onClick={() => handleApprove(user.id)}
-                            className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                            onClick={() => handleRestore(user.id)}
+                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
                           >
-                            승인
+                            삭제복구
                           </button>
-                          <button
-                            onClick={() => handleReject(user.id)}
-                            className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                          >
-                            거절
-                          </button>
-                        </>
-                      )}
-                      {/* 일반 유저 (admin 제외, 대기/삭제 제외) → 잠금/삭제 */}
-                      {!isDeleted(user) &&
-                        user.role !== 'admin' &&
-                        user.status !== 'pending' && (
+                        )}
+                        {!isDeleted(user) && user.status === 'pending' && (
                           <>
                             <button
-                              onClick={() => setDeactivateTarget(user)}
-                              className={`px-3 py-1 rounded text-xs ${
-                                user.status === 'deactivated'
-                                  ? 'bg-green-600 text-white hover:bg-green-700'
-                                  : 'bg-yellow-500 text-white hover:bg-yellow-600'
-                              }`}
+                              onClick={() => handleApprove(user.id)}
+                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
                             >
-                              {user.status === 'deactivated'
-                                ? '잠금해제'
-                                : '계정잠금'}
+                              승인
                             </button>
                             <button
-                              onClick={() => setDeleteTarget(user)}
-                              className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                              onClick={() => handleReject(user.id)}
+                              className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
                             >
-                              삭제
+                              거절
                             </button>
                           </>
                         )}
-                    </div>
-                  </td>
-                </tr>
+                        {!isDeleted(user) &&
+                          user.role !== 'admin' &&
+                          user.status !== 'pending' && (
+                            <>
+                              <button
+                                onClick={() => setDeactivateTarget(user)}
+                                className={`px-3 py-1 rounded text-xs ${
+                                  user.status === 'deactivated'
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                                }`}
+                              >
+                                {user.status === 'deactivated'
+                                  ? '잠금해제'
+                                  : '계정잠금'}
+                              </button>
+                              <button
+                                onClick={() => setDeleteTarget(user)}
+                                className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                              >
+                                삭제
+                              </button>
+                            </>
+                          )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* 아코디언 상세 */}
+                  {expandedId === user.id && (
+                    <tr key={`detail-${user.id}`}>
+                      <td colSpan={7} className="bg-gray-50 px-6 py-4">
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                          {/* 프로필 이미지 */}
+                          <div className="col-span-2 flex items-center gap-4 mb-2">
+                            {user.profileImageUrl ? (
+                              <img
+                                src={user.profileImageUrl}
+                                alt=""
+                                className="w-16 h-16 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                                <span className="text-gray-400 text-xl font-bold">
+                                  {(user.nickname || '?').charAt(0)}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-lg font-bold text-gray-800">
+                                {user.nickname || '-'}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {user.email}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-gray-400">ID</p>
+                            <p className="text-sm text-gray-700">{user.id}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">역할</p>
+                            <p className="text-sm text-gray-700">{user.role}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">
+                              OAuth 제공자
+                            </p>
+                            <p className="text-sm text-gray-700 capitalize">
+                              {user.provider}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">상태</p>
+                            <p className="text-sm">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(user)}`}
+                              >
+                                {getStatusLabel(user)}
+                              </span>
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">가입일</p>
+                            <p className="text-sm text-gray-700">
+                              {new Date(user.createdAt).toLocaleString('ko-KR')}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-400">
+                              차단당한 횟수
+                            </p>
+                            <p className="text-sm text-gray-700">
+                              {user.blockedByCount || 0}명
+                            </p>
+                          </div>
+                          {user.deletedAt && (
+                            <div>
+                              <p className="text-xs text-gray-400">삭제일</p>
+                              <p className="text-sm text-red-600">
+                                {new Date(user.deletedAt).toLocaleString(
+                                  'ko-KR',
+                                )}
+                              </p>
+                            </div>
+                          )}
+                          {user.profileImageUrl && (
+                            <div className="col-span-2">
+                              <p className="text-xs text-gray-400">
+                                프로필 이미지 URL
+                              </p>
+                              <p className="text-xs text-gray-500 break-all">
+                                {user.profileImageUrl}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))
             )}
           </tbody>
