@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   onClose: () => void;
 }
 
-// 이미지 전체화면 뷰어 (핀치 줌 + 스와이프)
+// 이미지 전체화면 뷰어 (핀치 줌 + 패닝)
 export default function ImageFullscreenViewer({
   images,
   initialIndex = 0,
@@ -18,55 +18,102 @@ export default function ImageFullscreenViewer({
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const lastDistRef = useRef(0);
-  const isDraggingRef = useRef(false);
-  const lastPanRef = useRef({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const stateRef = useRef({
+    scale: 1,
+    lastDist: 0,
+    isDragging: false,
+    lastPan: { x: 0, y: 0 },
+    translate: { x: 0, y: 0 },
+    lastTap: 0,
+  });
 
-  // 초기화
+  // stateRef 동기화
+  useEffect(() => {
+    stateRef.current.scale = scale;
+    stateRef.current.translate = translate;
+  }, [scale, translate]);
+
   const resetZoom = useCallback(() => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
   }, []);
 
-  // 핀치 줌
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
+  // 네이티브 터치 이벤트 등록 (passive: false로 preventDefault 가능)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !open) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const now = Date.now();
+        if (now - stateRef.current.lastTap < 300) {
+          e.preventDefault();
+          if (stateRef.current.scale > 1) {
+            setScale(1);
+            setTranslate({ x: 0, y: 0 });
+          } else {
+            setScale(2.5);
+          }
+        }
+        stateRef.current.lastTap = now;
+        stateRef.current.lastPan = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+        };
+        stateRef.current.isDragging = false;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         e.preventDefault();
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (lastDistRef.current > 0) {
-          const delta = dist / lastDistRef.current;
+        if (stateRef.current.lastDist > 0) {
+          const delta = dist / stateRef.current.lastDist;
           setScale(prev => Math.min(Math.max(prev * delta, 1), 5));
         }
-        lastDistRef.current = dist;
-      } else if (e.touches.length === 1 && scale > 1) {
-        // 확대 상태에서 패닝
+        stateRef.current.lastDist = dist;
+      } else if (e.touches.length === 1 && stateRef.current.scale > 1) {
         e.preventDefault();
         const x = e.touches[0].clientX;
         const y = e.touches[0].clientY;
-        if (isDraggingRef.current) {
+
+        if (stateRef.current.isDragging) {
+          const dx = x - stateRef.current.lastPan.x;
+          const dy = y - stateRef.current.lastPan.y;
           setTranslate(prev => ({
-            x: prev.x + (x - lastPanRef.current.x),
-            y: prev.y + (y - lastPanRef.current.y),
+            x: prev.x + dx,
+            y: prev.y + dy,
           }));
         }
-        isDraggingRef.current = true;
-        lastPanRef.current = { x, y };
+        stateRef.current.isDragging = true;
+        stateRef.current.lastPan = { x, y };
       }
-    },
-    [scale],
-  );
+    };
 
-  const handleTouchEnd = useCallback(() => {
-    lastDistRef.current = 0;
-    isDraggingRef.current = false;
-    if (scale <= 1) {
-      resetZoom();
-    }
-  }, [scale, resetZoom]);
+    const onTouchEnd = () => {
+      stateRef.current.lastDist = 0;
+      stateRef.current.isDragging = false;
+      if (stateRef.current.scale <= 1) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      }
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [open, resetZoom]);
 
   // 이전/다음 이미지
   const goPrev = () => {
@@ -92,29 +139,13 @@ export default function ImageFullscreenViewer({
     }
   };
 
-  // 더블탭 줌
-  const lastTapRef = useRef(0);
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - lastTapRef.current < 300) {
-        // 더블탭
-        if (scale > 1) {
-          resetZoom();
-        } else {
-          setScale(2.5);
-        }
-      }
-      lastTapRef.current = now;
-    }
-  };
-
   if (!open || images.length === 0) return null;
 
   const currentImage = images[currentIndex];
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-[9999] bg-black flex items-center justify-center"
       style={{ touchAction: 'none' }}
       onClick={handleBackgroundClick}
@@ -168,14 +199,10 @@ export default function ImageFullscreenViewer({
         src={currentImage.url}
         alt=""
         onClick={e => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        className="max-w-full max-h-full object-contain select-none"
+        className="max-w-full max-h-full object-contain select-none pointer-events-none"
         style={{
           transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
           transition: scale === 1 ? 'transform 0.2s' : 'none',
-          touchAction: 'none',
         }}
         draggable={false}
       />
