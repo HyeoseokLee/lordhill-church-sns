@@ -1598,6 +1598,51 @@ onBlock={() => {
 - SWR의 글로벌 `mutate(() => true)`는 `useSWRInfinite`(무한스크롤)의 내부 캐시 키 구조와 호환되지 않아 동작하지 않음 → 커스텀 이벤트 방식이 더 확실함
 - 이 패턴은 글쓰기 완료, 사용자 차단, 게시글 삭제 등 부모 리스트에 영향을 주는 모든 자식 액션에 동일하게 적용
 
+### 이미지 전체화면 뷰어 (ImageFullscreenViewer)
+
+이미지를 탭하면 전체화면에서 핀치 줌 + 패닝으로 확대해서 볼 수 있는 공통 컴포넌트. 피드, 재활용, 공지사항 등 이미지가 있는 모든 곳에서 재사용.
+
+**위치:** `src/components/common/ImageFullscreenViewer.tsx`
+
+**기능:**
+- 전체화면 검정 배경 + 이미지 중앙 표시
+- **핀치 줌** (두 손가락) — 최대 5배
+- **더블탭** — 2.5배 확대/원래 크기 토글
+- 확대 상태에서 **한 손가락 패닝** (드래그로 이동)
+- 여러 장일 때 좌우 화살표 + 카운터 (1/3)
+- 배경 클릭 또는 X 버튼으로 닫기
+
+**사용법:**
+
+```tsx
+import ImageFullscreenViewer from '@/components/common/ImageFullscreenViewer';
+
+// state
+const [viewerOpen, setViewerOpen] = useState(false);
+const [viewerIndex, setViewerIndex] = useState(0);
+
+// 이미지 클릭 시
+<img onClick={() => { setViewerIndex(i); setViewerOpen(true); }} />
+
+// 뷰어 렌더링
+<ImageFullscreenViewer
+  images={images}           // { id: number; url: string }[]
+  initialIndex={viewerIndex}
+  open={viewerOpen}
+  onClose={() => setViewerOpen(false)}
+/>
+```
+
+**ImageCarousel과 함께 사용 (피드/재활용):**
+
+`ImageCarousel` 컴포넌트에 이미 내장되어 있음. 캐러셀 내 이미지를 탭하면 자동으로 전체화면 뷰어가 열림. 별도 설정 불필요.
+
+**핵심 구현 포인트:**
+- React의 `onTouchMove`는 **passive 이벤트 리스너**라서 `preventDefault()`가 무시됨 → `addEventListener`로 직접 `{ passive: false }` 옵션을 줘서 등록해야 패닝이 동작함
+- 컨테이너에 `touchAction: 'none'` 필수 — 브라우저 기본 터치 동작(스크롤) 차단
+- 이미지에 `pointer-events: none` 설정 — 터치 이벤트를 컨테이너에서 처리
+- `stateRef`로 터치 상태를 관리 — React state는 이벤트 리스너의 클로저에서 stale 값이 됨
+
 ### 독립 페이지 (MainLayout 밖)의 전체 높이 처리
 
 LoginPage 등 MainLayout을 거치지 않는 독립 페이지에서 뷰포트 전체를 채우려면:

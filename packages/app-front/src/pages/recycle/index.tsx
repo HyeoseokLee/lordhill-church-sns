@@ -100,7 +100,7 @@ export default function RecyclePage() {
           ) : (
             /* 카드 뷰 스켈레톤 */
             <div className="columns-2 gap-2">
-              {[140, 200, 170, 120, 190, 150].map((h, i) => (
+              {[280, 400, 340, 240, 380, 300].map((h, i) => (
                 <div key={i} className="mb-2 break-inside-avoid animate-pulse">
                   <div
                     className="w-full rounded-t-[10px] bg-surface-strong"

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
+import ImageFullscreenViewer from '@/components/common/ImageFullscreenViewer';
 import { noticeApi } from '@/api/noticeApi';
 
 interface Notice {
@@ -18,6 +19,12 @@ export default function NoticesPage() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  // 이미지 전체화면 뷰어
+  const [viewerImages, setViewerImages] = useState<
+    { id: number; url: string }[]
+  >([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   useEffect(() => {
     noticeApi
@@ -78,12 +85,17 @@ export default function NoticesPage() {
                       />
                       {notice.media?.length > 0 && (
                         <div className="flex flex-col gap-2 mt-3">
-                          {notice.media.map((m: any) => (
+                          {notice.media.map((m, i) => (
                             <img
                               key={m.id}
                               src={m.url}
                               alt=""
-                              className="w-full rounded-[8px] object-cover"
+                              className="w-full rounded-[8px] object-cover cursor-pointer"
+                              onClick={() => {
+                                setViewerImages(notice.media || []);
+                                setViewerIndex(i);
+                                setViewerOpen(true);
+                              }}
                             />
                           ))}
                         </div>
@@ -96,6 +108,12 @@ export default function NoticesPage() {
           </div>
         )}
       </div>
+      <ImageFullscreenViewer
+        images={viewerImages}
+        initialIndex={viewerIndex}
+        open={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+      />
     </FullHeightBox>
   );
 }
