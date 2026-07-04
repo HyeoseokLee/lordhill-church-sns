@@ -42,14 +42,18 @@ export default function ImageFullscreenViewer({
 
   // Android 뒤로가기 버튼으로 전체화면 닫기 (iOS는 적용하지 않음)
   const android = isAndroid();
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const closeViaHistory = useCallback(() => {
     if (android) {
       history.back();
     } else {
-      onClose();
+      onCloseRef.current();
     }
-  }, [android, onClose]);
+  }, [android]);
 
   useEffect(() => {
     if (!open || !android) return;
@@ -57,7 +61,7 @@ export default function ImageFullscreenViewer({
     history.pushState({ imageFullscreen: true }, '');
 
     const handlePopState = () => {
-      onClose();
+      onCloseRef.current();
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -68,7 +72,7 @@ export default function ImageFullscreenViewer({
         history.back();
       }
     };
-  }, [open, onClose, android]);
+  }, [open, android]);
 
   // 네이티브 터치 이벤트 등록 (passive: false로 preventDefault 가능)
   useEffect(() => {
@@ -76,6 +80,10 @@ export default function ImageFullscreenViewer({
     if (!el || !open) return;
 
     const onTouchStart = (e: TouchEvent) => {
+      // 버튼 요소 위에서의 터치는 무시 (X, 이전, 다음 버튼)
+      const target = e.target as HTMLElement;
+      if (target.closest('button')) return;
+
       if (e.touches.length === 1) {
         const now = Date.now();
         if (now - stateRef.current.lastTap < 300) {
@@ -97,6 +105,9 @@ export default function ImageFullscreenViewer({
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button')) return;
+
       if (e.touches.length === 2) {
         e.preventDefault();
         const dx = e.touches[0].clientX - e.touches[1].clientX;
