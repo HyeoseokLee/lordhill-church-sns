@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { isAndroid } from '@/util/deviceUtil';
 
 interface Props {
   images: { id: number; url: string }[];
@@ -38,6 +39,36 @@ export default function ImageFullscreenViewer({
     setScale(1);
     setTranslate({ x: 0, y: 0 });
   }, []);
+
+  // Android 뒤로가기 버튼으로 전체화면 닫기 (iOS는 적용하지 않음)
+  const android = isAndroid();
+
+  const closeViaHistory = useCallback(() => {
+    if (android) {
+      history.back();
+    } else {
+      onClose();
+    }
+  }, [android, onClose]);
+
+  useEffect(() => {
+    if (!open || !android) return;
+
+    history.pushState({ imageFullscreen: true }, '');
+
+    const handlePopState = () => {
+      onClose();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (history.state?.imageFullscreen) {
+        history.back();
+      }
+    };
+  }, [open, onClose, android]);
 
   // 네이티브 터치 이벤트 등록 (passive: false로 preventDefault 가능)
   useEffect(() => {
@@ -133,7 +164,7 @@ export default function ImageFullscreenViewer({
   // 배경 클릭으로 닫기 (확대 안 된 상태에서만)
   const handleBackgroundClick = () => {
     if (scale <= 1) {
-      onClose();
+      closeViaHistory();
     } else {
       resetZoom();
     }
@@ -154,7 +185,7 @@ export default function ImageFullscreenViewer({
       <button
         onClick={e => {
           e.stopPropagation();
-          onClose();
+          closeViaHistory();
         }}
         className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white"
       >
