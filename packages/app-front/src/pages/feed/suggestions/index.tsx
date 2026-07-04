@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Send } from 'lucide-react';
+import { ChevronDown, CornerDownRight, Send } from 'lucide-react';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import RainbowTipCard from '@/components/common/RainbowTipCard';
@@ -191,25 +191,37 @@ export default function SuggestionsPage() {
                   {/* 아코디언 본문 */}
                   {isExpanded && (
                     <div className="px-4 pb-4 border-t border-surface">
-                      {/* 전체 내용 */}
-                      <p className="pt-3 text-[14px] text-text leading-[1.7] whitespace-pre-wrap">
-                        {item.content}
-                      </p>
+                      {/* 원글 내용 (음영 배경) */}
+                      <div className="mt-3 bg-surface rounded-[8px] px-3 py-2.5">
+                        <p className="text-[14px] text-text leading-[1.7] whitespace-pre-wrap">
+                          {item.content}
+                        </p>
+                        <p className="text-[11px] text-text-muted mt-1.5">
+                          {formatRelativeTime(item.createdAt)}
+                        </p>
+                      </div>
 
                       {/* 댓글 목록 */}
                       {item.comments.length > 0 && (
-                        <div className="mt-3 flex flex-col gap-2">
+                        <div className="mt-2 flex flex-col gap-1.5">
                           {item.comments.map(comment => (
                             <div
                               key={comment.id}
-                              className="bg-surface rounded-[8px] px-3 py-2"
+                              className="flex items-start gap-1.5 pl-2"
                             >
-                              <p className="text-[13px] text-text">
-                                {comment.content}
-                              </p>
-                              <p className="text-[11px] text-text-muted mt-1">
-                                {formatRelativeTime(comment.createdAt)}
-                              </p>
+                              <CornerDownRight
+                                size={14}
+                                strokeWidth={1.5}
+                                className="text-text-muted flex-shrink-0 mt-0.5"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] text-text">
+                                  {comment.content}
+                                </p>
+                                <p className="text-[11px] text-text-muted mt-0.5">
+                                  {formatRelativeTime(comment.createdAt)}
+                                </p>
+                              </div>
                             </div>
                           ))}
                         </div>

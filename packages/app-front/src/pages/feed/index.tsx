@@ -80,7 +80,7 @@ export default function FeedPage() {
           </button>
           {/* 알림 */}
           <button
-            onClick={() => delayNavigate(navigate, '/feed/notifications')}
+            onClick={() => delayNavigate(navigate, '/notifications')}
             className="relative w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
           >
             <Bell size={22} strokeWidth={1.5} />
