@@ -78,6 +78,7 @@ const router = createBrowserRouter([
               { path: 'feed/:postId', element: <PostDetailPage /> },
               { path: 'recycle/:recycleId', element: <RecycleDetailPage /> },
               { path: 'notices', element: <NoticesPage /> },
+              { path: 'suggestions', element: <SuggestionsPage /> },
             ],
           },
         ],
