@@ -58,17 +58,39 @@ export default function FeedPage() {
         <h1 className="text-[22px] font-extrabold tracking-tight text-text">
           주안의 교회
         </h1>
-        <button
-          onClick={() => delayNavigate(navigate, '/feed/notifications')}
-          className="relative w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
-        >
-          <Bell size={22} strokeWidth={1.5} />
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-error text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center">
+          {/* 개선요청 */}
+          <button
+            onClick={() => delayNavigate(navigate, '/feed/suggestions')}
+            className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface transition-colors duration-150"
+          >
+            <span
+              className="animate-[wiggle_1.5s_ease-in-out_infinite]"
+              style={{
+                display: 'inline-flex',
+                background:
+                  'linear-gradient(135deg, #FF6B6B, #FFA94D, #FFD43B, #69DB7C, #4DABF7, #9775FA)',
+                WebkitMask:
+                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E\") center/contain no-repeat",
+                mask: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E\") center/contain no-repeat",
+                width: 22,
+                height: 22,
+              }}
+            />
+          </button>
+          {/* 알림 */}
+          <button
+            onClick={() => delayNavigate(navigate, '/feed/notifications')}
+            className="relative w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
+          >
+            <Bell size={22} strokeWidth={1.5} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-error text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
       </header>
 
       {/* 스크롤 영역 */}

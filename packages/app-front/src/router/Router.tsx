@@ -30,6 +30,7 @@ import PrivacyPolicyPage from '@/pages/my/terms/PrivacyPolicyPage';
 import TermsOfServicePage from '@/pages/my/terms/TermsOfServicePage';
 import PublicPrivacyPolicyPage from '@/pages/public/PublicPrivacyPolicyPage';
 import PublicTermsOfServicePage from '@/pages/public/PublicTermsOfServicePage';
+import SuggestionsPage from '@/pages/feed/suggestions/index';
 
 const router = createBrowserRouter([
   {
@@ -69,6 +70,7 @@ const router = createBrowserRouter([
         children: [
           { path: 'post', element: <FeedWritePage /> },
           { path: 'detail/:postId', element: <PostDetailPage /> },
+          { path: 'suggestions', element: <SuggestionsPage /> },
           {
             path: 'notifications',
             element: <NotificationsWithOutlet />,

@@ -54,6 +54,13 @@
 .ql-content ol { list-style-type: decimal; }
 .ql-content p { margin: 0.3em 0; }
 
+/* 개선요청 아이콘 살짝 흔들림 */
+@keyframes wiggle {
+  0%, 85%, 100% { transform: rotate(0deg); }
+  90% { transform: rotate(-12deg); }
+  95% { transform: rotate(10deg); }
+}
+
 /* 네이티브 푸시 트랜지션 (부모 ← 살짝 밀림, 자식 ← 오른쪽에서 등장/퇴장) */
 @keyframes slideInFromRight {
   from { transform: translateX(100%); }

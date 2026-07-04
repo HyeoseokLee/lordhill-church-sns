@@ -19,6 +19,7 @@ import ConfirmModal from '@/components/common/ConfirmModal';
 import ReportModal from '@/components/common/ReportModal';
 import { reportApi, type ReportTargetType } from '@/api/reportApi';
 import ImageCarousel from '@/components/common/ImageCarousel';
+import RainbowTipCard from '@/components/common/RainbowTipCard';
 import { useRecycle } from '@/hooks/api/useRecycle';
 import { useRecycleComments } from '@/hooks/api/useRecycleComments';
 import { useAuthStore } from '@/stores/authStore';
@@ -657,11 +658,11 @@ export default function RecycleDetailPage() {
         </div>
 
         {/* 공유 가이드 카드 */}
-        <div className="my-3 px-3 py-3 bg-accent/5 rounded-[10px]">
-          <p className="text-[13px] text-accent leading-[1.6]">
+        <div className="mt-1.5 mb-3">
+          <RainbowTipCard>
             댓글로 공유의사를 알려주세요. 글쓴이가 그중에서 한명에게
             공유할거에요.
-          </p>
+          </RainbowTipCard>
         </div>
 
         {/* 댓글 목록 */}
