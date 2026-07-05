@@ -56,10 +56,39 @@ export default function ImageCarousel({ images }: Props) {
 
   if (images.length === 0) return null;
 
+  // 1장: 가로 스크롤 컨테이너 없이 단순 렌더링 (Android WebView 스크롤 간섭 방지)
+  if (images.length === 1) {
+    return (
+      <>
+        <div className="mb-3 -mx-5">
+          <div
+            ref={scrollRef}
+            className="flex items-center justify-center bg-black"
+            style={{ height: maxHeight > 0 ? `${maxHeight}px` : 'auto' }}
+            onClick={() => handleImageClick(0)}
+          >
+            <img
+              src={images[0].url}
+              alt=""
+              className={`w-full h-auto ${loadedCount < 1 ? 'opacity-0' : 'opacity-100'}`}
+              style={{ transition: 'opacity 0.2s' }}
+            />
+          </div>
+        </div>
+        <ImageFullscreenViewer
+          images={images}
+          initialIndex={viewerIndex}
+          open={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+        />
+      </>
+    );
+  }
+
+  // 2장 이상: 가로 스와이프 캐러셀
   return (
     <>
       <div className="mb-3 -mx-5">
-        {/* 이미지 슬라이드 영역 (부모 패딩을 벗어나 뷰포트 꽉 채움) */}
         <div
           ref={scrollRef}
           onScroll={handleScroll}
@@ -94,21 +123,19 @@ export default function ImageCarousel({ images }: Props) {
           ))}
         </div>
 
-        {/* 하단 인디케이터 (2장 이상일 때만) */}
-        {images.length > 1 && (
-          <div className="flex justify-center gap-1.5 mt-2">
-            {images.map((img, i) => (
-              <div
-                key={img.id}
-                className={`rounded-full transition-all duration-200 ${
-                  i === currentIndex
-                    ? 'w-2 h-2 bg-accent'
-                    : 'w-1.5 h-1.5 bg-surface-strong'
-                }`}
-              />
-            ))}
-          </div>
-        )}
+        {/* 하단 인디케이터 */}
+        <div className="flex justify-center gap-1.5 mt-2">
+          {images.map((img, i) => (
+            <div
+              key={img.id}
+              className={`rounded-full transition-all duration-200 ${
+                i === currentIndex
+                  ? 'w-2 h-2 bg-accent'
+                  : 'w-1.5 h-1.5 bg-surface-strong'
+              }`}
+            />
+          ))}
+        </div>
       </div>
 
       {/* 전체화면 이미지 뷰어 */}
