@@ -25,6 +25,7 @@ import reportRouter from './report/routes/report.js';
 import noticeRouter from './notice/routes/notice.js';
 import blockRouter from './block/routes/block.js';
 import suggestionRouter from './suggestion/routes/suggestion.js';
+import fundTransactionRouter from './fund-transaction/routes/fundTransaction.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -97,6 +98,7 @@ apiRouter.use('/admin', onlyLoginUser, onlyAdmin, adminRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, counterpartyRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionCategoryRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdmin, fundTransactionRouter);
 
 // 댓글 (승인된 사용자만 — use('/')는 모든 경로에 매칭되므로 반드시 마지막에 배치)
 apiRouter.use('/', onlyLoginUser, onlyApprovedUser, commentRouter);

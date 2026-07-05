@@ -1643,6 +1643,12 @@ const [viewerIndex, setViewerIndex] = useState(0);
 - 이미지에 `pointer-events: none` 설정 — 터치 이벤트를 컨테이너에서 처리
 - `stateRef`로 터치 상태를 관리 — React state는 이벤트 리스너의 클로저에서 stale 값이 됨
 
+### ⚠️ 시행착오 (ImageCarousel + ImageFullscreenViewer)
+
+1. **Android WebView — 이미지 위에서 세로 스크롤이 첫 번째 제스처에 안 되는 현상** — `overflow-x-auto` + `snap-x snap-mandatory`가 만드는 가로 스크롤 컨텍스트 때문. Android WebView가 첫 터치에서 "가로 스크롤인지 세로 스크롤인지" 판별하느라 첫 제스처를 먹음. **해결:** 이미지 1장일 때는 가로 스크롤 컨테이너(`overflow-x-auto`, `snap-x`)를 아예 사용하지 않고 단순 `div`로 렌더링. 2장 이상에서는 가로 스와이프가 필요하므로 `touch-action: manipulation` 적용 (더블탭 줌 감지 제거). `touch-action: pan-y pinch-zoom`은 오히려 스크롤을 악화시키므로 사용 금지
+2. **Android 뒤로가기 버튼 — 전체화면 뷰어에서 앱 종료되는 현상** — `history.pushState` + `popstate` 리스너로 뒤로가기 시 전체화면을 닫도록 처리. Android에서만 적용 (`isAndroid()` 체크), iOS에서는 엣지 스와이프와 충돌하므로 미적용. `onClose`를 useEffect 의존성에 넣으면 매 렌더마다 `pushState`가 중복 → `onCloseRef`로 안정화 필수
+3. **전체화면 확대 상태에서 X 버튼 안 눌리는 현상** — 컨테이너의 `onTouchStart`/`onTouchMove`가 버튼 위 터치까지 가로채서 패닝 모드 진입 → `click` 이벤트 미발생. **해결:** `target.closest('button')`이면 터치 핸들링을 건너뛰도록 가드 추가
+
 ### 독립 페이지 (MainLayout 밖)의 전체 높이 처리
 
 LoginPage 등 MainLayout을 거치지 않는 독립 페이지에서 뷰포트 전체를 채우려면:

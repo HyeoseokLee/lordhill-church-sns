@@ -163,7 +163,10 @@ export default function OfferingPage() {
   const [categories, setCategories] = useState([]);
   const [catLoading, setCatLoading] = useState(false);
 
-  // 거래내역 리스트 상태
+  // 탭 상태 (헌금 / 울타리기금)
+  const [activeTab, setActiveTab] = useState('offering');
+
+  // 헌금 거래내역 리스트 상태
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(false);
   const [txPage, setTxPage] = useState(1);
@@ -171,7 +174,14 @@ export default function OfferingPage() {
   const [txTotalPages, setTxTotalPages] = useState(0);
   const TX_LIMIT = 20;
 
-  // 거래내역 조회
+  // 울타리기금 거래내역 리스트 상태
+  const [fundTransactions, setFundTransactions] = useState([]);
+  const [fundLoading, setFundLoading] = useState(false);
+  const [fundPage, setFundPage] = useState(1);
+  const [fundTotal, setFundTotal] = useState(0);
+  const [fundTotalPages, setFundTotalPages] = useState(0);
+
+  // 헌금 거래내역 조회
   const fetchTransactions = useCallback(async (page = 1) => {
     setTxLoading(true);
     try {
@@ -189,9 +199,28 @@ export default function OfferingPage() {
     }
   }, []);
 
+  // 울타리기금 거래내역 조회
+  const fetchFundTransactions = useCallback(async (page = 1) => {
+    setFundLoading(true);
+    try {
+      const { data } = await api.get(
+        `/admin/fund-transactions?page=${page}&limit=${TX_LIMIT}`,
+      );
+      setFundTransactions(data.items);
+      setFundTotal(data.total);
+      setFundTotalPages(data.totalPages);
+      setFundPage(page);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFundLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTransactions(1);
-  }, [fetchTransactions]);
+    fetchFundTransactions(1);
+  }, [fetchTransactions, fetchFundTransactions]);
 
   // --- 입출금자 CRUD ---
   const fetchDonors = async () => {
@@ -286,128 +315,270 @@ export default function OfferingPage() {
           >
             헌금 등록
           </button>
+          <button
+            onClick={() => navigate('/offering/fund-register')}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition"
+          >
+            울타리기금 등록
+          </button>
         </div>
       </div>
 
-      {/* 거래내역 리스트 */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  거래일시
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  구분
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  보낸분/받는분
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  확정이름
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  출금액
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  입금액
-                </th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  잔액
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                  카테고리
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {txLoading ? (
+      {/* 탭: 헌금 / 울타리기금 */}
+      <div className="flex gap-1 mb-4">
+        <button
+          onClick={() => setActiveTab('offering')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            activeTab === 'offering'
+              ? 'bg-gray-900 text-white'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          }`}
+        >
+          헌금 리스트
+        </button>
+        <button
+          onClick={() => setActiveTab('fund')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            activeTab === 'fund'
+              ? 'bg-gray-900 text-white'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          }`}
+        >
+          울타리기금 리스트
+        </button>
+      </div>
+
+      {/* 헌금 거래내역 리스트 */}
+      {activeTab === 'offering' && (
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-400">
-                    불러오는 중...
-                  </td>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    거래일시
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    구분
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    보낸분/받는분
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    확정이름
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    출금액
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    입금액
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    잔액
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    카테고리
+                  </th>
                 </tr>
-              ) : transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-8 text-gray-400">
-                    등록된 헌금 내역이 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                transactions.map(tx => (
-                  <tr
-                    key={tx.id}
-                    className="border-b last:border-0 hover:bg-gray-50"
-                  >
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                      {new Date(tx.transactionDate).toLocaleString('ko-KR')}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                          tx.type === 'expense'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {tx.type === 'income' ? '입금' : '출금'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {tx.rawName || '-'}
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">
-                      {tx.counterparty?.name || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
-                      {tx.withdrawal > 0
-                        ? tx.withdrawal.toLocaleString('ko-KR')
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
-                      {tx.deposit > 0
-                        ? tx.deposit.toLocaleString('ko-KR')
-                        : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
-                      {tx.balance.toLocaleString('ko-KR')}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {tx.category?.name || '-'}
+              </thead>
+              <tbody>
+                {txLoading ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-8 text-gray-400">
+                      불러오는 중...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 페이지네이션 */}
-        {txTotalPages > 1 && (
-          <div className="bg-gray-50 px-4 py-3 border-t flex items-center justify-between text-sm text-gray-500">
-            <span>
-              총 {txTotal}건 (페이지 {txPage}/{txTotalPages})
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchTransactions(txPage - 1)}
-                disabled={txPage <= 1}
-                className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                이전
-              </button>
-              <button
-                onClick={() => fetchTransactions(txPage + 1)}
-                disabled={txPage >= txTotalPages}
-                className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                다음
-              </button>
-            </div>
+                ) : transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-8 text-gray-400">
+                      등록된 헌금 내역이 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  transactions.map(tx => (
+                    <tr
+                      key={tx.id}
+                      className="border-b last:border-0 hover:bg-gray-50"
+                    >
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        {new Date(tx.transactionDate).toLocaleString('ko-KR')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                            tx.type === 'expense'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {tx.type === 'income' ? '입금' : '출금'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {tx.rawName || '-'}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap">
+                        {tx.counterparty?.name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
+                        {tx.withdrawal > 0
+                          ? tx.withdrawal.toLocaleString('ko-KR')
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
+                        {tx.deposit > 0
+                          ? tx.deposit.toLocaleString('ko-KR')
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
+                        {tx.balance.toLocaleString('ko-KR')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {tx.category?.name || '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+
+          {/* 페이지네이션 */}
+          {txTotalPages > 1 && (
+            <div className="bg-gray-50 px-4 py-3 border-t flex items-center justify-between text-sm text-gray-500">
+              <span>
+                총 {txTotal}건 (페이지 {txPage}/{txTotalPages})
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchTransactions(txPage - 1)}
+                  disabled={txPage <= 1}
+                  className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <button
+                  onClick={() => fetchTransactions(txPage + 1)}
+                  disabled={txPage >= txTotalPages}
+                  className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 울타리기금 거래내역 리스트 */}
+      {activeTab === 'fund' && (
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    거래일시
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    구분
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    보낸분/받는분
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    확정이름
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    출금액
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    입금액
+                  </th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    잔액
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {fundLoading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-400">
+                      불러오는 중...
+                    </td>
+                  </tr>
+                ) : fundTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-400">
+                      등록된 울타리기금 내역이 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  fundTransactions.map(tx => (
+                    <tr
+                      key={tx.id}
+                      className="border-b last:border-0 hover:bg-gray-50"
+                    >
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        {new Date(tx.transactionDate).toLocaleString('ko-KR')}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${tx.type === 'expense' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}
+                        >
+                          {tx.type === 'income' ? '입금' : '출금'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {tx.rawName || '-'}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap">
+                        {tx.counterparty?.name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
+                        {tx.withdrawal > 0
+                          ? tx.withdrawal.toLocaleString('ko-KR')
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
+                        {tx.deposit > 0
+                          ? tx.deposit.toLocaleString('ko-KR')
+                          : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
+                        {tx.balance.toLocaleString('ko-KR')}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {fundTotalPages > 1 && (
+            <div className="bg-gray-50 px-4 py-3 border-t flex items-center justify-between text-sm text-gray-500">
+              <span>
+                총 {fundTotal}건 (페이지 {fundPage}/{fundTotalPages})
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchFundTransactions(fundPage - 1)}
+                  disabled={fundPage <= 1}
+                  className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <button
+                  onClick={() => fetchFundTransactions(fundPage + 1)}
+                  disabled={fundPage >= fundTotalPages}
+                  className="px-3 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 입출금자 관리 다이얼로그 */}
       <Dialog

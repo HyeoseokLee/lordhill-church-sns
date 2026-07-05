@@ -1,20 +1,17 @@
 import { Op, fn, col, literal } from 'sequelize';
 import db from '../../db.js';
 
-// 헌금 통계 조회 (연도별 월별 카테고리별 집계)
-export const getOfferingStatistics = async (req, res) => {
-  const year = Number(req.query.year) || new Date().getFullYear();
-
+// 공통 통계 집계 함수 (모델만 다르게 전달)
+const buildStatistics = async (Model, year) => {
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year + 1, 0, 1);
 
-  // 월별 + 카테고리별 입금 집계
-  const incomeByCategory = await db.Transaction.findAll({
+  const incomeByCategory = await Model.findAll({
     attributes: [
       [fn('MONTH', col('transaction_date')), 'month'],
       'categoryId',
       [fn('SUM', col('deposit')), 'total'],
-      [fn('COUNT', col('Transaction.id')), 'count'],
+      [fn('COUNT', col(`${Model.name}.id`)), 'count'],
     ],
     where: {
       type: 'income',
@@ -32,13 +29,12 @@ export const getOfferingStatistics = async (req, res) => {
     raw: false,
   });
 
-  // 월별 + 카테고리별 출금 집계
-  const expenseByCategory = await db.Transaction.findAll({
+  const expenseByCategory = await Model.findAll({
     attributes: [
       [fn('MONTH', col('transaction_date')), 'month'],
       'categoryId',
       [fn('SUM', col('withdrawal')), 'total'],
-      [fn('COUNT', col('Transaction.id')), 'count'],
+      [fn('COUNT', col(`${Model.name}.id`)), 'count'],
     ],
     where: {
       type: 'expense',
@@ -56,8 +52,7 @@ export const getOfferingStatistics = async (req, res) => {
     raw: false,
   });
 
-  // 월별 총합 (입금/출금)
-  const monthlyTotals = await db.Transaction.findAll({
+  const monthlyTotals = await Model.findAll({
     attributes: [
       [fn('MONTH', col('transaction_date')), 'month'],
       [fn('SUM', col('deposit')), 'totalIncome'],
@@ -71,7 +66,6 @@ export const getOfferingStatistics = async (req, res) => {
     raw: true,
   });
 
-  // 응답 구조 조합
   const monthly = [];
   for (let m = 1; m <= 12; m++) {
     const totals = monthlyTotals.find((t) => Number(t.month) === m);
@@ -105,17 +99,30 @@ export const getOfferingStatistics = async (req, res) => {
     });
   }
 
-  // 최신 거래의 잔액 조회
-  const latestTransaction = await db.Transaction.findOne({
+  const latestTransaction = await Model.findOne({
     attributes: ['balance', 'transactionDate'],
     order: [['transactionDate', 'DESC']],
     raw: true,
   });
 
-  res.json({
+  return {
     year,
     monthly,
     currentBalance: latestTransaction ? latestTransaction.balance : 0,
     balanceDate: latestTransaction ? latestTransaction.transactionDate : null,
-  });
+  };
+};
+
+// 헌금 통계 조회 (연도별 월별 카테고리별 집계)
+export const getOfferingStatistics = async (req, res) => {
+  const year = Number(req.query.year) || new Date().getFullYear();
+  const result = await buildStatistics(db.Transaction, year);
+  res.json(result);
+};
+
+// 울타리기금 통계 조회
+export const getFundStatistics = async (req, res) => {
+  const year = Number(req.query.year) || new Date().getFullYear();
+  const result = await buildStatistics(db.FundTransaction, year);
+  res.json(result);
 };

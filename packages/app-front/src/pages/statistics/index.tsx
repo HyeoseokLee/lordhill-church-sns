@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import Chart from 'react-apexcharts';
-import useOfferingStats from '@/hooks/api/useOfferingStats';
+import useOfferingStats, { useFundStats } from '@/hooks/api/useOfferingStats';
 
 const MONTH_LABELS = [
   '1월',
@@ -51,12 +51,38 @@ function getCategoryColor(name: string, fallbackIdx: number) {
   );
 }
 
+// localStorage에서 마지막 탭 상태 복원
+function getLastTab(): 'offering' | 'fund' {
+  try {
+    const v = localStorage.getItem('stats_tab');
+    return v === 'fund' ? 'fund' : 'offering';
+  } catch {
+    return 'offering';
+  }
+}
+
 // 통계 메인 페이지
 export default function StatisticsPage() {
+  const [accountTab, setAccountTab] = useState<'offering' | 'fund'>(getLastTab);
   const [year] = useState(2026);
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [selectedMonth, setSelectedMonth] = useState(0); // 0 = 전체보기
-  const { data, isLoading } = useOfferingStats(year);
+  const offeringStats = useOfferingStats(year);
+  const fundStats = useFundStats(year);
+  const { data, isLoading } =
+    accountTab === 'offering' ? offeringStats : fundStats;
+
+  // 탭 변경 시 localStorage 저장 + 월 선택 초기화
+  const handleTabChange = (tab: 'offering' | 'fund') => {
+    setAccountTab(tab);
+    setSelectedMonth(0);
+    setType('income');
+    try {
+      localStorage.setItem('stats_tab', tab);
+    } catch {
+      // 무시
+    }
+  };
 
   // 데이터가 있는 월의 인덱스 목록
   const activeMonthIndices = useMemo(() => {
@@ -135,6 +161,41 @@ export default function StatisticsPage() {
     );
   }, [data, type]);
 
+  // === 울타리기금 전용 데이터 ===
+
+  // 울타리기금 — 입금/출금 총합
+  const fundTotalIncome = useMemo(() => {
+    if (!data) return 0;
+    return data.monthly.reduce((sum, m) => sum + m.income.total, 0);
+  }, [data]);
+
+  const fundTotalExpense = useMemo(() => {
+    if (!data) return 0;
+    return data.monthly.reduce((sum, m) => sum + m.expense.total, 0);
+  }, [data]);
+
+  // 울타리기금 — 입금+출금 동시 선 그래프 데이터
+  const fundTrendSeries = useMemo(() => {
+    if (!data || activeMonthIndices.length === 0) return [];
+    return [
+      {
+        name: '입금',
+        data: activeMonthIndices.map(i => data.monthly[i].income.total),
+      },
+      {
+        name: '출금',
+        data: activeMonthIndices.map(i => data.monthly[i].expense.total),
+      },
+    ];
+  }, [data, activeMonthIndices]);
+
+  // 울타리기금 — 월별 입금/출금
+  const fundMonthData = useMemo(() => {
+    if (!data || selectedMonth === 0) return null;
+    const m = data.monthly[selectedMonth - 1];
+    return { income: m.income.total, expense: m.expense.total };
+  }, [data, selectedMonth]);
+
   return (
     <>
       {/* 상단 헤더 */}
@@ -143,6 +204,30 @@ export default function StatisticsPage() {
           통계
         </h1>
       </header>
+
+      {/* 계좌 탭 (헌금 / 울타리기금) */}
+      <div className="flex gap-2 px-5 mb-2">
+        <button
+          onClick={() => handleTabChange('offering')}
+          className={`flex-1 py-2 rounded-xl text-[14px] font-semibold transition-colors ${
+            accountTab === 'offering'
+              ? 'bg-text text-white'
+              : 'bg-surface text-text-muted'
+          }`}
+        >
+          헌금
+        </button>
+        <button
+          onClick={() => handleTabChange('fund')}
+          className={`flex-1 py-2 rounded-xl text-[14px] font-semibold transition-colors ${
+            accountTab === 'fund'
+              ? 'bg-text text-white'
+              : 'bg-surface text-text-muted'
+          }`}
+        >
+          울타리기금
+        </button>
+      </div>
 
       <div className="scrollInner">
         {isLoading ? (
@@ -173,29 +258,31 @@ export default function StatisticsPage() {
               </p>
             </div>
 
-            {/* 입금/출금 토글 */}
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setType('income')}
-                className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
-                  type === 'income'
-                    ? 'bg-accent text-white'
-                    : 'bg-surface text-text-muted'
-                }`}
-              >
-                입금내역
-              </button>
-              <button
-                onClick={() => setType('expense')}
-                className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
-                  type === 'expense'
-                    ? 'bg-accent text-white'
-                    : 'bg-surface text-text-muted'
-                }`}
-              >
-                출금내역
-              </button>
-            </div>
+            {/* 헌금: 입금/출금 토글 */}
+            {accountTab === 'offering' && (
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setType('income')}
+                  className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
+                    type === 'income'
+                      ? 'bg-accent text-white'
+                      : 'bg-surface text-text-muted'
+                  }`}
+                >
+                  입금내역
+                </button>
+                <button
+                  onClick={() => setType('expense')}
+                  className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
+                    type === 'expense'
+                      ? 'bg-accent text-white'
+                      : 'bg-surface text-text-muted'
+                  }`}
+                >
+                  출금내역
+                </button>
+              </div>
+            )}
 
             {/* 월 선택 탭 */}
             <div className="flex gap-1.5 overflow-x-auto pb-3 scrollbar-hide">
@@ -231,8 +318,8 @@ export default function StatisticsPage() {
               })}
             </div>
 
-            {/* 전체보기 */}
-            {selectedMonth === 0 && (
+            {/* === 헌금 탭 콘텐츠 === */}
+            {accountTab === 'offering' && selectedMonth === 0 && (
               <>
                 {/* 총합 */}
                 <div className="bg-surface rounded-2xl p-4 mb-4">
@@ -341,8 +428,7 @@ export default function StatisticsPage() {
               </>
             )}
 
-            {/* 월별보기 */}
-            {selectedMonth > 0 && monthData && (
+            {accountTab === 'offering' && selectedMonth > 0 && monthData && (
               <>
                 {/* 월 총합 */}
                 <div className="bg-surface rounded-2xl p-4 mb-4">
@@ -483,14 +569,204 @@ export default function StatisticsPage() {
               </>
             )}
 
-            {/* 전체보기 데이터 없음 */}
-            {selectedMonth === 0 && grandTotal === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-[13px] text-text-muted">
-                  {year}년 {type === 'income' ? '입금' : '출금'} 내역이
-                  없습니다.
-                </p>
-              </div>
+            {accountTab === 'offering' &&
+              selectedMonth === 0 &&
+              grandTotal === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <p className="text-[13px] text-text-muted">
+                    {year}년 {type === 'income' ? '입금' : '출금'} 내역이
+                    없습니다.
+                  </p>
+                </div>
+              )}
+
+            {/* === 울타리기금 탭 콘텐츠 === */}
+            {accountTab === 'fund' && selectedMonth === 0 && (
+              <>
+                {/* 입금/출금 총합 */}
+                <div className="flex gap-3 mb-4">
+                  <div className="flex-1 bg-surface rounded-2xl p-4">
+                    <p className="text-[12px] text-text-muted mb-1">
+                      {year}년 총 입금
+                    </p>
+                    <p className="text-[20px] font-extrabold text-blue-600">
+                      {formatFull(fundTotalIncome)}
+                    </p>
+                  </div>
+                  <div className="flex-1 bg-surface rounded-2xl p-4">
+                    <p className="text-[12px] text-text-muted mb-1">
+                      {year}년 총 출금
+                    </p>
+                    <p className="text-[20px] font-extrabold text-red-500">
+                      {formatFull(fundTotalExpense)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 입금+출금 동시 선 그래프 */}
+                {activeMonthIndices.length > 0 && (
+                  <div className="bg-white rounded-2xl mb-4">
+                    <Chart
+                      key="fund-trend"
+                      type="line"
+                      height={280}
+                      series={fundTrendSeries}
+                      options={{
+                        chart: {
+                          toolbar: { show: false },
+                          zoom: { enabled: false },
+                          fontFamily: 'Pretendard Variable',
+                        },
+                        colors: ['#339AF0', '#F06595'],
+                        stroke: { curve: 'smooth', width: 2.5 },
+                        markers: { size: 3 },
+                        legend: {
+                          show: true,
+                          position: 'top',
+                          fontSize: '11px',
+                          labels: { colors: '#212529' },
+                        },
+                        xaxis: {
+                          categories: trendLabels,
+                          labels: {
+                            style: { fontSize: '10px', colors: '#868E96' },
+                          },
+                          axisBorder: { show: false },
+                          axisTicks: { show: false },
+                        },
+                        yaxis: {
+                          labels: {
+                            formatter: (v: number) => formatWon(v),
+                            style: { fontSize: '10px', colors: '#868E96' },
+                          },
+                        },
+                        grid: {
+                          borderColor: '#F1F3F5',
+                          strokeDashArray: 3,
+                        },
+                        dataLabels: { enabled: false },
+                        tooltip: {
+                          y: {
+                            formatter: (v: number) => formatFull(v),
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 데이터 없음 */}
+                {activeMonthIndices.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <p className="text-[13px] text-text-muted">
+                      {year}년 울타리기금 내역이 없습니다.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* 울타리기금 — 월별보기 */}
+            {accountTab === 'fund' && selectedMonth > 0 && (
+              <>
+                {/* 입금/출금 나란히 */}
+                <div className="flex gap-3 mb-4">
+                  <div className="flex-1 bg-surface rounded-2xl p-4">
+                    <p className="text-[12px] text-text-muted mb-1">
+                      {selectedMonth}월 입금
+                    </p>
+                    <p className="text-[20px] font-extrabold text-blue-600">
+                      {formatFull(fundMonthData?.income || 0)}
+                    </p>
+                  </div>
+                  <div className="flex-1 bg-surface rounded-2xl p-4">
+                    <p className="text-[12px] text-text-muted mb-1">
+                      {selectedMonth}월 출금
+                    </p>
+                    <p className="text-[20px] font-extrabold text-red-500">
+                      {formatFull(fundMonthData?.expense || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 도넛 차트 (입금/출금) */}
+                {(fundMonthData?.income || 0) + (fundMonthData?.expense || 0) >
+                  0 && (
+                  <div className="bg-white rounded-2xl p-2 mb-4">
+                    <Chart
+                      type="donut"
+                      height={260}
+                      series={[
+                        fundMonthData?.income || 0,
+                        fundMonthData?.expense || 0,
+                      ].filter(v => v > 0)}
+                      options={{
+                        chart: { fontFamily: 'Pretendard Variable' },
+                        labels: [
+                          ...(fundMonthData?.income ? ['입금'] : []),
+                          ...(fundMonthData?.expense ? ['출금'] : []),
+                        ],
+                        colors: [
+                          ...(fundMonthData?.income ? ['#339AF0'] : []),
+                          ...(fundMonthData?.expense ? ['#F06595'] : []),
+                        ],
+                        legend: {
+                          position: 'bottom',
+                          fontSize: '12px',
+                          labels: { colors: '#212529' },
+                        },
+                        dataLabels: {
+                          enabled: true,
+                          formatter: (_v: number, opts: any) => {
+                            const val = opts.w.globals.series[opts.seriesIndex];
+                            return formatWon(val);
+                          },
+                          style: { fontSize: '11px', fontWeight: 600 },
+                        },
+                        plotOptions: {
+                          pie: {
+                            donut: {
+                              size: '55%',
+                              labels: {
+                                show: true,
+                                total: {
+                                  show: true,
+                                  label: '',
+                                  fontSize: '16px',
+                                  fontWeight: 700,
+                                  color: '#212529',
+                                  formatter: (w: any) => {
+                                    const total = w.globals.seriesTotals.reduce(
+                                      (a: number, b: number) => a + b,
+                                      0,
+                                    );
+                                    return total.toLocaleString('ko-KR');
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                        tooltip: {
+                          y: {
+                            formatter: (v: number) => formatFull(v),
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 데이터 없음 */}
+                {fundMonthData?.income === 0 &&
+                  fundMonthData?.expense === 0 && (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <p className="text-[13px] text-text-muted">
+                        {selectedMonth}월 울타리기금 내역이 없습니다.
+                      </p>
+                    </div>
+                  )}
+              </>
             )}
           </>
         )}

@@ -21,6 +21,7 @@ import UserBlock from './block/models/UserBlock.js';
 import NoticeMedia from './notice/models/NoticeMedia.js';
 import Suggestion from './suggestion/models/Suggestion.js';
 import SuggestionComment from './suggestion/models/SuggestionComment.js';
+import FundTransaction from './fund-transaction/models/FundTransaction.js';
 
 // config 패키지는 immutable 객체를 반환 — Sequelize가 내부 수정 시 hanging 발생
 const dbconfig = JSON.parse(JSON.stringify(config.sequelize));
@@ -75,6 +76,7 @@ db.UserBlock = UserBlock(sequelize);
 db.NoticeMedia = NoticeMedia(sequelize);
 db.Suggestion = Suggestion(sequelize);
 db.SuggestionComment = SuggestionComment(sequelize);
+db.FundTransaction = FundTransaction(sequelize);
 
 // Association 설정
 Object.keys(db).forEach((modelName) => {

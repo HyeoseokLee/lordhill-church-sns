@@ -33,3 +33,14 @@ export default function useOfferingStats(year: number) {
 
   return { data, error, isLoading };
 }
+
+// 울타리기금 통계 데이터 조회 훅
+export function useFundStats(year: number) {
+  const { data, error, isLoading } = useSWR<OfferingStats>(
+    `/statistics/fund?year=${year}`,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+
+  return { data, error, isLoading };
+}

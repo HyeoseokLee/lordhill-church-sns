@@ -10,6 +10,7 @@ import PushPage from './pages/PushPage';
 import RecyclePage from './pages/RecyclePage';
 import OfferingPage from './pages/OfferingPage';
 import OfferingRegisterPage from './pages/OfferingRegisterPage';
+import FundRegisterPage from './pages/FundRegisterPage';
 import NoticePage from './pages/NoticePage';
 
 function AdminRoute({ children }) {
@@ -108,6 +109,14 @@ export default function App() {
           element={
             <AdminRoute>
               <OfferingRegisterPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/offering/fund-register"
+          element={
+            <AdminRoute>
+              <FundRegisterPage />
             </AdminRoute>
           }
         />
