@@ -63,11 +63,12 @@ export default function ImageCarousel({ images }: Props) {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex overflow-x-auto snap-x snap-mandatory"
+          className={`flex ${images.length > 1 ? 'overflow-x-auto snap-x snap-mandatory' : 'overflow-x-hidden'}`}
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
             height: maxHeight > 0 ? `${maxHeight}px` : 'auto',
+            touchAction: images.length > 1 ? 'pan-y pinch-zoom' : 'auto',
           }}
         >
           {images.map((img, i) => (

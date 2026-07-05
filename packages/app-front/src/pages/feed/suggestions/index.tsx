@@ -248,7 +248,7 @@ export default function SuggestionsPage() {
                           }}
                           placeholder="의견을 남겨주세요"
                           maxLength={500}
-                          className="flex-1 text-[13px] text-text bg-surface rounded-[8px] px-3 py-2 outline-none placeholder:text-text-muted"
+                          className="flex-1 text-[13px] text-text bg-white border border-[#CED4DA] rounded-[8px] px-3 py-2 outline-none placeholder:text-text-muted"
                         />
                         <button
                           onClick={() => handleCommentSubmit(item.id)}
