@@ -120,6 +120,36 @@ export const bulkCreateTransactions = async (req, res) => {
   });
 };
 
+// 거래내역 개별 수정 (확정이름, 카테고리)
+export const updateTransaction = async (req, res) => {
+  const { id } = req.params;
+  const { counterpartyId, categoryId } = req.body;
+
+  const tx = await db.Transaction.findByPk(id);
+  if (!tx) throw new ErrClass(ErrInfo.NotFound);
+
+  if (counterpartyId !== undefined) tx.counterpartyId = counterpartyId;
+  if (categoryId !== undefined) tx.categoryId = categoryId;
+  await tx.save();
+
+  // include로 다시 조회하여 반환
+  const updated = await db.Transaction.findByPk(id, {
+    include: [
+      {
+        model: db.Counterparty,
+        as: 'counterparty',
+        attributes: ['id', 'name'],
+      },
+      {
+        model: db.TransactionCategory,
+        as: 'category',
+        attributes: ['id', 'name', 'type'],
+      },
+    ],
+  });
+  res.json(updated);
+};
+
 // 거래내역 목록 조회
 export const getTransactions = async (req, res) => {
   const { page = 1, limit = 50 } = req.query;

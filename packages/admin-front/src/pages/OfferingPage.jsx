@@ -4,6 +4,8 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 
 // 카테고리 한쪽 패널 (입금 또는 출금)
@@ -217,9 +219,64 @@ export default function OfferingPage() {
     }
   }, []);
 
+  // 인라인 수정 상태 (헌금/울타리 공용)
+  const [editingTxId, setEditingTxId] = useState(null);
+  const [editingTxType, setEditingTxType] = useState(null); // 'offering' | 'fund'
+  const [editCounterpartyId, setEditCounterpartyId] = useState(null);
+  const [editCategoryId, setEditCategoryId] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  // 인라인 수정 시작
+  const startEdit = (tx, txType) => {
+    setEditingTxId(tx.id);
+    setEditingTxType(txType);
+    setEditCounterpartyId(tx.counterparty?.id || null);
+    setEditCategoryId(tx.category?.id || null);
+  };
+
+  // 인라인 수정 취소
+  const cancelEdit = () => {
+    setEditingTxId(null);
+    setEditingTxType(null);
+  };
+
+  // 인라인 수정 저장
+  const saveEdit = async () => {
+    if (editSaving) return;
+    setEditSaving(true);
+    try {
+      const endpoint =
+        editingTxType === 'fund'
+          ? `/admin/fund-transactions/${editingTxId}`
+          : `/admin/transactions/${editingTxId}`;
+      await api.patch(endpoint, {
+        counterpartyId: editCounterpartyId,
+        categoryId: editCategoryId,
+      });
+      toast.success('수정 완료');
+      cancelEdit();
+      if (editingTxType === 'fund') {
+        fetchFundTransactions(fundPage);
+      } else {
+        fetchTransactions(txPage);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('수정 실패');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // 카테고리 옵션 필터 (입금/출금 타입별)
+  const getCategoryOptions = type => categories.filter(c => c.type === type);
+
   useEffect(() => {
     fetchTransactions(1);
     fetchFundTransactions(1);
+    // 인라인 수정용 입출금자/카테고리 미리 조회
+    fetchDonors();
+    fetchCategories();
   }, [fetchTransactions, fetchFundTransactions]);
 
   // --- 입출금자 CRUD ---
@@ -379,65 +436,153 @@ export default function OfferingPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
                     카테고리
                   </th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    액션
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {txLoading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400">
+                    <td colSpan={9} className="text-center py-8 text-gray-400">
                       불러오는 중...
                     </td>
                   </tr>
                 ) : transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400">
+                    <td colSpan={9} className="text-center py-8 text-gray-400">
                       등록된 헌금 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  transactions.map(tx => (
-                    <tr
-                      key={tx.id}
-                      className="border-b last:border-0 hover:bg-gray-50"
-                    >
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {new Date(tx.transactionDate).toLocaleString('ko-KR')}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                            tx.type === 'expense'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {tx.type === 'income' ? '입금' : '출금'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {tx.rawName || '-'}
-                      </td>
-                      <td className="px-4 py-3 font-medium whitespace-nowrap">
-                        {tx.counterparty?.name || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
-                        {tx.withdrawal > 0
-                          ? tx.withdrawal.toLocaleString('ko-KR')
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
-                        {tx.deposit > 0
-                          ? tx.deposit.toLocaleString('ko-KR')
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
-                        {tx.balance.toLocaleString('ko-KR')}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {tx.category?.name || '-'}
-                      </td>
-                    </tr>
-                  ))
+                  transactions.map(tx => {
+                    const isEditing =
+                      editingTxId === tx.id && editingTxType === 'offering';
+                    return (
+                      <tr
+                        key={tx.id}
+                        className="border-b last:border-0 hover:bg-gray-50"
+                      >
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {new Date(tx.transactionDate).toLocaleString('ko-KR')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
+                              tx.type === 'expense'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}
+                          >
+                            {tx.type === 'income' ? '입금' : '출금'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {tx.rawName || '-'}
+                        </td>
+                        <td className="px-2 py-1 font-medium whitespace-nowrap">
+                          {isEditing ? (
+                            <Autocomplete
+                              size="small"
+                              options={donors}
+                              getOptionLabel={opt => opt.name || ''}
+                              value={
+                                donors.find(d => d.id === editCounterpartyId) ||
+                                null
+                              }
+                              onChange={(_, v) =>
+                                setEditCounterpartyId(v?.id || null)
+                              }
+                              isOptionEqualToValue={(opt, val) =>
+                                opt.id === val.id
+                              }
+                              renderInput={params => (
+                                <TextField
+                                  {...params}
+                                  variant="outlined"
+                                  size="small"
+                                  placeholder="선택"
+                                />
+                              )}
+                              sx={{ minWidth: 140 }}
+                            />
+                          ) : (
+                            tx.counterparty?.name || '-'
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
+                          {tx.withdrawal > 0
+                            ? tx.withdrawal.toLocaleString('ko-KR')
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
+                          {tx.deposit > 0
+                            ? tx.deposit.toLocaleString('ko-KR')
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
+                          {tx.balance.toLocaleString('ko-KR')}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap">
+                          {isEditing ? (
+                            <Autocomplete
+                              size="small"
+                              options={getCategoryOptions(tx.type)}
+                              getOptionLabel={opt => opt.name || ''}
+                              value={
+                                categories.find(c => c.id === editCategoryId) ||
+                                null
+                              }
+                              onChange={(_, v) =>
+                                setEditCategoryId(v?.id || null)
+                              }
+                              isOptionEqualToValue={(opt, val) =>
+                                opt.id === val.id
+                              }
+                              renderInput={params => (
+                                <TextField
+                                  {...params}
+                                  variant="outlined"
+                                  size="small"
+                                  placeholder="선택"
+                                />
+                              )}
+                              sx={{ minWidth: 130 }}
+                            />
+                          ) : (
+                            tx.category?.name || '-'
+                          )}
+                        </td>
+                        <td className="px-2 py-1 text-center whitespace-nowrap">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <button
+                                onClick={cancelEdit}
+                                disabled={editSaving}
+                                className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded transition"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={saveEdit}
+                                disabled={editSaving}
+                                className="px-2 py-1 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded transition"
+                              >
+                                {editSaving ? '...' : '완료'}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEdit(tx, 'offering')}
+                              className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition"
+                            >
+                              수정
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -498,58 +643,152 @@ export default function OfferingPage() {
                   <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
                     잔액
                   </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    카테고리
+                  </th>
+                  <th className="text-center px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    액션
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {fundLoading ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-gray-400">
+                    <td colSpan={9} className="text-center py-8 text-gray-400">
                       불러오는 중...
                     </td>
                   </tr>
                 ) : fundTransactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-gray-400">
+                    <td colSpan={9} className="text-center py-8 text-gray-400">
                       등록된 울타리기금 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  fundTransactions.map(tx => (
-                    <tr
-                      key={tx.id}
-                      className="border-b last:border-0 hover:bg-gray-50"
-                    >
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {new Date(tx.transactionDate).toLocaleString('ko-KR')}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${tx.type === 'expense' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}
-                        >
-                          {tx.type === 'income' ? '입금' : '출금'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {tx.rawName || '-'}
-                      </td>
-                      <td className="px-4 py-3 font-medium whitespace-nowrap">
-                        {tx.counterparty?.name || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
-                        {tx.withdrawal > 0
-                          ? tx.withdrawal.toLocaleString('ko-KR')
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
-                        {tx.deposit > 0
-                          ? tx.deposit.toLocaleString('ko-KR')
-                          : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
-                        {tx.balance.toLocaleString('ko-KR')}
-                      </td>
-                    </tr>
-                  ))
+                  fundTransactions.map(tx => {
+                    const isEditing =
+                      editingTxId === tx.id && editingTxType === 'fund';
+                    return (
+                      <tr
+                        key={tx.id}
+                        className="border-b last:border-0 hover:bg-gray-50"
+                      >
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {new Date(tx.transactionDate).toLocaleString('ko-KR')}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span
+                            className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${tx.type === 'expense' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}
+                          >
+                            {tx.type === 'income' ? '입금' : '출금'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {tx.rawName || '-'}
+                        </td>
+                        <td className="px-2 py-1 font-medium whitespace-nowrap">
+                          {isEditing ? (
+                            <Autocomplete
+                              size="small"
+                              options={donors}
+                              getOptionLabel={opt => opt.name || ''}
+                              value={
+                                donors.find(d => d.id === editCounterpartyId) ||
+                                null
+                              }
+                              onChange={(_, v) =>
+                                setEditCounterpartyId(v?.id || null)
+                              }
+                              isOptionEqualToValue={(opt, val) =>
+                                opt.id === val.id
+                              }
+                              renderInput={params => (
+                                <TextField
+                                  {...params}
+                                  variant="outlined"
+                                  size="small"
+                                  placeholder="선택"
+                                />
+                              )}
+                              sx={{ minWidth: 140 }}
+                            />
+                          ) : (
+                            tx.counterparty?.name || '-'
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-red-600 whitespace-nowrap">
+                          {tx.withdrawal > 0
+                            ? tx.withdrawal.toLocaleString('ko-KR')
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-blue-600 whitespace-nowrap">
+                          {tx.deposit > 0
+                            ? tx.deposit.toLocaleString('ko-KR')
+                            : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-600 whitespace-nowrap">
+                          {tx.balance.toLocaleString('ko-KR')}
+                        </td>
+                        <td className="px-2 py-1 whitespace-nowrap">
+                          {isEditing ? (
+                            <Autocomplete
+                              size="small"
+                              options={getCategoryOptions(tx.type)}
+                              getOptionLabel={opt => opt.name || ''}
+                              value={
+                                categories.find(c => c.id === editCategoryId) ||
+                                null
+                              }
+                              onChange={(_, v) =>
+                                setEditCategoryId(v?.id || null)
+                              }
+                              isOptionEqualToValue={(opt, val) =>
+                                opt.id === val.id
+                              }
+                              renderInput={params => (
+                                <TextField
+                                  {...params}
+                                  variant="outlined"
+                                  size="small"
+                                  placeholder="선택"
+                                />
+                              )}
+                              sx={{ minWidth: 130 }}
+                            />
+                          ) : (
+                            tx.category?.name || '-'
+                          )}
+                        </td>
+                        <td className="px-2 py-1 text-center whitespace-nowrap">
+                          {isEditing ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <button
+                                onClick={cancelEdit}
+                                disabled={editSaving}
+                                className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded transition"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={saveEdit}
+                                disabled={editSaving}
+                                className="px-2 py-1 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded transition"
+                              >
+                                {editSaving ? '...' : '완료'}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEdit(tx, 'fund')}
+                              className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition"
+                            >
+                              수정
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

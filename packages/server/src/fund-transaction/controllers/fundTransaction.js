@@ -118,6 +118,35 @@ export const bulkCreateFundTransactions = async (req, res) => {
   });
 };
 
+// 울타리기금 거래내역 개별 수정 (확정이름, 카테고리)
+export const updateFundTransaction = async (req, res) => {
+  const { id } = req.params;
+  const { counterpartyId, categoryId } = req.body;
+
+  const tx = await db.FundTransaction.findByPk(id);
+  if (!tx) throw new ErrClass(ErrInfo.NotFound);
+
+  if (counterpartyId !== undefined) tx.counterpartyId = counterpartyId;
+  if (categoryId !== undefined) tx.categoryId = categoryId;
+  await tx.save();
+
+  const updated = await db.FundTransaction.findByPk(id, {
+    include: [
+      {
+        model: db.Counterparty,
+        as: 'counterparty',
+        attributes: ['id', 'name'],
+      },
+      {
+        model: db.TransactionCategory,
+        as: 'category',
+        attributes: ['id', 'name', 'type'],
+      },
+    ],
+  });
+  res.json(updated);
+};
+
 // 울타리기금 거래내역 목록 조회
 export const getFundTransactions = async (req, res) => {
   const { page = 1, limit = 50 } = req.query;

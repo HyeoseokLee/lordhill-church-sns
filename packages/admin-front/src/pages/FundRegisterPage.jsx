@@ -122,6 +122,7 @@ export default function FundRegisterPage() {
   const [fileName, setFileName] = useState('');
   const [verifyResult, setVerifyResult] = useState(null);
   const [counterparties, setCounterparties] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState(null);
@@ -132,6 +133,10 @@ export default function FundRegisterPage() {
     api
       .get('/admin/counterparties')
       .then(({ data }) => setCounterparties(data))
+      .catch(console.error);
+    api
+      .get('/admin/transaction-categories')
+      .then(({ data }) => setCategories(data))
       .catch(console.error);
   }, []);
 
@@ -175,6 +180,26 @@ export default function FundRegisterPage() {
     );
   };
 
+  // 특정 행의 카테고리 변경
+  const handleCategoryChange = (idx, newValue) => {
+    setRows(prev =>
+      prev.map((row, i) =>
+        i === idx
+          ? {
+              ...row,
+              matchedCategory: newValue
+                ? { id: newValue.id, name: newValue.name }
+                : null,
+            }
+          : row,
+      ),
+    );
+  };
+
+  // 행의 입/출금 타입에 맞는 카테고리 옵션만 반환
+  const getCategoryOptions = type =>
+    categories.filter(c => c.type === (type === '입금' ? 'income' : 'expense'));
+
   const handleSave = async () => {
     if (!verifyResult?.ok) {
       alert('검증이 완료되지 않은 데이터는 저장할 수 없습니다.');
@@ -211,7 +236,7 @@ export default function FundRegisterPage() {
         balance: row.balance,
         note: row.note,
         memo: row.memo,
-        categoryId: null,
+        categoryId: row.matchedCategory?.id || null,
       }));
       const { data } = await api.post('/admin/fund-transactions/bulk', {
         rows: payload,
@@ -312,6 +337,9 @@ export default function FundRegisterPage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
                     메모
                   </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                    카테고리
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -382,6 +410,33 @@ export default function FundRegisterPage() {
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                       {row.memo || '-'}
                     </td>
+                    <td className="px-2 py-1 whitespace-nowrap">
+                      <Autocomplete
+                        size="small"
+                        options={getCategoryOptions(row.type)}
+                        getOptionLabel={opt => opt.name || ''}
+                        value={
+                          row.matchedCategory
+                            ? categories.find(
+                                c => c.id === row.matchedCategory.id,
+                              ) || null
+                            : null
+                        }
+                        onChange={(_, newVal) =>
+                          handleCategoryChange(idx, newVal)
+                        }
+                        isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                        renderInput={params => (
+                          <TextField
+                            {...params}
+                            variant="outlined"
+                            size="small"
+                            placeholder="선택"
+                          />
+                        )}
+                        sx={{ minWidth: 130 }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -391,7 +446,8 @@ export default function FundRegisterPage() {
           <div className="bg-gray-50 px-4 py-3 border-t text-sm text-gray-500 flex items-center justify-between">
             <span>
               총 {rows.length}건 · 이름매칭{' '}
-              {rows.filter(r => r.matchedParty).length}건
+              {rows.filter(r => r.matchedParty).length}건 · 카테고리매칭{' '}
+              {rows.filter(r => r.matchedCategory).length}건
               {saveResult && (
                 <span className="ml-3 text-blue-600 font-medium">
                   → {saveResult.inserted}건 저장, {saveResult.skipped}건 중복
