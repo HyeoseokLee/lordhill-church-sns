@@ -189,12 +189,30 @@ export default function StatisticsPage() {
     ];
   }, [data, activeMonthIndices]);
 
-  // 울타리기금 — 월별 입금/출금
+  // 울타리기금 — 월별 입금/출금 + 출금 카테고리 상세
   const fundMonthData = useMemo(() => {
     if (!data || selectedMonth === 0) return null;
     const m = data.monthly[selectedMonth - 1];
-    return { income: m.income.total, expense: m.expense.total };
+    return {
+      income: m.income.total,
+      expense: m.expense.total,
+      expenseCategories: m.expense.categories,
+    };
   }, [data, selectedMonth]);
+
+  // 울타리기금 — 전체보기 출금 카테고리 총합
+  const fundExpenseByCategory = useMemo(() => {
+    if (!data || accountTab !== 'fund') return [];
+    const map = new Map<string, number>();
+    for (const m of data.monthly) {
+      for (const c of m.expense.categories) {
+        map.set(c.categoryName, (map.get(c.categoryName) || 0) + c.total);
+      }
+    }
+    return [...map.entries()]
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [data, accountTab]);
 
   return (
     <>
@@ -655,6 +673,32 @@ export default function StatisticsPage() {
                   </div>
                 )}
 
+                {/* 출금 내역 (카테고리별) */}
+                {fundExpenseByCategory.length > 0 && (
+                  <div className="bg-surface rounded-2xl overflow-hidden mb-6">
+                    <div className="px-4 py-3 border-b border-white/50">
+                      <p className="text-[13px] font-semibold text-text">
+                        출금 내역
+                      </p>
+                    </div>
+                    {fundExpenseByCategory.map((c, idx) => (
+                      <div
+                        key={c.name}
+                        className={`flex items-center justify-between px-4 py-3 ${
+                          idx < fundExpenseByCategory.length - 1
+                            ? 'border-b border-white/50'
+                            : ''
+                        }`}
+                      >
+                        <span className="text-[13px] text-text">{c.name}</span>
+                        <span className="text-[13px] font-semibold text-red-500">
+                          {formatFull(c.total)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* 데이터 없음 */}
                 {activeMonthIndices.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -756,6 +800,56 @@ export default function StatisticsPage() {
                     />
                   </div>
                 )}
+
+                {/* 출금 카테고리 상세 */}
+                {fundMonthData?.expenseCategories &&
+                  fundMonthData.expenseCategories.length > 0 && (
+                    <div className="bg-surface rounded-2xl overflow-hidden mb-4">
+                      <div className="px-4 py-3 border-b border-white/50">
+                        <p className="text-[13px] font-semibold text-text">
+                          {selectedMonth}월 출금 내역
+                        </p>
+                      </div>
+                      {fundMonthData.expenseCategories
+                        .sort(
+                          (a: { total: number }, b: { total: number }) =>
+                            b.total - a.total,
+                        )
+                        .map(
+                          (
+                            c: {
+                              categoryId: number | null;
+                              categoryName: string;
+                              total: number;
+                              count: number;
+                            },
+                            idx: number,
+                          ) => (
+                            <div
+                              key={c.categoryId ?? idx}
+                              className={`flex items-center justify-between px-4 py-3 ${
+                                idx <
+                                fundMonthData.expenseCategories!.length - 1
+                                  ? 'border-b border-white/50'
+                                  : ''
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] text-text">
+                                  {c.categoryName}
+                                </span>
+                                <span className="text-[11px] text-text-muted">
+                                  {c.count}건
+                                </span>
+                              </div>
+                              <span className="text-[13px] font-semibold text-red-500">
+                                {formatFull(c.total)}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                    </div>
+                  )}
 
                 {/* 데이터 없음 */}
                 {fundMonthData?.income === 0 &&
