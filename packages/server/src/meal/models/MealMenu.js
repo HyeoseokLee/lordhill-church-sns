@@ -29,6 +29,11 @@ export default (sequelize) => {
         type: DataTypes.STRING(100),
         allowNull: false,
       },
+      price: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
       displayOrder: {
         type: DataTypes.INTEGER,
         allowNull: false,

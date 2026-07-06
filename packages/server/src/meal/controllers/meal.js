@@ -1,5 +1,6 @@
 import db from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
+import { sendPushToAll } from '../../push/pushService.js';
 
 // ========== 어드민: 식당 관리 ==========
 
@@ -10,7 +11,7 @@ export const getRestaurants = async (_req, res) => {
       {
         model: db.MealMenu,
         as: 'menus',
-        attributes: ['id', 'name', 'displayOrder'],
+        attributes: ['id', 'name', 'price', 'displayOrder'],
         order: [['displayOrder', 'ASC']],
       },
     ],
@@ -65,11 +66,12 @@ export const uploadRestaurantIcon = async (req, res) => {
 
 // 메뉴 추가
 export const createMenu = async (req, res) => {
-  const { restaurantId, name, displayOrder } = req.body;
+  const { restaurantId, name, price, displayOrder } = req.body;
   if (!restaurantId || !name?.trim()) throw new ErrClass(ErrInfo.BadRequest);
   const menu = await db.MealMenu.create({
     restaurantId,
     name: name.trim(),
+    price: price ?? 0,
     displayOrder: displayOrder ?? 0,
   });
   res.status(201).json(menu);
@@ -78,10 +80,11 @@ export const createMenu = async (req, res) => {
 // 메뉴 수정
 export const updateMenu = async (req, res) => {
   const { id } = req.params;
-  const { name, displayOrder } = req.body;
+  const { name, price, displayOrder } = req.body;
   const menu = await db.MealMenu.findByPk(id);
   if (!menu) throw new ErrClass(ErrInfo.NotFound);
   if (name?.trim()) menu.name = name.trim();
+  if (price !== undefined) menu.price = price;
   if (displayOrder !== undefined) menu.displayOrder = displayOrder;
   await menu.save();
   res.json(menu);
@@ -122,6 +125,15 @@ export const createEvent = async (req, res) => {
     targetDate,
     status: 'active',
   });
+
+  // 전체 구성원에게 푸시 발송
+  sendPushToAll({
+    title: '식사주문',
+    body: '식사 주문이 시작되었습니다.',
+    data: { path: '/feed/meal' },
+    senderType: 'system',
+  }).catch(() => {});
+
   res.status(201).json(event);
 };
 
@@ -169,7 +181,7 @@ export const getActiveEvent = async (req, res) => {
           {
             model: db.MealMenu,
             as: 'menus',
-            attributes: ['id', 'name', 'displayOrder'],
+            attributes: ['id', 'name', 'price', 'displayOrder'],
           },
         ],
       },
@@ -197,7 +209,11 @@ export const getActiveEvent = async (req, res) => {
           model: db.MealOrderItem,
           as: 'items',
           include: [
-            { model: db.MealMenu, as: 'menu', attributes: ['id', 'name'] },
+            {
+              model: db.MealMenu,
+              as: 'menu',
+              attributes: ['id', 'name', 'price'],
+            },
           ],
         },
       ],
@@ -271,7 +287,11 @@ export const getOrderSummary = async (req, res) => {
         model: db.MealOrderItem,
         as: 'items',
         include: [
-          { model: db.MealMenu, as: 'menu', attributes: ['id', 'name'] },
+          {
+            model: db.MealMenu,
+            as: 'menu',
+            attributes: ['id', 'name', 'price'],
+          },
         ],
       },
     ],

@@ -15,11 +15,17 @@ export default function MealPage() {
   // 식당 추가 다이얼로그
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newRestName, setNewRestName] = useState('');
-  const [newMenus, setNewMenus] = useState(['']);
+  const [newMenus, setNewMenus] = useState([{ name: '', price: '' }]);
 
   // 메뉴 추가 다이얼로그 (기존 식당에)
   const [menuDialogRestId, setMenuDialogRestId] = useState(null);
   const [addMenuName, setAddMenuName] = useState('');
+  const [addMenuPrice, setAddMenuPrice] = useState('');
+
+  // 메뉴 수정 다이얼로그
+  const [editMenuId, setEditMenuId] = useState(null);
+  const [editMenuName, setEditMenuName] = useState('');
+  const [editMenuPrice, setEditMenuPrice] = useState('');
 
   // 이벤트 생성 다이얼로그
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
@@ -65,18 +71,19 @@ export default function MealPage() {
         name: newRestName.trim(),
       });
       // 메뉴 등록
-      const validMenus = newMenus.filter(m => m.trim());
+      const validMenus = newMenus.filter(m => m.name.trim());
       for (let i = 0; i < validMenus.length; i++) {
         await api.post('/admin/meal/menus', {
           restaurantId: rest.id,
-          name: validMenus[i].trim(),
+          name: validMenus[i].name.trim(),
+          price: Number(validMenus[i].price) || 0,
           displayOrder: i,
         });
       }
       toast.success('식당 등록 완료');
       setAddDialogOpen(false);
       setNewRestName('');
-      setNewMenus(['']);
+      setNewMenus([{ name: '', price: '' }]);
       fetchRestaurants();
     } catch (err) {
       console.error(err);
@@ -91,13 +98,32 @@ export default function MealPage() {
       await api.post('/admin/meal/menus', {
         restaurantId: menuDialogRestId,
         name: addMenuName.trim(),
+        price: Number(addMenuPrice) || 0,
       });
       toast.success('메뉴 추가 완료');
       setMenuDialogRestId(null);
       setAddMenuName('');
+      setAddMenuPrice('');
       fetchRestaurants();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // 메뉴 수정 저장
+  const handleEditMenu = async () => {
+    if (!editMenuId || !editMenuName.trim()) return;
+    try {
+      await api.patch(`/admin/meal/menus/${editMenuId}`, {
+        name: editMenuName.trim(),
+        price: Number(editMenuPrice) || 0,
+      });
+      toast.success('메뉴 수정 완료');
+      setEditMenuId(null);
+      fetchRestaurants();
+    } catch (err) {
+      console.error(err);
+      toast.error('수정 실패');
     }
   };
 
@@ -315,7 +341,21 @@ export default function MealPage() {
                         key={menu.id}
                         className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700"
                       >
-                        {menu.name}
+                        <button
+                          onClick={() => {
+                            setEditMenuId(menu.id);
+                            setEditMenuName(menu.name);
+                            setEditMenuPrice(String(menu.price || ''));
+                          }}
+                          className="hover:text-blue-600 transition"
+                        >
+                          {menu.name}
+                          {menu.price > 0 && (
+                            <span className="text-xs text-gray-400 ml-1">
+                              {menu.price.toLocaleString()}원
+                            </span>
+                          )}
+                        </button>
                         <button
                           onClick={() => handleDeleteMenu(menu.id)}
                           disabled={activeRestIds.has(rest.id)}
@@ -478,17 +518,29 @@ export default function MealPage() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">메뉴</p>
               {newMenus.map((menu, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
+                <div key={idx} className="flex gap-2 mb-2 items-center">
                   <TextField
-                    value={menu}
+                    value={menu.name}
                     onChange={e => {
                       const updated = [...newMenus];
-                      updated[idx] = e.target.value;
+                      updated[idx] = { ...updated[idx], name: e.target.value };
                       setNewMenus(updated);
                     }}
                     placeholder={`메뉴 ${idx + 1}`}
                     size="small"
-                    fullWidth
+                    sx={{ flex: 2 }}
+                  />
+                  <TextField
+                    value={menu.price}
+                    onChange={e => {
+                      const updated = [...newMenus];
+                      updated[idx] = { ...updated[idx], price: e.target.value };
+                      setNewMenus(updated);
+                    }}
+                    placeholder="가격"
+                    size="small"
+                    type="number"
+                    sx={{ flex: 1 }}
                   />
                   {newMenus.length > 1 && (
                     <button
@@ -503,7 +555,9 @@ export default function MealPage() {
                 </div>
               ))}
               <button
-                onClick={() => setNewMenus([...newMenus, ''])}
+                onClick={() =>
+                  setNewMenus([...newMenus, { name: '', price: '' }])
+                }
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 + 메뉴 추가
@@ -536,7 +590,7 @@ export default function MealPage() {
       >
         <DialogTitle>메뉴 추가</DialogTitle>
         <DialogContent>
-          <div className="pt-3">
+          <div className="pt-3 space-y-3">
             <TextField
               value={addMenuName}
               onChange={e => setAddMenuName(e.target.value)}
@@ -544,6 +598,16 @@ export default function MealPage() {
               label="메뉴명"
               placeholder="예: 김치찌개"
               size="small"
+              fullWidth
+            />
+            <TextField
+              value={addMenuPrice}
+              onChange={e => setAddMenuPrice(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddMenu()}
+              label="가격 (원)"
+              placeholder="예: 8000"
+              size="small"
+              type="number"
               fullWidth
             />
             <div className="flex justify-end gap-2 mt-6">
@@ -582,6 +646,7 @@ export default function MealPage() {
               size="small"
               fullWidth
               InputLabelProps={{ shrink: true }}
+              sx={{ mb: 3 }}
             />
             <TextField
               select
@@ -613,6 +678,50 @@ export default function MealPage() {
                 className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50"
               >
                 결정
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 메뉴 수정 다이얼로그 */}
+      <Dialog
+        open={!!editMenuId}
+        onClose={() => setEditMenuId(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>메뉴 수정</DialogTitle>
+        <DialogContent>
+          <div className="pt-3">
+            <TextField
+              value={editMenuName}
+              onChange={e => setEditMenuName(e.target.value)}
+              label="메뉴명"
+              size="small"
+              fullWidth
+              sx={{ mb: 3 }}
+            />
+            <TextField
+              value={editMenuPrice}
+              onChange={e => setEditMenuPrice(e.target.value)}
+              label="가격 (원)"
+              size="small"
+              type="number"
+              fullWidth
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setEditMenuId(null)}
+                className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg transition"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleEditMenu}
+                className="px-4 py-2 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+              >
+                저장
               </button>
             </div>
           </div>

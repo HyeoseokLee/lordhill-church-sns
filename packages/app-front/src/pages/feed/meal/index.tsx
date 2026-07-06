@@ -8,13 +8,14 @@ import { useAuthStore } from '@/stores/authStore';
 interface Menu {
   id: number;
   name: string;
+  price: number;
   displayOrder: number;
 }
 
 interface OrderItem {
   menuId: number;
   quantity: number;
-  menu: { id: number; name: string };
+  menu: { id: number; name: string; price: number };
 }
 
 interface Order {
@@ -149,8 +150,14 @@ export default function MealPage() {
       const item = order.items.find(i => i.menu.id === menu.id);
       return sum + (item?.quantity || 0);
     }, 0);
-    return { menuId: menu.id, name: menu.name, total };
+    return { menuId: menu.id, name: menu.name, price: menu.price, total };
   });
+
+  // 전체 금액 합계
+  const grandTotalPrice = menuTotals.reduce(
+    (sum, m) => sum + m.total * m.price,
+    0,
+  );
 
   if (loading) {
     return (
@@ -225,6 +232,13 @@ export default function MealPage() {
                 }`}
               >
                 {menu.name}
+                {menu.price > 0 && (
+                  <span
+                    className={`ml-1 text-[11px] font-normal ${isSelected ? 'text-white/70' : 'text-text-muted'}`}
+                  >
+                    {menu.price.toLocaleString()}원
+                  </span>
+                )}
               </button>
             );
           })}
@@ -305,6 +319,9 @@ export default function MealPage() {
                         {menu.name}
                       </th>
                     ))}
+                    <th className="text-center px-3 py-2 font-medium text-text-muted whitespace-nowrap">
+                      금액
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -312,22 +329,44 @@ export default function MealPage() {
                     const isMe =
                       currentUser &&
                       String(order.user?.id) === String(currentUser.id);
+                    // 주문자별 총 금액
+                    const orderTotal = order.items.reduce(
+                      (sum: number, item: any) =>
+                        sum + item.quantity * (item.menu?.price || 0),
+                      0,
+                    );
                     return (
                       <tr
                         key={order.id}
                         className={`border-b border-surface/50 ${isMe ? 'bg-accent/5' : ''}`}
                       >
                         <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                          <div className="font-medium text-text">
-                            <span
-                              className={
-                                isMe
-                                  ? 'border-b-[3px] border-accent pb-0.5'
-                                  : ''
-                              }
+                          <span
+                            className={`font-medium text-text ${
+                              isMe ? 'border-b-[3px] border-accent pb-0.5' : ''
+                            }`}
+                          >
+                            {order.user?.nickname || '?'}
+                          </span>
+                        </td>
+                        {menus.map(menu => {
+                          const item = order.items.find(
+                            (i: any) => i.menu.id === menu.id,
+                          );
+                          return (
+                            <td
+                              key={menu.id}
+                              className="px-3 py-2.5 text-center text-text"
                             >
-                              {order.user?.nickname || '?'}
-                            </span>
+                              {item ? item.quantity : ''}
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                          <div className="text-[13px] font-semibold text-text">
+                            {orderTotal > 0
+                              ? `${orderTotal.toLocaleString()}원`
+                              : ''}
                           </div>
                           <button
                             onClick={async () => {
@@ -340,7 +379,7 @@ export default function MealPage() {
                               }
                             }}
                             disabled={!isMe}
-                            className={`mt-2 text-[11px] font-semibold px-2 py-0.5 rounded-full transition ${
+                            className={`mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition ${
                               order.isPaid
                                 ? 'bg-accent/20 text-accent'
                                 : 'bg-surface text-text-muted'
@@ -349,19 +388,6 @@ export default function MealPage() {
                             {order.isPaid ? '입금완료' : '미입금'}
                           </button>
                         </td>
-                        {menus.map(menu => {
-                          const item = order.items.find(
-                            i => i.menu.id === menu.id,
-                          );
-                          return (
-                            <td
-                              key={menu.id}
-                              className="px-3 py-2.5 text-center text-text"
-                            >
-                              {item ? item.quantity : ''}
-                            </td>
-                          );
-                        })}
                       </tr>
                     );
                   })}
@@ -378,6 +404,11 @@ export default function MealPage() {
                         {m.total > 0 ? m.total : ''}
                       </td>
                     ))}
+                    <td className="px-3 py-2.5 text-center font-bold text-accent whitespace-nowrap">
+                      {grandTotalPrice > 0
+                        ? `${grandTotalPrice.toLocaleString()}원`
+                        : ''}
+                    </td>
                   </tr>
                 </tbody>
               </table>
