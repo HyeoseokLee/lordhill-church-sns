@@ -14,7 +14,10 @@ export const adminLogin = async (req, res) => {
   }
 
   const user = await models.User.findOne({
-    where: { username, role: userRole.admin },
+    where: {
+      username,
+      role: [userRole.admin, userRole.subAdmin],
+    },
   });
 
   if (!user) {

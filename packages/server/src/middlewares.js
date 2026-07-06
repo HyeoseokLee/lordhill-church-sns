@@ -34,3 +34,15 @@ export const onlyAdmin = (req, _res, next) => {
   }
   throw new ErrClass(ErrInfo.Forbidden);
 };
+
+// 어드민 또는 서브어드민 (식사관리 등 공통 기능용)
+export const onlyAdminOrSubAdmin = (req, _res, next) => {
+  if (
+    req.user &&
+    (req.user.role === 'admin' || req.user.role === 'sub_admin')
+  ) {
+    next();
+    return;
+  }
+  throw new ErrClass(ErrInfo.Forbidden);
+};

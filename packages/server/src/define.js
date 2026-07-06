@@ -2,6 +2,7 @@
 export const userRole = {
   member: 'member',
   admin: 'admin',
+  subAdmin: 'sub_admin',
 };
 
 // 사용자 상태

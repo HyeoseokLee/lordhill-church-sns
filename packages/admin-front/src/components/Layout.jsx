@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
-export default function Layout({ children }) {
+export default function Layout({ children, role }) {
+  const isSubAdmin = role === 'sub_admin';
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -109,8 +110,17 @@ export default function Layout({ children }) {
             <NavLink to="/push" className={iconLinkClass} title="푸시 관리">
               <span className="text-base">🔔</span>
             </NavLink>
-            <NavLink to="/offering" className={iconLinkClass} title="헌금 관리">
-              <span className="text-base">💰</span>
+            {!isSubAdmin && (
+              <NavLink
+                to="/offering"
+                className={iconLinkClass}
+                title="헌금 관리"
+              >
+                <span className="text-base">💰</span>
+              </NavLink>
+            )}
+            <NavLink to="/meal" className={iconLinkClass} title="식사 관리">
+              <span className="text-base">🍽️</span>
             </NavLink>
           </nav>
         ) : (
@@ -133,8 +143,13 @@ export default function Layout({ children }) {
             <NavLink to="/push" className={linkClass}>
               푸시 관리
             </NavLink>
-            <NavLink to="/offering" className={linkClass}>
-              헌금 관리
+            {!isSubAdmin && (
+              <NavLink to="/offering" className={linkClass}>
+                헌금 관리
+              </NavLink>
+            )}
+            <NavLink to="/meal" className={linkClass}>
+              식사 관리
             </NavLink>
           </nav>
         )}

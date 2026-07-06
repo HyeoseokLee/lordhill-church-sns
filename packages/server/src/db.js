@@ -22,6 +22,11 @@ import NoticeMedia from './notice/models/NoticeMedia.js';
 import Suggestion from './suggestion/models/Suggestion.js';
 import SuggestionComment from './suggestion/models/SuggestionComment.js';
 import FundTransaction from './fund-transaction/models/FundTransaction.js';
+import MealRestaurant from './meal/models/MealRestaurant.js';
+import MealMenu from './meal/models/MealMenu.js';
+import MealEvent from './meal/models/MealEvent.js';
+import MealOrder from './meal/models/MealOrder.js';
+import MealOrderItem from './meal/models/MealOrderItem.js';
 
 // config 패키지는 immutable 객체를 반환 — Sequelize가 내부 수정 시 hanging 발생
 const dbconfig = JSON.parse(JSON.stringify(config.sequelize));
@@ -77,6 +82,11 @@ db.NoticeMedia = NoticeMedia(sequelize);
 db.Suggestion = Suggestion(sequelize);
 db.SuggestionComment = SuggestionComment(sequelize);
 db.FundTransaction = FundTransaction(sequelize);
+db.MealRestaurant = MealRestaurant(sequelize);
+db.MealMenu = MealMenu(sequelize);
+db.MealEvent = MealEvent(sequelize);
+db.MealOrder = MealOrder(sequelize);
+db.MealOrderItem = MealOrderItem(sequelize);
 
 // Association 설정
 Object.keys(db).forEach((modelName) => {

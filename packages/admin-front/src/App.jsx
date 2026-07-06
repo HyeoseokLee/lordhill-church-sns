@@ -12,21 +12,26 @@ import OfferingPage from './pages/OfferingPage';
 import OfferingRegisterPage from './pages/OfferingRegisterPage';
 import FundRegisterPage from './pages/FundRegisterPage';
 import NoticePage from './pages/NoticePage';
+import MealPage from './pages/MealPage';
 
 function AdminRoute({ children }) {
-  const [state, setState] = useState({ loading: true, isAdmin: false });
+  const [state, setState] = useState({
+    loading: true,
+    isAdmin: false,
+    role: null,
+  });
 
   useEffect(() => {
     api
       .get('/auth/me')
       .then(({ data }) => {
-        setState({
-          loading: false,
-          isAdmin: data.role === 'admin' && data.status === 'approved',
-        });
+        const isAdmin =
+          (data.role === 'admin' || data.role === 'sub_admin') &&
+          data.status === 'approved';
+        setState({ loading: false, isAdmin, role: data.role });
       })
       .catch(() => {
-        setState({ loading: false, isAdmin: false });
+        setState({ loading: false, isAdmin: false, role: null });
       });
   }, []);
 
@@ -40,7 +45,7 @@ function AdminRoute({ children }) {
 
   if (!state.isAdmin) return <Navigate to="/login" />;
 
-  return <Layout>{children}</Layout>;
+  return <Layout role={state.role}>{children}</Layout>;
 }
 
 export default function App() {
@@ -117,6 +122,14 @@ export default function App() {
           element={
             <AdminRoute>
               <FundRegisterPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/meal"
+          element={
+            <AdminRoute>
+              <MealPage />
             </AdminRoute>
           }
         />

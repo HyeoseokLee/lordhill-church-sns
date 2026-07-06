@@ -74,6 +74,16 @@ export const uploadProfileImage = multer({
   },
 });
 
+// 식당 아이콘 업로드 (PNG만)
+export const uploadMealIcon = multer({
+  storage: s3Storage('meal-icons'),
+  fileFilter: fileFilter(['.png']),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB
+    files: 1,
+  },
+});
+
 // Presigned URL 발급 (프론트에서 S3에 직접 업로드용)
 export const generatePresignedUrl = async (filename, contentType) => {
   const ext = path.extname(filename).toLowerCase();

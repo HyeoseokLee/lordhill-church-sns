@@ -31,6 +31,7 @@ import TermsOfServicePage from '@/pages/my/terms/TermsOfServicePage';
 import PublicPrivacyPolicyPage from '@/pages/public/PublicPrivacyPolicyPage';
 import PublicTermsOfServicePage from '@/pages/public/PublicTermsOfServicePage';
 import SuggestionsPage from '@/pages/feed/suggestions/index';
+import MealPage from '@/pages/feed/meal/index';
 
 const router = createBrowserRouter([
   {
@@ -71,6 +72,7 @@ const router = createBrowserRouter([
           { path: 'post', element: <FeedWritePage /> },
           { path: 'detail/:postId', element: <PostDetailPage /> },
           { path: 'suggestions', element: <SuggestionsPage /> },
+          { path: 'meal', element: <MealPage /> },
         ],
       },
       // 돌고래(재활용) 탭

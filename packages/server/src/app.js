@@ -5,7 +5,12 @@ import express from 'express';
 import helmet from 'helmet';
 import { errHandler } from './err.js';
 import { middleware as loggerMiddleware } from './logger.js';
-import { onlyLoginUser, onlyApprovedUser, onlyAdmin } from './middlewares.js';
+import {
+  onlyLoginUser,
+  onlyApprovedUser,
+  onlyAdmin,
+  onlyAdminOrSubAdmin,
+} from './middlewares.js';
 import passportConfig from './passport/index.js';
 import { checkUserToken } from './passport/jwtStrategy.js';
 import authRouter from './user/routes/auth.js';
@@ -26,6 +31,8 @@ import noticeRouter from './notice/routes/notice.js';
 import blockRouter from './block/routes/block.js';
 import suggestionRouter from './suggestion/routes/suggestion.js';
 import fundTransactionRouter from './fund-transaction/routes/fundTransaction.js';
+import mealAdminRouter from './meal/routes/meal.js';
+import mealAppRouter from './meal/routes/mealApp.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -99,6 +106,10 @@ apiRouter.use('/admin', onlyLoginUser, onlyAdmin, counterpartyRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionCategoryRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, fundTransactionRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdminOrSubAdmin, mealAdminRouter);
+
+// 식사 주문 (승인된 사용자)
+apiRouter.use('/meals', onlyLoginUser, onlyApprovedUser, mealAppRouter);
 
 // 댓글 (승인된 사용자만 — use('/')는 모든 경로에 매칭되므로 반드시 마지막에 배치)
 apiRouter.use('/', onlyLoginUser, onlyApprovedUser, commentRouter);

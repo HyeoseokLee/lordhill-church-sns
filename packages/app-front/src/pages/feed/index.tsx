@@ -1,7 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSWRConfig } from 'swr';
-import { Bell, MessageCircle, Heart, MessageSquare, User } from 'lucide-react';
+import {
+  Bell,
+  Lightbulb,
+  MessageCircle,
+  Heart,
+  MessageSquare,
+  User,
+} from 'lucide-react';
 import { useFeed } from '@/hooks/api/useFeed';
 import { useAuthStore } from '@/stores/authStore';
 import { postApi } from '@/api/postApi';
@@ -9,6 +16,7 @@ import { formatRelativeTime } from '@/util/dateUtil';
 import { delayNavigate } from '@/util/navigateUtil';
 import { useUnreadCount } from '@/hooks/api/usePushs';
 import ImageCarousel from '@/components/common/ImageCarousel';
+import IcMealBtn from '@/assets/icons/ic_meal_btn.svg?react';
 
 // 홈 피드 페이지
 export default function FeedPage() {
@@ -59,29 +67,24 @@ export default function FeedPage() {
           주안의 교회
         </h1>
         <div className="flex items-center">
+          {/* 식사주문 */}
+          <button
+            onClick={() => delayNavigate(navigate, '/feed/meal')}
+            className="w-10 h-10 flex items-center justify-center rounded-full text-text hover:bg-surface transition-colors duration-150"
+          >
+            <IcMealBtn width={22} height={22} fill="currentColor" />
+          </button>
           {/* 개선요청 */}
           <button
             onClick={() => delayNavigate(navigate, '/feed/suggestions')}
-            className="relative w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface transition-colors duration-150"
+            className="w-10 h-10 flex items-center justify-center rounded-full text-text hover:bg-surface transition-colors duration-150"
           >
-            <span
-              className="animate-[wiggle_1.5s_ease-in-out_infinite]"
-              style={{
-                display: 'inline-flex',
-                background:
-                  'linear-gradient(135deg, #FF6B6B, #FFA94D, #FFD43B, #69DB7C, #4DABF7, #9775FA)',
-                WebkitMask:
-                  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E\") center/contain no-repeat",
-                mask: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E\") center/contain no-repeat",
-                width: 22,
-                height: 22,
-              }}
-            />
+            <Lightbulb size={22} strokeWidth={1.5} />
           </button>
           {/* 알림 */}
           <button
             onClick={() => delayNavigate(navigate, '/notifications')}
-            className="relative w-10 h-10 flex items-center justify-center rounded-full text-text-muted hover:bg-surface transition-colors duration-150"
+            className="relative w-10 h-10 flex items-center justify-center rounded-full text-text hover:bg-surface transition-colors duration-150"
           >
             <Bell size={22} strokeWidth={1.5} />
             {unreadCount > 0 && (
