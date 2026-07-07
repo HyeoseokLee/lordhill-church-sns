@@ -141,15 +141,15 @@ export const updateEvent = async (req, res) => {
   if (restaurantId !== undefined) event.restaurantId = restaurantId;
   await event.save();
 
-  // closed → active 전환 시 전체 푸시 발송
-  if (prevStatus === 'closed' && status === 'active') {
-    sendPushToAll({
-      title: '식사주문',
-      body: '식사 주문이 시작되었습니다.',
-      data: { path: '/feed/meal' },
-      senderType: 'system',
-    }).catch(() => {});
-  }
+  // closed → active 전환 시 전체 푸시 발송 (임시 비활성화)
+  // if (prevStatus === 'closed' && status === 'active') {
+  //   sendPushToAll({
+  //     title: '식사주문',
+  //     body: '식사 주문이 시작되었습니다.',
+  //     data: { path: '/feed/meal' },
+  //     senderType: 'system',
+  //   }).catch(() => {});
+  // }
 
   res.json(event);
 };
