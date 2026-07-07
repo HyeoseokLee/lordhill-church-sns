@@ -1,6 +1,6 @@
 import db from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
-import { sendPushToAll } from '../../push/pushService.js';
+// import { sendPushToAll } from '../../push/pushService.js';
 
 // ========== 어드민: 식당 관리 ==========
 
@@ -135,7 +135,7 @@ export const updateEvent = async (req, res) => {
   const { status, targetDate, restaurantId } = req.body;
   const event = await db.MealEvent.findByPk(id);
   if (!event) throw new ErrClass(ErrInfo.NotFound);
-  const prevStatus = event.status;
+  // const prevStatus = event.status;
   if (status !== undefined) event.status = status;
   if (targetDate !== undefined) event.targetDate = targetDate;
   if (restaurantId !== undefined) event.restaurantId = restaurantId;

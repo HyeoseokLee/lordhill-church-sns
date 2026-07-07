@@ -77,7 +77,10 @@ export const getFeed = async (req, res) => {
         attributes: ['id', 'mediaType', 'url', 'order'],
       },
     ],
-    order: [['createdAt', 'DESC']],
+    order: [
+      ['createdAt', 'DESC'],
+      [{ model: models.PostMedia, as: 'media' }, 'order', 'ASC'],
+    ],
     limit: pageSize + 1,
   });
 
@@ -140,6 +143,7 @@ export const getPost = async (req, res) => {
         attributes: ['id', 'mediaType', 'url', 'order'],
       },
     ],
+    order: [[{ model: models.PostMedia, as: 'media' }, 'order', 'ASC']],
   });
 
   if (!post) {
