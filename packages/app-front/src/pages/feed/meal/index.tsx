@@ -217,24 +217,24 @@ export default function MealPage() {
           </div>
         </div>
 
-        {/* 메뉴 선택 */}
-        <div className="flex flex-wrap gap-2 mb-5">
+        {/* 메뉴 선택 (3열 그리드) */}
+        <div className="grid grid-cols-3 gap-2 mb-5">
           {menus.map(menu => {
             const isSelected = (myItems[menu.id] || 0) > 0;
             return (
               <button
                 key={menu.id}
                 onClick={() => selectMenu(menu.id)}
-                className={`px-4 py-2.5 rounded-xl text-[14px] font-semibold transition-all ${
+                className={`flex flex-col items-center justify-center py-2 rounded-xl text-center transition-all ${
                   isSelected
                     ? 'bg-accent text-white shadow-sm'
                     : 'bg-surface text-text hover:bg-surface-strong'
                 }`}
               >
-                {menu.name}
+                <span className="text-[14px] font-semibold">{menu.name}</span>
                 {menu.price > 0 && (
                   <span
-                    className={`ml-1 text-[11px] font-normal ${isSelected ? 'text-white/70' : 'text-text-muted'}`}
+                    className={`text-[11px] mt-0.5 ${isSelected ? 'text-white/70' : 'text-text-muted'}`}
                   >
                     {menu.price.toLocaleString()}원
                   </span>
@@ -350,11 +350,7 @@ export default function MealPage() {
                         className={`border-b border-surface/50 ${isMe ? 'bg-accent/5' : ''}`}
                       >
                         <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                          <span
-                            className={`font-medium text-text ${
-                              isMe ? 'border-b-[3px] border-accent pb-0.5' : ''
-                            }`}
-                          >
+                          <span className="font-medium text-text">
                             {order.user?.nickname || '?'}
                           </span>
                         </td>
