@@ -466,9 +466,13 @@ export default function MealPage() {
                               onClick={() =>
                                 handleToggleEventStatus(ev.id, ev.status)
                               }
-                              className="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded transition"
+                              className={`px-3 py-1.5 text-xs font-semibold rounded transition ${
+                                ev.status === 'active'
+                                  ? 'text-gray-600 hover:bg-gray-100'
+                                  : 'text-white bg-green-600 hover:bg-green-700'
+                              }`}
                             >
-                              {ev.status === 'active' ? '마감' : '열기'}
+                              {ev.status === 'active' ? '마감' : '주문 열기'}
                             </button>
                             <button
                               onClick={() => startEditEvent(ev)}

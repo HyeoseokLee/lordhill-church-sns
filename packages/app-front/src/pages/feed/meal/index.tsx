@@ -247,9 +247,18 @@ export default function MealPage() {
         {/* 나의 주문 카드 */}
         {selectedItems.length > 0 && (
           <div className="bg-white rounded-2xl shadow-[0_1px_4px_rgba(0,0,0,0.08)] p-4 mb-5">
-            <p className="text-[15px] font-bold text-text pb-3 mb-3 border-b border-surface-strong">
-              나의 주문
-            </p>
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-surface-strong">
+              <p className="text-[15px] font-bold text-text">나의 주문</p>
+              <p className="text-[14px] font-bold text-accent">
+                {selectedItems
+                  .reduce((sum, item) => {
+                    const menu = menus.find(m => m.id === item.menuId);
+                    return sum + item.quantity * (menu?.price || 0);
+                  }, 0)
+                  .toLocaleString()}
+                원
+              </p>
+            </div>
             {selectedItems.map(item => (
               <div
                 key={item.menuId}

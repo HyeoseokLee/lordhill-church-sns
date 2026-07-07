@@ -123,16 +123,8 @@ export const createEvent = async (req, res) => {
   const event = await db.MealEvent.create({
     restaurantId,
     targetDate,
-    status: 'active',
+    status: 'closed',
   });
-
-  // 전체 구성원에게 푸시 발송
-  sendPushToAll({
-    title: '식사주문',
-    body: '식사 주문이 시작되었습니다.',
-    data: { path: '/feed/meal' },
-    senderType: 'system',
-  }).catch(() => {});
 
   res.status(201).json(event);
 };
@@ -143,10 +135,22 @@ export const updateEvent = async (req, res) => {
   const { status, targetDate, restaurantId } = req.body;
   const event = await db.MealEvent.findByPk(id);
   if (!event) throw new ErrClass(ErrInfo.NotFound);
+  const prevStatus = event.status;
   if (status !== undefined) event.status = status;
   if (targetDate !== undefined) event.targetDate = targetDate;
   if (restaurantId !== undefined) event.restaurantId = restaurantId;
   await event.save();
+
+  // closed → active 전환 시 전체 푸시 발송
+  if (prevStatus === 'closed' && status === 'active') {
+    sendPushToAll({
+      title: '식사주문',
+      body: '식사 주문이 시작되었습니다.',
+      data: { path: '/feed/meal' },
+      senderType: 'system',
+    }).catch(() => {});
+  }
+
   res.json(event);
 };
 
