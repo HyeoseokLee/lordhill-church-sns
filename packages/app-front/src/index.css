@@ -54,6 +54,12 @@
 .ql-content ol { list-style-type: decimal; }
 .ql-content p { margin: 0.3em 0; }
 
+/* 공지사항 보더 글로우 펄스 */
+@keyframes noticeGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(64, 192, 87, 0); }
+  50% { box-shadow: 0 0 8px 2px rgba(64, 192, 87, 0.35); }
+}
+
 /* 개선요청 아이콘 살짝 흔들림 */
 @keyframes wiggle {
   0%, 85%, 100% { transform: rotate(0deg); }
