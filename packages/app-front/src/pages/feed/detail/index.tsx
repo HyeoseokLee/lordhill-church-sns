@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Heart,
@@ -553,9 +553,9 @@ export default function PostDetailPage() {
             </>
           )}
 
-          {/* 좋아요/댓글 카운트 */}
+          {/* 좋아요 + 누른 사람 아바타 */}
           {post && !isEditing && (
-            <div className="flex items-center gap-4 mt-4 text-text-muted">
+            <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={() =>
                   postApi.toggleLike(String(post.id)).then(() => {
@@ -563,19 +563,43 @@ export default function PostDetailPage() {
                     window.dispatchEvent(new Event('feed-refresh'));
                   })
                 }
-                className="flex items-center gap-1"
+                className="flex items-center gap-1 text-text-muted"
               >
                 <Heart
-                  size={18}
+                  size={22}
                   strokeWidth={1.5}
                   className={post.isLiked ? 'fill-error text-error' : ''}
                 />
-                <span className="text-[13px]">{post.likeCount || 0}</span>
+                <span className="text-[14px]">{post.likeCount || 0}</span>
               </button>
-              <div className="flex items-center gap-1">
-                <MessageSquare size={18} strokeWidth={1.5} />
-                <span className="text-[13px]">{post.commentCount || 0}</span>
-              </div>
+              {post.likedUsers?.length > 0 && (
+                <div className="flex items-center -space-x-1">
+                  {post.likedUsers.map((u: any) => (
+                    <div key={u.id} className="relative group">
+                      {u.profileImageUrl ? (
+                        <img
+                          src={u.profileImageUrl}
+                          alt=""
+                          className="w-7 h-7 rounded-full object-cover border-2 border-white cursor-pointer"
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-surface-strong border-2 border-white flex items-center justify-center cursor-pointer">
+                          <User
+                            size={12}
+                            strokeWidth={1.5}
+                            className="text-text-muted"
+                          />
+                        </div>
+                      )}
+                      {/* 말풍선 툴팁 */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-text text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-active:opacity-100 pointer-events-none transition-opacity duration-150">
+                        {u.nickname}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-text" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -289,11 +289,11 @@ export default function FeedPage() {
                     className="flex items-center gap-1"
                   >
                     <Heart
-                      size={16}
+                      size={22}
                       strokeWidth={1.5}
                       className={post.isLiked ? 'fill-error text-error' : ''}
                     />
-                    <span className="text-[12px]">{post.likeCount || 0}</span>
+                    <span className="text-[13px]">{post.likeCount || 0}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -305,8 +305,8 @@ export default function FeedPage() {
                     }}
                     className="flex items-center gap-1"
                   >
-                    <MessageSquare size={16} strokeWidth={1.5} />
-                    <span className="text-[12px]">
+                    <MessageSquare size={22} strokeWidth={1.5} />
+                    <span className="text-[13px]">
                       {post.commentCount || 0}
                     </span>
                   </button>
