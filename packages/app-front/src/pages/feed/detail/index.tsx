@@ -48,6 +48,21 @@ export default function PostDetailPage() {
 
   // 게시글 수정 상태
   const [isEditing, setIsEditing] = useState(false);
+  // 좋아요 아바타 툴팁 (탭 토글, 다른 곳 탭 시 닫힘)
+  const [tooltipUserId, setTooltipUserId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!tooltipUserId) return;
+    const close = () => setTooltipUserId(null);
+    // 다음 틱에 등록 (현재 탭 이벤트가 즉시 닫히는 것 방지)
+    const timer = setTimeout(
+      () => document.addEventListener('click', close),
+      0,
+    );
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', close);
+    };
+  }, [tooltipUserId]);
   const [editContent, setEditContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   // 수정 모드 이미지 상태
@@ -563,7 +578,7 @@ export default function PostDetailPage() {
                     window.dispatchEvent(new Event('feed-refresh'));
                   })
                 }
-                className="flex items-center gap-1 text-text-muted"
+                className="flex items-center gap-1 text-text-muted flex-shrink-0"
               >
                 <Heart
                   size={22}
@@ -573,17 +588,44 @@ export default function PostDetailPage() {
                 <span className="text-[14px]">{post.likeCount || 0}</span>
               </button>
               {post.likedUsers?.length > 0 && (
-                <div className="flex items-center -space-x-1">
-                  {post.likedUsers.map((u: any) => (
-                    <div key={u.id} className="relative group">
+                <div
+                  className="flex items-center flex-1 min-w-0"
+                  style={{
+                    marginLeft: 0,
+                  }}
+                >
+                  {post.likedUsers.map((u: any, idx: number) => (
+                    <div
+                      key={u.id}
+                      className="relative flex-shrink-0"
+                      style={{
+                        marginLeft:
+                          idx === 0
+                            ? 0
+                            : -4 - Math.max(0, post.likedUsers.length - 8),
+                        zIndex: post.likedUsers.length - idx,
+                      }}
+                    >
                       {u.profileImageUrl ? (
                         <img
                           src={u.profileImageUrl}
                           alt=""
+                          onClick={() =>
+                            setTooltipUserId(
+                              tooltipUserId === u.id ? null : u.id,
+                            )
+                          }
                           className="w-7 h-7 rounded-full object-cover border-2 border-white cursor-pointer"
                         />
                       ) : (
-                        <div className="w-7 h-7 rounded-full bg-surface-strong border-2 border-white flex items-center justify-center cursor-pointer">
+                        <div
+                          onClick={() =>
+                            setTooltipUserId(
+                              tooltipUserId === u.id ? null : u.id,
+                            )
+                          }
+                          className="w-7 h-7 rounded-full bg-surface-strong border-2 border-white flex items-center justify-center cursor-pointer"
+                        >
                           <User
                             size={12}
                             strokeWidth={1.5}
@@ -591,11 +633,13 @@ export default function PostDetailPage() {
                           />
                         </div>
                       )}
-                      {/* 말풍선 툴팁 */}
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-text text-white text-[11px] rounded-md whitespace-nowrap opacity-0 group-active:opacity-100 pointer-events-none transition-opacity duration-150">
-                        {u.nickname}
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-text" />
-                      </div>
+                      {/* 말풍선 툴팁 (탭 토글) */}
+                      {tooltipUserId === u.id && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-text text-white text-[11px] rounded-md whitespace-nowrap z-50">
+                          {u.nickname}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-text" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
