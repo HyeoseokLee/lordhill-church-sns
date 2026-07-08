@@ -635,9 +635,8 @@ export default function PostDetailPage() {
                       )}
                       {/* 말풍선 툴팁 (탭 토글) */}
                       {tooltipUserId === u.id && (
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-text text-white text-[11px] rounded-md whitespace-nowrap z-50">
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-text text-white text-[11px] rounded-lg whitespace-nowrap z-50 shadow-md">
                           {u.nickname}
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-text" />
                         </div>
                       )}
                     </div>
