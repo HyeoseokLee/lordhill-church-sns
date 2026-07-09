@@ -1,19 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, CornerDownRight, Send } from 'lucide-react';
+import {
+  ChevronDown,
+  CornerDownRight,
+  Send,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import FullHeightBox from '@/components/common/FullHeightBox';
 import SubPageHeader from '@/components/common/SubPageHeader';
 import RainbowTipCard from '@/components/common/RainbowTipCard';
+import ConfirmModal from '@/components/common/ConfirmModal';
 import { suggestionApi } from '@/api/suggestionApi';
+import { useAuthStore } from '@/stores/authStore';
 import { formatRelativeTime } from '@/util/dateUtil';
 
 interface SuggestionComment {
   id: number;
+  userId: number | null;
   content: string;
   createdAt: string;
 }
 
 interface Suggestion {
   id: number;
+  userId: number | null;
   content: string;
   createdAt: string;
   comments: SuggestionComment[];
@@ -21,6 +31,7 @@ interface Suggestion {
 
 // 개선요청 페이지 (익명 제안 + 아코디언 + 댓글)
 export default function SuggestionsPage() {
+  const currentUser = useAuthStore(s => s.user);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -30,6 +41,18 @@ export default function SuggestionsPage() {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // 수정 상태
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState('');
+
+  // 삭제 모달
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // 댓글 수정/삭제
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState('');
+  const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
 
   // 댓글 입력
   const [commentTexts, setCommentTexts] = useState<Record<number, string>>({});
@@ -74,6 +97,60 @@ export default function SuggestionsPage() {
   };
 
   // 댓글 제출
+  // 수정 저장
+  const handleEditSave = async () => {
+    if (!editingId || !editContent.trim()) return;
+    try {
+      await suggestionApi.update(editingId, editContent.trim());
+      setEditingId(null);
+      setEditContent('');
+      fetchList();
+    } catch {
+      // 에러 무시
+    }
+  };
+
+  // 삭제 확인
+  const handleDeleteConfirm = async () => {
+    if (!deleteId) return;
+    try {
+      await suggestionApi.delete(deleteId);
+      setDeleteId(null);
+      setExpandedId(null);
+      fetchList();
+    } catch {
+      // 에러 무시
+    }
+  };
+
+  // 댓글 수정 저장
+  const handleCommentEditSave = async () => {
+    if (!editingCommentId || !editCommentContent.trim()) return;
+    try {
+      await suggestionApi.updateComment(
+        editingCommentId,
+        editCommentContent.trim(),
+      );
+      setEditingCommentId(null);
+      setEditCommentContent('');
+      fetchList();
+    } catch {
+      // 에러 무시
+    }
+  };
+
+  // 댓글 삭제 확인
+  const handleCommentDeleteConfirm = async () => {
+    if (!deleteCommentId) return;
+    try {
+      await suggestionApi.deleteComment(deleteCommentId);
+      setDeleteCommentId(null);
+      fetchList();
+    } catch {
+      // 에러 무시
+    }
+  };
+
   const handleCommentSubmit = async (suggestionId: number) => {
     const text = commentTexts[suggestionId]?.trim();
     if (!text || commentSubmitting !== null) return;
@@ -193,37 +270,166 @@ export default function SuggestionsPage() {
                     <div className="px-4 pb-4 border-t border-surface">
                       {/* 원글 내용 (음영 배경) */}
                       <div className="mt-3 bg-surface rounded-[8px] px-3 py-2.5">
-                        <p className="text-[14px] text-text leading-[1.7] whitespace-pre-wrap">
-                          {item.content}
-                        </p>
-                        <p className="text-[11px] text-text-muted mt-1.5">
-                          {formatRelativeTime(item.createdAt)}
-                        </p>
+                        {editingId === item.id ? (
+                          <>
+                            <textarea
+                              value={editContent}
+                              onChange={e => setEditContent(e.target.value)}
+                              maxLength={2000}
+                              className="w-full min-h-[80px] text-[14px] text-text bg-white border border-[#CED4DA] rounded-[8px] p-2.5 resize-none outline-none"
+                            />
+                            <div className="flex justify-end gap-2 mt-2">
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="px-3 py-1.5 text-[12px] font-semibold text-text-muted rounded-[8px] hover:bg-white"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={handleEditSave}
+                                className="px-3 py-1.5 text-[12px] font-semibold text-white bg-accent rounded-[8px]"
+                              >
+                                저장
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-[14px] text-text leading-[1.7] whitespace-pre-wrap">
+                              {item.content}
+                            </p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <p className="text-[11px] text-text-muted">
+                                {formatRelativeTime(item.createdAt)}
+                              </p>
+                              {currentUser &&
+                                String(item.userId) ===
+                                  String(currentUser.id) && (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setEditingId(item.id);
+                                        setEditContent(item.content);
+                                      }}
+                                      className="text-text-muted hover:text-text"
+                                    >
+                                      <Pencil size={13} strokeWidth={1.5} />
+                                    </button>
+                                    <button
+                                      onClick={() => setDeleteId(item.id)}
+                                      className="text-text-muted hover:text-error"
+                                    >
+                                      <Trash2 size={13} strokeWidth={1.5} />
+                                    </button>
+                                  </div>
+                                )}
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {/* 댓글 목록 */}
                       {item.comments.length > 0 && (
                         <div className="mt-2 flex flex-col gap-1.5">
-                          {item.comments.map(comment => (
-                            <div
-                              key={comment.id}
-                              className="flex items-start gap-1.5 pl-2"
-                            >
-                              <CornerDownRight
-                                size={14}
-                                strokeWidth={1.5}
-                                className="text-text-muted flex-shrink-0 mt-0.5"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[13px] text-text">
-                                  {comment.content}
-                                </p>
-                                <p className="text-[11px] text-text-muted mt-0.5">
-                                  {formatRelativeTime(comment.createdAt)}
-                                </p>
+                          {item.comments.map(comment => {
+                            const isMyComment =
+                              currentUser &&
+                              String(comment.userId) === String(currentUser.id);
+                            const isEditingComment =
+                              editingCommentId === comment.id;
+                            return (
+                              <div
+                                key={comment.id}
+                                className="flex items-start gap-1.5 pl-2"
+                              >
+                                <CornerDownRight
+                                  size={14}
+                                  strokeWidth={1.5}
+                                  className="text-text-muted flex-shrink-0 mt-0.5"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  {isEditingComment ? (
+                                    <div>
+                                      <input
+                                        type="text"
+                                        value={editCommentContent}
+                                        onChange={e =>
+                                          setEditCommentContent(e.target.value)
+                                        }
+                                        onKeyDown={e => {
+                                          if (
+                                            e.key === 'Enter' &&
+                                            !e.nativeEvent.isComposing
+                                          )
+                                            handleCommentEditSave();
+                                        }}
+                                        maxLength={500}
+                                        className="w-full text-[13px] text-text bg-white border border-[#CED4DA] rounded-[6px] px-2 py-1.5 outline-none"
+                                      />
+                                      <div className="flex justify-end gap-1.5 mt-1">
+                                        <button
+                                          onClick={() =>
+                                            setEditingCommentId(null)
+                                          }
+                                          className="px-2 py-1 text-[11px] text-text-muted"
+                                        >
+                                          취소
+                                        </button>
+                                        <button
+                                          onClick={handleCommentEditSave}
+                                          className="px-2 py-1 text-[11px] text-white bg-accent rounded"
+                                        >
+                                          저장
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="text-[13px] text-text">
+                                        {comment.content}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <p className="text-[11px] text-text-muted">
+                                          {formatRelativeTime(
+                                            comment.createdAt,
+                                          )}
+                                        </p>
+                                        {isMyComment && (
+                                          <>
+                                            <button
+                                              onClick={() => {
+                                                setEditingCommentId(comment.id);
+                                                setEditCommentContent(
+                                                  comment.content,
+                                                );
+                                              }}
+                                              className="text-text-muted hover:text-text"
+                                            >
+                                              <Pencil
+                                                size={11}
+                                                strokeWidth={1.5}
+                                              />
+                                            </button>
+                                            <button
+                                              onClick={() =>
+                                                setDeleteCommentId(comment.id)
+                                              }
+                                              className="text-text-muted hover:text-error"
+                                            >
+                                              <Trash2
+                                                size={11}
+                                                strokeWidth={1.5}
+                                              />
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
@@ -269,6 +475,22 @@ export default function SuggestionsPage() {
           </div>
         )}
       </div>
+      {/* 제안 삭제 확인 모달 */}
+      <ConfirmModal
+        open={!!deleteId}
+        message="개선요청을 삭제하시겠습니까? 댓글도 함께 삭제됩니다."
+        confirmText="삭제"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteId(null)}
+      />
+      {/* 댓글 삭제 확인 모달 */}
+      <ConfirmModal
+        open={!!deleteCommentId}
+        message="댓글을 삭제하시겠습니까?"
+        confirmText="삭제"
+        onConfirm={handleCommentDeleteConfirm}
+        onCancel={() => setDeleteCommentId(null)}
+      />
     </FullHeightBox>
   );
 }

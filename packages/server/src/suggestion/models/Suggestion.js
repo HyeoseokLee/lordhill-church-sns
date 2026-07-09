@@ -20,6 +20,11 @@ export default (sequelize) => {
         primaryKey: true,
         autoIncrement: true,
       },
+      userId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: 'user_id',
+      },
       content: {
         type: DataTypes.TEXT,
         allowNull: false,
