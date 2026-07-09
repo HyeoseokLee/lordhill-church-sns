@@ -5,16 +5,10 @@ module.exports = {
     await queryInterface.addColumn('suggestions', 'user_id', {
       type: Sequelize.INTEGER,
       allowNull: true,
-      references: { model: 'users', key: 'id' },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
     });
     await queryInterface.addColumn('suggestion_comments', 'user_id', {
       type: Sequelize.INTEGER,
       allowNull: true,
-      references: { model: 'users', key: 'id' },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL',
     });
   },
 
