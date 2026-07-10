@@ -349,7 +349,7 @@ export default function MealPage() {
                     return (
                       <tr
                         key={order.id}
-                        className={`border-b border-surface/50 ${isMe ? 'bg-accent/5' : ''}`}
+                        className={`border-b border-surface-strong ${isMe ? 'bg-accent/5' : ''}`}
                       >
                         <td className="px-3 py-2 text-center whitespace-nowrap">
                           <span className="font-medium text-text">
