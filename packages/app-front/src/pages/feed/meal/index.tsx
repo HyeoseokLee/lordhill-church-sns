@@ -328,8 +328,11 @@ export default function MealPage() {
                         {menu.name}
                       </th>
                     ))}
-                    <th className="text-center px-3 py-2 font-medium text-text-muted whitespace-nowrap">
+                    <th className="text-center px-2 py-2 font-medium text-text-muted whitespace-nowrap">
                       금액
+                    </th>
+                    <th className="text-center px-2 py-2 font-medium text-text-muted whitespace-nowrap">
+                      입금
                     </th>
                   </tr>
                 </thead>
@@ -338,7 +341,6 @@ export default function MealPage() {
                     const isMe =
                       currentUser &&
                       String(order.user?.id) === String(currentUser.id);
-                    // 주문자별 총 금액
                     const orderTotal = order.items.reduce(
                       (sum: number, item: any) =>
                         sum + item.quantity * (item.menu?.price || 0),
@@ -349,7 +351,7 @@ export default function MealPage() {
                         key={order.id}
                         className={`border-b border-surface/50 ${isMe ? 'bg-accent/5' : ''}`}
                       >
-                        <td className="px-3 py-2.5 text-center whitespace-nowrap">
+                        <td className="px-3 py-2 text-center whitespace-nowrap">
                           <span className="font-medium text-text">
                             {order.user?.nickname || '?'}
                           </span>
@@ -361,18 +363,18 @@ export default function MealPage() {
                           return (
                             <td
                               key={menu.id}
-                              className="px-3 py-2.5 text-center text-text"
+                              className="px-3 py-2 text-center text-text"
                             >
                               {item ? item.quantity : ''}
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                          <div className="text-[13px] font-semibold text-text">
-                            {orderTotal > 0
-                              ? `${orderTotal.toLocaleString()}원`
-                              : ''}
-                          </div>
+                        <td className="px-2 py-2 text-center whitespace-nowrap text-[13px] font-semibold text-text">
+                          {orderTotal > 0
+                            ? `${orderTotal.toLocaleString()}원`
+                            : ''}
+                        </td>
+                        <td className="px-2 py-2 text-center whitespace-nowrap">
                           <button
                             onClick={async () => {
                               if (!isMe) return;
@@ -384,7 +386,7 @@ export default function MealPage() {
                               }
                             }}
                             disabled={!isMe}
-                            className={`mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition ${
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition ${
                               order.isPaid
                                 ? 'bg-accent/20 text-accent'
                                 : 'bg-surface text-text-muted'
@@ -398,22 +400,23 @@ export default function MealPage() {
                   })}
                   {/* 총계 행 */}
                   <tr className="bg-surface/80">
-                    <td className="px-3 py-2.5 font-semibold text-text-muted text-center">
+                    <td className="px-3 py-2 font-semibold text-text-muted text-center">
                       총계
                     </td>
                     {menuTotals.map(m => (
                       <td
                         key={m.menuId}
-                        className="px-3 py-2.5 text-center font-bold text-accent"
+                        className="px-3 py-2 text-center font-bold text-accent"
                       >
                         {m.total > 0 ? m.total : ''}
                       </td>
                     ))}
-                    <td className="px-3 py-2.5 text-center font-bold text-accent whitespace-nowrap">
+                    <td className="px-2 py-2 text-center font-bold text-accent whitespace-nowrap">
                       {grandTotalPrice > 0
                         ? `${grandTotalPrice.toLocaleString()}원`
                         : ''}
                     </td>
+                    <td className="px-2 py-2" />
                   </tr>
                 </tbody>
               </table>

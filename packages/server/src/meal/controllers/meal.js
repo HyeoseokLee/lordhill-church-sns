@@ -1,6 +1,6 @@
 import db from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
-// import { sendPushToAll } from '../../push/pushService.js';
+import { sendPushToAll } from '../../push/pushService.js';
 
 // ========== 어드민: 식당 관리 ==========
 
@@ -135,21 +135,29 @@ export const updateEvent = async (req, res) => {
   const { status, targetDate, restaurantId } = req.body;
   const event = await db.MealEvent.findByPk(id);
   if (!event) throw new ErrClass(ErrInfo.NotFound);
-  // const prevStatus = event.status;
+  const prevStatus = event.status;
   if (status !== undefined) event.status = status;
   if (targetDate !== undefined) event.targetDate = targetDate;
   if (restaurantId !== undefined) event.restaurantId = restaurantId;
   await event.save();
 
-  // closed → active 전환 시 전체 푸시 발송 (임시 비활성화)
-  // if (prevStatus === 'closed' && status === 'active') {
-  //   sendPushToAll({
-  //     title: '식사주문',
-  //     body: '식사 주문이 시작되었습니다.',
-  //     data: { path: '/feed/meal' },
-  //     senderType: 'system',
-  //   }).catch(() => {});
-  // }
+  // 상태 변경 시 전체 푸시 발송
+  if (prevStatus !== status && status === 'active') {
+    sendPushToAll({
+      title: '식사주문',
+      body: '식사 주문이 시작되었습니다.',
+      data: { path: '/feed/meal' },
+      senderType: 'system',
+    }).catch(() => {});
+  }
+  if (prevStatus !== status && status === 'closed') {
+    sendPushToAll({
+      title: '식사주문',
+      body: '식사 주문이 마감되었습니다.',
+      data: { path: '/feed/meal' },
+      senderType: 'system',
+    }).catch(() => {});
+  }
 
   res.json(event);
 };
