@@ -192,6 +192,8 @@ export default function MealPage() {
     );
   }
 
+  const isClosed = event?.status === 'closed';
+
   return (
     <FullHeightBox className="mx-auto max-w-[480px] bg-bg">
       <SubPageHeader title="식사주문" />
@@ -200,6 +202,9 @@ export default function MealPage() {
         <div className="bg-accent/10 rounded-2xl p-4 mb-4 text-center">
           <p className="text-[12px] text-accent font-semibold mb-1">
             {event.targetDate}
+            {isClosed && (
+              <span className="ml-2 text-text-muted">(주문마감)</span>
+            )}
           </p>
           <div className="flex justify-center">
             <span className="relative inline-flex items-center">
@@ -224,12 +229,13 @@ export default function MealPage() {
             return (
               <button
                 key={menu.id}
-                onClick={() => selectMenu(menu.id)}
+                onClick={() => !isClosed && selectMenu(menu.id)}
+                disabled={isClosed}
                 className={`flex flex-col items-center justify-center py-2 rounded-xl text-center transition-all ${
                   isSelected
                     ? 'bg-accent text-white shadow-sm'
-                    : 'bg-surface text-text hover:bg-surface-strong'
-                }`}
+                    : 'bg-surface text-text'
+                } ${isClosed ? 'opacity-60 cursor-default' : 'hover:bg-surface-strong'}`}
               >
                 <span className="text-[14px] font-semibold">{menu.name}</span>
                 {menu.price > 0 && (
@@ -267,43 +273,55 @@ export default function MealPage() {
                 <span className="text-[14px] text-text font-medium">
                   {item.name}
                 </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => updateQty(item.menuId, -1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-surface text-text-muted hover:bg-surface-strong"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className="text-[15px] font-bold text-text w-5 text-center">
+                {isClosed ? (
+                  <span className="text-[14px] font-bold text-text">
                     {item.quantity}
                   </span>
-                  <button
-                    onClick={() => updateQty(item.menuId, 1)}
-                    className="w-7 h-7 flex items-center justify-center rounded-full bg-accent text-white"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => updateQty(item.menuId, -1)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-surface text-text-muted hover:bg-surface-strong"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="text-[15px] font-bold text-text w-5 text-center">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateQty(item.menuId, 1)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full bg-accent text-white"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
-            <div className="flex gap-2 mt-4 pt-4 border-t border-surface-strong">
-              {hasOrder && (
+            {!isClosed && (
+              <div className="flex gap-2 mt-4 pt-4 border-t border-surface-strong">
+                {hasOrder && (
+                  <button
+                    onClick={handleCancel}
+                    disabled={submitting}
+                    className="flex-1 py-2.5 text-[14px] font-bold text-text-muted bg-surface rounded-xl active:scale-[0.98] transition disabled:opacity-40"
+                  >
+                    주문취소
+                  </button>
+                )}
                 <button
-                  onClick={handleCancel}
+                  onClick={handleSubmit}
                   disabled={submitting}
-                  className="flex-1 py-2.5 text-[14px] font-bold text-text-muted bg-surface rounded-xl active:scale-[0.98] transition disabled:opacity-40"
+                  className="flex-1 py-2.5 text-[14px] font-bold text-white bg-accent rounded-xl active:scale-[0.98] transition disabled:opacity-40"
                 >
-                  주문취소
+                  {submitting
+                    ? '처리 중...'
+                    : hasOrder
+                      ? '주문수정'
+                      : '주문완료'}
                 </button>
-              )}
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="flex-1 py-2.5 text-[14px] font-bold text-white bg-accent rounded-xl active:scale-[0.98] transition disabled:opacity-40"
-              >
-                {submitting ? '처리 중...' : hasOrder ? '주문수정' : '주문완료'}
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         )}
 

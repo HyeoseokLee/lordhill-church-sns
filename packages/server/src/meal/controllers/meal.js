@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import db from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
 import { sendPushToAll } from '../../push/pushService.js';
@@ -179,12 +180,18 @@ export const deleteEvent = async (req, res) => {
 
 // ========== 앱: 활성 이벤트 + 주문 ==========
 
-// 현재 활성 이벤트 조회 (가장 가까운 active 이벤트 + 메뉴 + 내 주문)
+// 현재 이벤트 조회 (active 또는 날짜 지나지 않은 closed 이벤트 + 메뉴 + 내 주문)
 export const getActiveEvent = async (req, res) => {
   const userId = req.user?.id;
+  const today = new Date().toISOString().split('T')[0];
 
   const event = await db.MealEvent.findOne({
-    where: { status: 'active' },
+    where: {
+      [Op.or]: [
+        { status: 'active' },
+        { status: 'closed', targetDate: { [Op.gte]: today } },
+      ],
+    },
     include: [
       {
         model: db.MealRestaurant,
