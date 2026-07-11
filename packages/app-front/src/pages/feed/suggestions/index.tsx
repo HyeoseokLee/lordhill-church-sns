@@ -305,21 +305,21 @@ export default function SuggestionsPage() {
                               {currentUser &&
                                 String(item.userId) ===
                                   String(currentUser.id) && (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2.5">
                                     <button
                                       onClick={() => {
                                         setEditingId(item.id);
                                         setEditContent(item.content);
                                       }}
-                                      className="text-text-muted hover:text-text"
+                                      className="text-text-muted hover:text-text p-1"
                                     >
-                                      <Pencil size={13} strokeWidth={1.5} />
+                                      <Pencil size={14} strokeWidth={1.5} />
                                     </button>
                                     <button
                                       onClick={() => setDeleteId(item.id)}
-                                      className="text-text-muted hover:text-error"
+                                      className="text-text-muted hover:text-error p-1"
                                     >
-                                      <Trash2 size={13} strokeWidth={1.5} />
+                                      <Trash2 size={14} strokeWidth={1.5} />
                                     </button>
                                   </div>
                                 )}
