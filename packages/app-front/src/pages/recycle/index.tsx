@@ -147,7 +147,7 @@ export default function RecyclePage() {
                         <img
                           src={getThumb(item)}
                           alt=""
-                          className={`w-16 h-16 rounded-[8px] object-cover ${ring} ${shared ? 'grayscale' : ''}`}
+                          className={`w-16 h-16 rounded-[8px] object-cover ${ring} ${shared ? 'brightness-[0.6] saturate-[0.6]' : ''}`}
                         />
                       ) : (
                         <div
@@ -155,10 +155,19 @@ export default function RecyclePage() {
                         />
                       )}
                       {shared && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-white text-[9px] font-bold drop-shadow">
-                            Shared
-                          </span>
+                        <div className="absolute top-1 right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center shadow pointer-events-none">
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="white"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
                         </div>
                       )}
                       {isMe && (
@@ -219,12 +228,21 @@ export default function RecyclePage() {
                       me
                     </span>
                   )}
-                  {/* Shared 오버레이 */}
-                  {shared && getThumb(item) && (
-                    <div className="absolute top-0 left-0 right-0 bottom-8 flex items-center justify-center z-[5] pointer-events-none">
-                      <span className="text-white text-[16px] font-bold drop-shadow-lg opacity-80">
-                        Shared
-                      </span>
+                  {/* 공유 체크 배지 */}
+                  {shared && (
+                    <div className="absolute top-2 right-2 w-7 h-7 bg-accent rounded-full flex items-center justify-center shadow-md z-[5] pointer-events-none">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="white"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
                     </div>
                   )}
                   {/* 이미지 (원본 비율) */}
@@ -232,7 +250,7 @@ export default function RecyclePage() {
                     <img
                       src={getThumb(item)}
                       alt=""
-                      className={`w-full h-auto rounded-t-[10px] object-cover ${shared ? 'grayscale' : ''}`}
+                      className={`w-full h-auto rounded-t-[10px] object-cover ${shared ? 'brightness-[0.6] saturate-[0.6]' : ''}`}
                     />
                   ) : (
                     <div className="w-full aspect-square rounded-t-[10px] bg-surface-strong flex items-center justify-center">

@@ -298,10 +298,7 @@ export default function FeedPage() {
                   <button
                     onClick={() => {
                       swrMutate(`/posts/${post.id}`, post, false);
-                      delayNavigate(
-                        navigate,
-                        `/feed/detail/${post.id}?focus=comment`,
-                      );
+                      delayNavigate(navigate, `/feed/detail/${post.id}`);
                     }}
                     className="flex items-center gap-1"
                   >

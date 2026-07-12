@@ -387,52 +387,49 @@ export default function RecycleDetailPage() {
         {/* 이미지 캐러셀 */}
         {item?.media?.length > 0 && (
           <div className="relative">
-            <div className={isShared ? 'grayscale' : ''}>
+            <div className={isShared ? 'brightness-[0.6] saturate-[0.6]' : ''}>
               <ImageCarousel images={item.media} />
             </div>
             {isShared && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-white text-[20px] font-bold opacity-90 drop-shadow-lg">
-                  {item?.toUser?.nickname || ''}님에게
-                </span>
-                <span className="text-white text-[28px] font-bold tracking-wider opacity-80 drop-shadow-lg">
-                  공유완료!
+              <div className="absolute top-3 right-1.5 flex items-center gap-1.5 bg-accent px-3 py-1.5 rounded-full shadow-md z-[5] pointer-events-none">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span className="text-white text-[13px] font-bold">
+                  {item?.toUser?.nickname
+                    ? `${item.toUser.nickname}님에게 공유완료`
+                    : '공유완료'}
                 </span>
               </div>
             )}
-            {/* 상태 라벨 */}
-            <div
-              className={`absolute top-[20px] right-0 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
-                isShared
-                  ? 'bg-white/90 border-gray-300 text-gray-400'
-                  : 'bg-white/90 border-accent text-accent'
-              }`}
-            >
-              <Circle
-                size={6}
-                fill={isShared ? '#9CA3AF' : '#40C057'}
-                strokeWidth={0}
-              />
-              {isShared ? '공유완료' : '공유전'}
-            </div>
+            {/* 상태 라벨 (공유전만 표시 — 공유완료는 배지로 대체) */}
+            {!isShared && (
+              <div className="absolute top-[20px] right-0 z-10 flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border bg-white/90 border-accent text-accent">
+                <Circle size={6} fill="#40C057" strokeWidth={0} />
+                공유전
+              </div>
+            )}
           </div>
         )}
-        {/* 이미지 없을 때도 상태 라벨 표시 */}
-        {item && (!item.media || item.media.length === 0) && (
+        {/* 이미지 없을 때 상태 라벨 (공유전만) */}
+        {item && (!item.media || item.media.length === 0) && !isShared && (
           <div className="flex justify-end mb-2">
-            <div
-              className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border ${
-                isShared
-                  ? 'bg-white border-gray-300 text-gray-400'
-                  : 'bg-white border-accent text-accent'
-              }`}
-            >
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold border bg-white border-accent text-accent">
               <Circle
                 size={6}
                 fill={isShared ? '#9CA3AF' : '#40C057'}
                 strokeWidth={0}
               />
-              {isShared ? '공유완료' : '공유전'}
+              공유전
             </div>
           </div>
         )}
