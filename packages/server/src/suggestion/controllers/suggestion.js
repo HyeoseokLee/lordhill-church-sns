@@ -1,5 +1,7 @@
 import models from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
+import { sendPushToUser } from '../../push/pushService.js';
+import logger from '../../logger.js';
 
 // 개선요청 목록 조회 (댓글 포함, 최신순)
 export const getSuggestions = async (_req, res) => {
@@ -73,6 +75,18 @@ export const createSuggestionComment = async (req, res) => {
     suggestionId: id,
     content: content.trim(),
   });
+
+  // 글 작성자에게 푸시 (본인 댓글 제외, 익명이라 이름 미노출)
+  if (suggestion.userId && suggestion.userId !== req.user?.id) {
+    sendPushToUser(suggestion.userId, {
+      title: '개선요청',
+      body: '내 글에 새 댓글이 달렸습니다.',
+      data: { path: '/feed/suggestions' },
+    }).catch((err) =>
+      logger.error('suggestion-comment-push-failed', { error: err.message }),
+    );
+  }
+
   res.status(201).json(comment);
 };
 
