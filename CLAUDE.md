@@ -128,14 +128,14 @@ Fly.io (Docker 컨테이너, Express) → TiDB Cloud Serverless (MySQL 호환, S
 
 ## 단위개발 완료 후 기록 규칙
 
-이 프로젝트는 프로토타입이며, `.claude/docs/project-setup-guide.md`를 활용해 향후 여러 프로젝트를 세팅할 예정이다.
+이 프로젝트는 프로토타입이며, `~/.claude/docs/project-setup-guide.md`를 활용해 향후 여러 프로젝트를 세팅할 예정이다.
 따라서 **매 단위개발이 끝나면 반드시** 아래 두 곳에 핵심 내용을 기록한다.
 
 ### 1. `CLAUDE.md` — 시행착오 & 핵심 교훈 섹션 업데이트
 - 개발 중 겪은 **삽질, 버그, 예상과 다른 동작** 등을 간결하게 추가
 - 이미 있는 항목과 중복되지 않도록 확인 후 추가
 
-### 2. `.claude/docs/project-setup-guide.md` — 세팅 가이드 업데이트
+### 2. `~/.claude/docs/project-setup-guide.md` — 세팅 가이드 업데이트
 - 새로운 기능/인프라가 추가되면 해당 **단계(절차 + 코드 스니펫)** 를 가이드에 추가
 - 기존 단계의 절차가 변경되면 해당 섹션을 **수정**
 - 각 단계에 포함할 내용:
@@ -157,7 +157,7 @@ Do not deviate without explicit user approval.
 
 ## 배포 가이드
 
-상세 절차: `.claude/docs/project-setup-guide.md` (6-1. Fly.io + TiDB 섹션)
+상세 절차: `~/.claude/docs/project-setup-guide.md` (6-1. Fly.io + TiDB 섹션)
 
 ## Skill routing
 
