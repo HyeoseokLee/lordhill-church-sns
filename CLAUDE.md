@@ -125,6 +125,8 @@ Fly.io (Docker 컨테이너, Express) → TiDB Cloud Serverless (MySQL 호환, S
 12. **Express `use('/')` 순서**: prefix `/`는 모든 경로에 매칭. 인증 미들웨어 붙은 `use('/')`는 반드시 다른 라우터보다 마지막에 배치
 13. **CI/CD 시더 누락**: `db:migrate`만 있고 `db:seed:all`이 없으면 라이브에 초기 데이터 없음. 시더는 중복 실행 방지 로직(SELECT 후 스킵) 필수
 14. **PM2 프로세스 중복**: `pm2 startOrRestart`가 구 프로세스를 교체 못하고 중복 생성 가능. 라이브 배포 후 문제 시 `pm2 list`로 프로세스 개수 확인, `pm2 delete all` 후 재시작
+15. **다른 프로젝트 dev 서버와 포트 충돌**: `EADDRINUSE 0.0.0.0:3001`은 도커 문제가 아님. `ivf` 등 다른 프로젝트도 3001을 쓰므로 백그라운드에 떠 있으면 충돌. `connected {...}` 로그가 먼저 찍혔다면 DB는 정상이니 포트만 확인하면 된다. `lsof -nP -iTCP:3001 -sTCP:LISTEN`으로 점유 프로세스 확인 후 종료
+16. **구조가 같은 두 테이블은 서로를 막지 못함**: `transactions`(일반헌금)와 `fund_transactions`(울타리기금)는 필드가 완전히 동일하고 카테고리·거래처 마스터도 공유한다. 그래서 일반헌금 CSV를 울타리기금 화면에 올려도 DB가 걸러내지 못했다(2026-09 실제 발생, 68건 오적재). CSV 내부 잔액 검증만으로는 못 잡는다 — 은행 파일은 자기들끼리는 항상 정합하기 때문. **대상 계좌의 직전 잔액과 이어지는지**를 봐야 한다 (`src/balance/balanceService.js`)
 
 ## 단위개발 완료 후 기록 규칙
 

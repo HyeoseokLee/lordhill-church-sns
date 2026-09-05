@@ -9,6 +9,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import { isForcibleBalanceError } from '../lib/errorCode';
 
 // CSV 금액 문자열을 숫자로 변환
 function parseAmount(str) {
@@ -225,21 +226,25 @@ export default function FundRegisterPage() {
 
     setSaving(true);
     setSaveResult(null);
-    try {
-      const payload = rows.map(row => ({
-        transactionDate: row.date,
-        type: row.type === '입금' ? 'income' : 'expense',
-        rawName: row.name,
-        counterpartyId: row.matchedParty?.id || null,
-        withdrawal: row.withdrawal,
-        deposit: row.deposit,
-        balance: row.balance,
-        note: row.note,
-        memo: row.memo,
-        categoryId: row.matchedCategory?.id || null,
-      }));
+
+    const payload = rows.map(row => ({
+      transactionDate: row.date,
+      type: row.type === '입금' ? 'income' : 'expense',
+      rawName: row.name,
+      counterpartyId: row.matchedParty?.id || null,
+      withdrawal: row.withdrawal,
+      deposit: row.deposit,
+      balance: row.balance,
+      note: row.note,
+      memo: row.memo,
+      categoryId: row.matchedCategory?.id || null,
+    }));
+
+    // force=true면 서버의 잔액 검증을 건너뛰고 저장한다
+    const submit = async force => {
       const { data } = await api.post('/admin/fund-transactions/bulk', {
         rows: payload,
+        force,
       });
       setSaveResult(data);
       if (data.skipped > 0) {
@@ -248,9 +253,31 @@ export default function FundRegisterPage() {
       if (data.inserted > 0) {
         toast.success(`${data.inserted}건 저장 완료`);
       }
+    };
+
+    try {
+      await submit(false);
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || '저장 중 오류가 발생했습니다.');
+      const { code, message } = err.response?.data || {};
+
+      // 잔액 불일치는 관리자가 내용을 확인한 뒤 그대로 저장할 수 있다
+      if (isForcibleBalanceError(code)) {
+        if (confirm(`${message}\n\n확인했습니다. 그대로 저장하시겠습니까?`)) {
+          try {
+            await submit(true);
+          } catch (forceErr) {
+            console.error(forceErr);
+            alert(
+              forceErr.response?.data?.message ||
+                '저장 중 오류가 발생했습니다.',
+            );
+          }
+        }
+        return;
+      }
+
+      alert(message || '저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
     }

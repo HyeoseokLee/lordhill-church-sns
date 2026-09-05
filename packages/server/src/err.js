@@ -124,6 +124,18 @@ export const ErrInfo = {
     code: 70,
     message: '이미 신고한 콘텐츠입니다.',
   },
+
+  // Transaction — 거래내역 벌크 업로드 잔액 검증
+  BalanceChainBroken: {
+    statusCode: 400,
+    code: 80,
+    message: '업로드 파일의 잔액이 이어지지 않습니다.',
+  },
+  BalanceDiscontinuous: {
+    statusCode: 400,
+    code: 81,
+    message: '직전 거래와 잔액이 이어지지 않습니다.',
+  },
 };
 
 class CustomError extends Error {

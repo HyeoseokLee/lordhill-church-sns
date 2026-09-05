@@ -1,13 +1,26 @@
 import { Op } from 'sequelize';
 import db from '../../db.js';
 import { ErrClass, ErrInfo } from '../../err.js';
+import {
+  BalanceCheckCode,
+  verifyBalanceContinuity,
+  verifyUploadChain,
+} from '../../balance/balanceService.js';
 
 // 거래내역 벌크 저장 (CSV 파싱 결과)
+// force: true면 계좌 연속성 검증만 건너뛴다 (관리자가 불일치를 확인하고 진행하는 경우).
+// 파일 내부 잔액 연쇄는 파일 자체가 깨졌다는 뜻이므로 건너뛰지 않는다.
 export const bulkCreateTransactions = async (req, res) => {
-  const { rows } = req.body;
+  const { rows, force } = req.body;
+  const skipContinuityCheck = force === true;
 
   if (!Array.isArray(rows) || rows.length === 0) {
     throw new ErrClass(ErrInfo.BadRequest, '저장할 데이터가 없습니다.');
+  }
+
+  const chainResult = verifyUploadChain(rows);
+  if (chainResult.code !== BalanceCheckCode.Ok) {
+    throw new ErrClass(chainResult.errInfo, chainResult.message);
   }
 
   // 1. counterpartyId / categoryId 유효성 검증
@@ -103,10 +116,24 @@ export const bulkCreateTransactions = async (req, res) => {
     }
   }
 
-  // 4. 벌크 저장
-  if (newRows.length > 0) {
-    await db.Transaction.bulkCreate(newRows);
-  }
+  // 4. 잔액 연속성 검증 + 저장
+  // 검증과 저장 사이에 다른 요청이 끼어들면 잔액이 어긋나므로 한 트랜잭션으로 묶는다.
+  await db.sequelize.transaction(async (tx) => {
+    if (!skipContinuityCheck) {
+      const continuityResult = await verifyBalanceContinuity(
+        db.Transaction,
+        newRows,
+        { transaction: tx },
+      );
+      if (continuityResult.code !== BalanceCheckCode.Ok) {
+        throw new ErrClass(continuityResult.errInfo, continuityResult.message);
+      }
+    }
+
+    if (newRows.length > 0) {
+      await db.Transaction.bulkCreate(newRows, { transaction: tx });
+    }
+  });
 
   res.json({
     inserted: newRows.length,
