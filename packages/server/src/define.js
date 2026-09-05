@@ -37,6 +37,7 @@ export const pagination = {
 export const contentLimit = {
   postMaxLength: 2000,
   commentMaxLength: 500,
+  categoryNoteMaxLength: 1000,
   nicknameMinLength: 2,
   nicknameMaxLength: 20,
   imageMaxCount: 10,
@@ -69,4 +70,6 @@ export const auditAction = {
   restoreUser: 'restore_user',
   deletePost: 'delete_post',
   deleteComment: 'delete_comment',
+  upsertCategoryNote: 'upsert_category_note',
+  deleteCategoryNote: 'delete_category_note',
 };

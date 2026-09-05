@@ -27,8 +27,25 @@ cd packages/server && npm run migration -- <name>  # 마이그레이션 파일 �
 
 ## Database
 
-MySQL + Sequelize 6. 6개 테이블: users, posts, post_media, likes, comments, admin_audit_logs.
-Post/Comment는 `paranoid: true` (soft delete). 마이그레이션은 `packages/server/migrations/`.
+MySQL + Sequelize 6. 마이그레이션은 `packages/server/migrations/`. 모델 등록·association은 `src/db.js`.
+
+도메인별 테이블(2026-09 기준 27개):
+
+| 영역 | 테이블 |
+|------|--------|
+| 회원·SNS | users, posts, post_media, likes, comments, notices, notice_media, user_blocks, reports |
+| 회계 | transactions(일반헌금), fund_transactions(울타리기금), counterparties, transaction_categories, transaction_category_notes |
+| 식사 | meal_restaurants, meal_menus, meal_events, meal_orders, meal_order_items |
+| 재활용 | recycles, recycle_media, recycle_comments |
+| 제안 | suggestions, suggestion_comments |
+| 푸시 | pushs, push_logs, fcm_tokens |
+| 운영 | admin_audit_logs |
+
+대부분의 콘텐츠 테이블은 `paranoid: true` (soft delete).
+
+**주의**: soft delete와 UNIQUE 인덱스를 함께 쓰면 삭제된 행이 유니크 자리를 계속 점유한다.
+같은 키로 다시 만들 수 없으므로, upsert 시 `paranoid: false`로 조회 후 `restore()`해야 한다
+(`transaction_category_notes`가 이 패턴을 쓴다).
 
 - 로컬 Adminer: `http://localhost:8081` (서버: `mysql`, 사용자: `root`, 비밀번호: `rootpassword`)
 - 라이브 DB: TiDB Cloud Serverless (MySQL CLI로 접속, `--ssl-mode=REQUIRED` 필수)

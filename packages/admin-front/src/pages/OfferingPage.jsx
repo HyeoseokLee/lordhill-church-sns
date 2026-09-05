@@ -7,6 +7,7 @@ import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
+import CategoryNoteDialog from '../components/CategoryNoteDialog';
 
 // 카테고리 한쪽 패널 (입금 또는 출금)
 function CategoryPanel({ title, type, items, loading, onRefresh }) {
@@ -162,6 +163,9 @@ export default function OfferingPage() {
 
   // 카테고리 관리 상태
   const [catDialogOpen, setCatDialogOpen] = useState(false);
+
+  // 카테고리 메모 다이얼로그 상태
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [catLoading, setCatLoading] = useState(false);
 
@@ -365,6 +369,12 @@ export default function OfferingPage() {
             className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
           >
             카테고리 등록
+          </button>
+          <button
+            onClick={() => setNoteDialogOpen(true)}
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition"
+          >
+            카테고리 메모 등록
           </button>
           <button
             onClick={() => navigate('/offering/register')}
@@ -945,6 +955,12 @@ export default function OfferingPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 카테고리 메모 다이얼로그 */}
+      <CategoryNoteDialog
+        open={noteDialogOpen}
+        onClose={() => setNoteDialogOpen(false)}
+      />
     </div>
   );
 }

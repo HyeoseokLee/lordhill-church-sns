@@ -6,6 +6,8 @@ interface CategoryStat {
   categoryName: string;
   total: number;
   count: number;
+  // 관리자가 등록한 카테고리 메모. 헌금 통계에만 내려오고, 없으면 null.
+  note?: string | null;
 }
 
 interface MonthData {

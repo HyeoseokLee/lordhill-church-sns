@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import Chart from 'react-apexcharts';
+import { ChevronDown } from 'lucide-react';
 import useOfferingStats, { useFundStats } from '@/hooks/api/useOfferingStats';
 
 const MONTH_LABELS = [
@@ -67,6 +68,21 @@ export default function StatisticsPage() {
   const [year] = useState(2026);
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [selectedMonth, setSelectedMonth] = useState(0); // 0 = 전체보기
+  // 메모가 펼쳐진 카테고리 (categoryId, 미분류는 null → 'none')
+  const [openNoteKeys, setOpenNoteKeys] = useState<Set<string>>(new Set());
+
+  // 카테고리 메모 아코디언 토글
+  const toggleNote = (key: string) => {
+    setOpenNoteKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
   const offeringStats = useOfferingStats(year);
   const fundStats = useFundStats(year);
   const { data, isLoading } =
@@ -76,6 +92,7 @@ export default function StatisticsPage() {
   const handleTabChange = (tab: 'offering' | 'fund') => {
     setAccountTab(tab);
     setSelectedMonth(0);
+    setOpenNoteKeys(new Set());
     setType('income');
     try {
       localStorage.setItem('stats_tab', tab);
@@ -532,46 +549,94 @@ export default function StatisticsPage() {
                         {selectedMonth}월 카테고리별 내역
                       </p>
                     </div>
-                    {monthData.categories
+                    {[...monthData.categories]
                       .sort((a, b) => b.total - a.total)
-                      .map((c, idx) => (
-                        <div
-                          key={c.categoryId ?? idx}
-                          className={`flex items-center justify-between px-4 py-3 ${
-                            idx < monthData.categories.length - 1
-                              ? 'border-b border-white/50'
-                              : ''
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-2.5 h-2.5 rounded-full"
-                              style={{
-                                backgroundColor: getCategoryColor(
-                                  c.categoryName,
-                                  idx,
-                                ),
-                              }}
-                            />
-                            <span className="text-[13px] text-text">
-                              {c.categoryName}
-                            </span>
-                            <span className="text-[11px] text-text-muted">
-                              {c.count}건
-                            </span>
+                      .map((c, idx) => {
+                        const noteKey = `${type}-${selectedMonth}-${c.categoryId ?? 'none'}`;
+                        const isOpen = openNoteKeys.has(noteKey);
+                        const rowContent = (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor: getCategoryColor(
+                                    c.categoryName,
+                                    idx,
+                                  ),
+                                }}
+                              />
+                              <span className="text-[13px] text-text">
+                                {c.categoryName}
+                              </span>
+                              <span className="text-[11px] text-text-muted">
+                                {c.count}건
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="text-right">
+                                <span className="text-[13px] font-semibold text-text">
+                                  {formatFull(c.total)}
+                                </span>
+                                <span className="text-[11px] text-text-muted ml-1.5">
+                                  {monthData.total > 0
+                                    ? `${Math.round((c.total / monthData.total) * 100)}%`
+                                    : '0%'}
+                                </span>
+                              </div>
+                              {c.note && (
+                                <ChevronDown
+                                  size={16}
+                                  aria-hidden="true"
+                                  className={`text-text-muted transition-transform ${
+                                    isOpen ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              )}
+                            </div>
+                          </>
+                        );
+
+                        return (
+                          <div
+                            key={c.categoryId ?? 'uncategorized'}
+                            className={
+                              idx < monthData.categories.length - 1
+                                ? 'border-b border-white/50'
+                                : ''
+                            }
+                          >
+                            {/* 메모가 있을 때만 눌러서 펼칠 수 있다 */}
+                            {c.note ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleNote(noteKey)}
+                                aria-expanded={isOpen}
+                                aria-controls={`note-panel-${noteKey}`}
+                                className="w-full flex items-center justify-between px-4 py-3 text-left"
+                              >
+                                {rowContent}
+                              </button>
+                            ) : (
+                              <div className="flex items-center justify-between px-4 py-3">
+                                {rowContent}
+                              </div>
+                            )}
+
+                            {c.note && isOpen && (
+                              <div
+                                id={`note-panel-${noteKey}`}
+                                role="region"
+                                className="px-4 pb-3 -mt-1"
+                              >
+                                <p className="text-[12px] leading-relaxed text-text-muted whitespace-pre-wrap bg-white/50 rounded-xl px-3 py-2.5">
+                                  {c.note}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-right">
-                            <span className="text-[13px] font-semibold text-text">
-                              {formatFull(c.total)}
-                            </span>
-                            <span className="text-[11px] text-text-muted ml-1.5">
-                              {monthData.total > 0
-                                ? `${Math.round((c.total / monthData.total) * 100)}%`
-                                : '0%'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 )}
 
@@ -826,7 +891,7 @@ export default function StatisticsPage() {
                             idx: number,
                           ) => (
                             <div
-                              key={c.categoryId ?? idx}
+                              key={c.categoryId ?? 'uncategorized'}
                               className={`flex items-center justify-between px-4 py-3 ${
                                 idx <
                                 fundMonthData.expenseCategories!.length - 1

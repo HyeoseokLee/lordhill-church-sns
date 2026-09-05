@@ -136,6 +136,13 @@ export const ErrInfo = {
     code: 81,
     message: '직전 거래와 잔액이 이어지지 않습니다.',
   },
+
+  // Transaction — 카테고리 메모
+  CategoryNoteContentTooLong: {
+    statusCode: 400,
+    code: 82,
+    message: '메모는 최대 1000자까지 가능합니다.',
+  },
 };
 
 class CustomError extends Error {

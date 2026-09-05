@@ -31,6 +31,7 @@ import noticeRouter from './notice/routes/notice.js';
 import blockRouter from './block/routes/block.js';
 import suggestionRouter from './suggestion/routes/suggestion.js';
 import fundTransactionRouter from './fund-transaction/routes/fundTransaction.js';
+import transactionNoteRouter from './transaction-note/routes/transactionNote.js';
 import mealAdminRouter from './meal/routes/meal.js';
 import mealAppRouter from './meal/routes/mealApp.js';
 
@@ -106,6 +107,7 @@ apiRouter.use('/admin', onlyLoginUser, onlyAdmin, counterpartyRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionCategoryRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdmin, fundTransactionRouter);
+apiRouter.use('/admin', onlyLoginUser, onlyAdmin, transactionNoteRouter);
 apiRouter.use('/admin', onlyLoginUser, onlyAdminOrSubAdmin, mealAdminRouter);
 
 // 식사 주문 (승인된 사용자)
